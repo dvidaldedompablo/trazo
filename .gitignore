@@ -1,0 +1,32 @@
+# Compilaciones y archivos locales
+builds/
+ci-artifacts/
+feedback/
+*.ipa
+# El kit original: su contenido ya está en docs/ y design/
+trazo-kit.zip
+
+# Etapa 4b (prueba de laboratorio en el PC): solo se suben los .py y el README
+lab/**/.venv/
+lab/**/*.mp4
+lab/**/*.mov
+lab/**/frames/
+lab/**/__pycache__/
+
+# Xcode (se genera en el CI)
+*.xcodeproj/
+build/
+build-sim/
+DerivedData/
+ci-shots/
+Payload/
+test-results/
+# XcodeGen lo escribe a partir de project.yml
+App/Info.plist
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Sistema
+.DS_Store
+Thumbs.db

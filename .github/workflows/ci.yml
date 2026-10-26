@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Si llega un push nuevo, se cancela la compilación anterior de la misma rama.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
+
+jobs:
+  build:
+    name: IPA y tests
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Herramientas
+        run: |
+          brew install xcodegen
+          xcodebuild -version
+          swift --version
+      - name: Generar proyecto
+        run: xcodegen generate
+      - name: Tests de GolfCore
+        run: |
+          mkdir -p test-results
+          swift test --package-path Packages/GolfCore --xunit-output test-results/golfcore.xml
+      - name: Compilar IPA sin firmar
+        run: |
+          set -o pipefail
+          # Número de compilación = número de run; fecha en ISO 8601 (UTC). La app los enseña.
+          xcodebuild -project Trazo.xcodeproj -scheme Trazo -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            TRAZO_BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            build | xcbeautify
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/Trazo.app Payload/
+          zip -qry Trazo.ipa Payload
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ipa
+          path: Trazo.ipa
+          retention-days: 14
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  screenshots:
+    name: Capturas del simulador
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Herramientas
+        run: brew install xcodegen
+      - name: Generar proyecto
+        run: xcodegen generate
+      - name: Elegir simulador (iPhone 17e si existe, con el iOS más nuevo)
+        run: |
+          pick() { xcrun simctl list devices available | sed -nE "s/^ +($1) \(([0-9A-F-]+)\).*/\2/p" | tail -1; }
+          UDID=$(pick 'iPhone 17e'); [ -z "$UDID" ] && UDID=$(pick 'iPhone 16e'); [ -z "$UDID" ] && UDID=$(pick 'iPhone 17')
+          [ -z "$UDID" ] && { echo "No hay simulador de iPhone"; xcrun simctl list devices available; exit 1; }
+          echo "Simulador: $UDID"
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+      - name: Compilar para simulador
+        run: |
+          set -o pipefail
+          xcodebuild -project Trazo.xcodeproj -scheme Trazo -configuration Debug \
+            -destination "id=$UDID" -derivedDataPath build-sim \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            TRAZO_BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            build | xcbeautify
+      - name: Capturas
+        run: bash scripts/screenshots.sh "$UDID"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: screenshots
+          path: ci-shots/
+          retention-days: 14

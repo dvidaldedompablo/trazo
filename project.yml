@@ -1,0 +1,55 @@
+# XcodeGen: a partir de este archivo se genera Trazo.xcodeproj en el CI (`xcodegen generate`).
+# El .xcodeproj no se sube al repositorio.
+name: Trazo
+options:
+  bundleIdPrefix: io.github.dvidaldedompablo
+  deploymentTarget:
+    iOS: "26.0"
+  developmentLanguage: es
+  createIntermediateGroups: true
+
+packages:
+  GolfCore:
+    path: Packages/GolfCore
+
+targets:
+  Trazo:
+    type: application
+    platform: iOS
+    # XcodeGen trata el código como fuentes y la fuente, las imágenes y los catálogos como recursos.
+    sources: [App]
+    dependencies:
+      - package: GolfCore
+    scheme: {}
+    info:
+      # XcodeGen escribe este Info.plist al generar el proyecto (está en .gitignore).
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Trazo
+        CFBundleDevelopmentRegion: es
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Fecha de compilación en ISO 8601. La rellena el CI; vacía si se compila en otro sitio.
+        TrazoBuildDate: $(TRAZO_BUILD_DATE)
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIUserInterfaceStyle: Light
+        UIAppFonts: [Archivo-Variable.ttf]
+        ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: Trazo usa la cámara para grabar tus golpes.
+        NSMicrophoneUsageDescription: Trazo usa el micrófono para oír el impacto de la bola.
+        NSPhotoLibraryUsageDescription: Trazo lee tus vídeos de golf de Fotos.
+        NSPhotoLibraryAddUsageDescription: Trazo guarda en Fotos los vídeos que crees.
+    settings:
+      base:
+        PRODUCT_NAME: Trazo
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.dvidaldedompablo.trazo
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        MARKETING_VERSION: "0.1"
+        # El CI lo sustituye por el número de run, para saber qué compilación tienes instalada.
+        CURRENT_PROJECT_VERSION: "1"
+        TRAZO_BUILD_DATE: ""
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

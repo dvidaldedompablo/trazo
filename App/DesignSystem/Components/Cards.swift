@@ -36,6 +36,8 @@ struct HelpRow: View {
     let title: String
     let subtitle: String
 
+    private static let textDrop: CGFloat = 2
+
     var body: some View {
         HStack(spacing: Spacing.m) {
             Image(systemName: systemImage)
@@ -52,6 +54,9 @@ struct HelpRow: View {
                     .typeStyle(.filaSub)
                     .foregroundStyle(Color.texto2)
             }
+            // La maqueta centra el texto con las medidas de Inter; con SF Pro queda 2 pt más alto.
+            // La guía de alineación baja el bloque esos 2 pt respecto al icono.
+            .alignmentGuide(VerticalAlignment.center) { $0[VerticalAlignment.center] - Self.textDrop }
             Spacer(minLength: Spacing.s)
             Image(systemName: "chevron.right")
                 .font(.system(size: Size.chevron, weight: .semibold))

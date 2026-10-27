@@ -267,20 +267,22 @@ private enum HomeLayout {
     /// Interior de las tarjetas.
     static let cardPadding: CGFloat = 18
     static let cardBodyTop: CGFloat = 14
-    static let titleToDescription: CGFloat = 5
-    static let descriptionToOptions: CGFloat = 14
-    static let optionsToButtons: CGFloat = 16
+    // La maqueta dice 5, 14 y 16, pero con Inter. SF Pro deja la descripción 1 pt más abajo
+    // y la tarjeta salía 2,5 pt más alta: se quita aquí, medido contra s01.
+    static let titleToDescription: CGFloat = 4
+    static let descriptionToOptions: CGFloat = 13
+    static let optionsToButtons: CGFloat = 15.5
     static let buttonGap: CGFloat = 10
     /// Tarjeta de Análisis: columna de texto a la izquierda y figura a la derecha.
     static let swingTitleToDescription: CGFloat = 6
     static let swingDescriptionMaxWidth: CGFloat = 209
-    /// Hueco a la derecha de la columna de texto, donde va la figura.
-    static let swingTextTrailing: CGFloat = 119
+    /// Hueco a la derecha de la columna de texto, donde va la figura (deja el botón amarillo en 163,5 pt).
+    static let swingTextTrailing: CGFloat = 116.5
     static let swingTextMinHeight = Size.swingCardHeight - 2 * cardPadding - Size.buttonHeight
     static let figureSize = CGSize(width: 128, height: 180)
     static let figureTop: CGFloat = 14
-    /// La figura se sale 3 pt por la derecha y la tarjeta la recorta.
-    static let figureTrailing: CGFloat = -3
+    /// La figura se sale 6 pt por la derecha y la tarjeta la recorta.
+    static let figureTrailing: CGFloat = -6
     /// Datos de la vista previa: el palo y la distancia por defecto de "Mis palos" (docs/01).
     static let previewClub = "Hierro 7"
     static let previewDistance: Double = 150

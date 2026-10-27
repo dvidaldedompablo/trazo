@@ -41,8 +41,10 @@ struct TraceLayer: Identifiable {
     var isCore = false
 
     static let all: [TraceLayer] = [
-        // Halo: ancho, transparente y muy difuminado.
-        TraceLayer(id: 0, startWidth: 14.66, endWidth: 9.65, opacity: 0.42, blur: 7),
+        // Halo: ancho, transparente y muy difuminado. La maqueta lo pinta al 42 %, pero como
+        // 56 segmentos con puntas redondas que se solapan; el brillo que se ve equivale a un
+        // 64 % de una sola pieza (medido comparando la captura del CI con s01).
+        TraceLayer(id: 0, startWidth: 14.66, endWidth: 9.65, opacity: 0.64, blur: 7),
         // Color con el borde suavizado.
         TraceLayer(id: 1, startWidth: 6.35, endWidth: 4.18, opacity: 0.9, blur: 2.2),
         // Color nítido.

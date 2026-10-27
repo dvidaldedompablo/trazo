@@ -81,4 +81,7 @@ enum Size {
     /// Iconos: en botones redondos y filas, y en los botones en cápsula.
     static let icon: CGFloat = 17
     static let iconSmall: CGFloat = 15
+    /// Flecha de las filas ("ir") y la caja donde va centrada.
+    static let chevron: CGFloat = 13
+    static let chevronBox: CGFloat = 18
 }

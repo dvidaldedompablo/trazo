@@ -54,8 +54,10 @@ struct HelpRow: View {
             }
             Spacer(minLength: Spacing.s)
             Image(systemName: "chevron.right")
-                .font(.system(size: Size.iconSmall, weight: .semibold))
+                .font(.system(size: Size.chevron, weight: .semibold))
                 .foregroundStyle(Color.texto3)
+                // La flecha va centrada en una caja de 18 pt, como en la maqueta.
+                .frame(width: Size.chevronBox)
                 .accessibilityHidden(true)
         }
         .padding(.leading, Spacing.s)

@@ -154,8 +154,9 @@ public struct BlobTracker: Sendable {
         var thresholdPixels = [UInt8](repeating: 0, count: pixelCount)
         var values = [Int](repeating: 0, count: count)
         var deviations = [Int](repeating: 0, count: count)
+        let sources = frames[start..<impactFrame].map(\.pixels)
         for p in 0..<pixelCount {
-            for k in 0..<count { values[k] = Int(frames[start + k].pixels[p]) }
+            for k in 0..<count { values[k] = Int(sources[k][p]) }
             values.sort()
             let median = values[count / 2]
             for k in 0..<count { deviations[k] = abs(values[k] - median) }

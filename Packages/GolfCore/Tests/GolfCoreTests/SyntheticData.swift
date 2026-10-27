@@ -44,7 +44,7 @@ enum SyntheticSwing {
     static let topTime = 1.8
     static let impactTime = 2.07
     static let finishTime = 2.6
-    static let leadShoulder = Point2D(615, 850)
+    static let leadShoulder = Point2D(640, 850)
     static let armLength = 330.0
 
     /// Ángulo del brazo de delante (grados): 0 colgando, 90 paralelo al suelo, 150 en el top.

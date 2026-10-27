@@ -26,11 +26,16 @@ private struct RootView: View {
         // UITestScreen(rawValue:) devuelve nil si el nombre no es ninguno de los casos.
         switch UITestScreen(rawValue: name) {
         case .home:
-            HomeView()
+            // NavigationStack lleva la pila de pantallas: Inicio abajo y lo que se abra encima.
+            NavigationStack {
+                HomeView()
+            }
+        case .components:
+            ComponentCatalogView()
         case nil:
             // Nombre que la app no conoce: se dice en la captura en vez de enseñar otra pantalla.
             Text("Pantalla de prueba desconocida: \(name)")
-                .font(Typography.sub)
+                .typeStyle(.sub)
                 .foregroundStyle(Color.pino)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.bola)

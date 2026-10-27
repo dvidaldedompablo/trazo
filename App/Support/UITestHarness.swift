@@ -4,6 +4,8 @@ import UIKit
 /// Se añade un caso por cada pantalla nueva (la lista completa está en docs/01_ARQUITECTURA.md).
 enum UITestScreen: String {
     case home
+    /// Catálogo de componentes del sistema de diseño (no es una pantalla de la app).
+    case components
 }
 
 /// Arnés de capturas: con `-UITestScreen` la app abre esa pantalla con datos de demostración,
@@ -21,5 +23,9 @@ enum UITestHarness {
     @MainActor
     static func prepare() {
         UIView.setAnimationsEnabled(false)
+        // Ajustes de fábrica (trazo rojo, distancia activada), por si quedó algo de otra prueba.
+        for key in SettingsKey.all {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
     }
 }

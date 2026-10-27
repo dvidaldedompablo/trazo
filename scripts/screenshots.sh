@@ -5,7 +5,7 @@ set -euo pipefail
 
 UDID="$1"
 # Pantallas que ya existen en la app. Se amplía en cada etapa (lista completa en docs/01).
-SCREENS=(home)
+SCREENS=(home components)
 
 APP=build-sim/Build/Products/Debug-iphonesimulator/Trazo.app
 BUNDLE=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")

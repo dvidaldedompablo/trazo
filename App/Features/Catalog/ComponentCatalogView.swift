@@ -69,7 +69,7 @@ struct ComponentCatalogView: View {
             VStack(spacing: Spacing.m) {
                 HStack {
                     Button {} label: { Image(systemName: "xmark") }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.crystal)
                         .accessibilityLabel("Cerrar")
                     Spacer()
                     Chip(title: "Tracer", dotColor: .rojoTrazo, surface: .video)
@@ -78,7 +78,7 @@ struct ComponentCatalogView: View {
                 Spacer()
                 HStack {
                     Button {} label: { Label("Tocar la bola", systemImage: "scope") }
-                        .buttonStyle(GlassButtonStyle(outline: .capsule))
+                        .buttonStyle(CrystalButtonStyle(outline: .capsule))
                     Spacer()
                     Chip(title: "Corte auto", systemImage: "waveform", surface: .video)
                 }

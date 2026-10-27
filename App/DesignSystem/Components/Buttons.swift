@@ -105,7 +105,7 @@ extension ButtonStyle where Self == CircleIconButtonStyle {
 /// - `.video`: Liquid Glass de iOS 26, solo para controles sobre vídeo (docs/02).
 /// - `.darkCard`: el "cristal oscuro" de la tarjeta de Análisis. No hay vídeo detrás, así que
 ///   es un blanco translúcido plano con un borde fino, como en la maqueta.
-struct GlassButtonStyle: ButtonStyle {
+struct CrystalButtonStyle: ButtonStyle {
     enum Surface {
         case video, darkCard
     }
@@ -151,9 +151,9 @@ struct GlassButtonStyle: ButtonStyle {
     }
 }
 
-extension ButtonStyle where Self == GlassButtonStyle {
+extension ButtonStyle where Self == CrystalButtonStyle {
     /// Círculo de cristal de 44 pt sobre vídeo.
-    static var glass: GlassButtonStyle { GlassButtonStyle() }
+    static var crystal: CrystalButtonStyle { CrystalButtonStyle() }
 }
 
 /// Estilo para filas que se pueden tocar (como la de Ayuda): al pulsar se ve un fondo Niebla.

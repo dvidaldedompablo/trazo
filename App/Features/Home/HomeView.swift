@@ -181,7 +181,7 @@ struct HomeView: View {
             NavigationLink(value: HomeDestination.pickSwingVideo) {
                 Image(systemName: "photo.on.rectangle")
             }
-            .buttonStyle(GlassButtonStyle(surface: .darkCard, outline: .circle(diameter: Size.buttonHeight)))
+            .buttonStyle(CrystalButtonStyle(surface: .darkCard, outline: .circle(diameter: Size.buttonHeight)))
             .accessibilityLabel("Elegir vídeo de swing")
         }
     }

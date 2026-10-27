@@ -72,7 +72,11 @@ public enum TracerConstants {
     // MARK: Curva del vuelo (docs/03, "Modelo de la curva")
 
     /// Exponente del perfil de tiempo f(τ) = 1 − (1 − τ)^2,4: rápida al salir, lenta al final.
+    /// Es el de docs/03 y el que se usa si la curva no tiene longitud. En cada curva el exponente
+    /// se ajusta para llegar al vértice en `apexTimeFraction`, dentro de estos límites (ver `TimeProfile`).
     public static let timeProfileExponent = 2.4
+    public static let timeProfileMinimumExponent = 1.2
+    public static let timeProfileMaximumExponent = 4.0
     /// Fracción del tiempo de vuelo en la que la bola llega al vértice.
     public static let apexTimeFraction = 0.5
     /// Forma de los dos tramos Bézier (fracciones de cada tramo; ver `TracerCurve`). Con estos valores

@@ -160,6 +160,14 @@ gh run download "$RUN" -n screenshots -D ci-artifacts/
 ```
 Luego mirar cada PNG de `ci-artifacts/` y compararlo con `design/capturas/`.
 
+## Opcional: tests de GolfCore en el PC con Docker
+GolfCore solo usa Foundation, así que sus tests también compilan con Swift para Linux. Con Docker Desktop encendido:
+```bash
+bash scripts/test-golfcore.sh                  # todos los tests
+bash scripts/test-golfcore.sh TracerCurveTests # solo una suite (filtro de `swift test`)
+```
+Usa la imagen oficial `swift:6.3` (la misma versión de Swift que el CI) y un volumen `golfcore-build` para la compilación. Tarda segundos en vez de una vuelta de CI. Es un atajo: lo que vale es el CI en verde. Para liberar espacio: `docker rmi swift:6.3` y `docker volume rm golfcore-build`.
+
 ## Opcional: probar la app en el navegador
 Appetize permite subir una compilación de simulador y usarla en el navegador. El plan gratuito da unos 30 minutos al mes en sesiones de 3 minutos (comprobar en su web). Útil para tocar la interfaz alguna vez; para el día a día bastan las capturas del CI.
 

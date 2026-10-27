@@ -86,7 +86,9 @@ Si del corte automático salen varios golpes, se procesan en cola, uno detrás d
 ## Modelo de la curva (TracerCurve)
 - Controles: salida S, vértice A, caída L (en píxeles de la imagen), forma s de −1 (draw) a +1 (fade) y tiempo de vuelo T.
 - Dos tramos Bézier cúbicos S→A y A→L con tangentes continuas en el vértice para que la cima sea redonda (ver la curva de la maqueta: el primer tramo sube casi recto, el segundo baja más corto). La forma desplaza el vértice y dobla la bajada hacia un lado.
+  - Cómo quedó en GolfCore (etapa 2): la curva pasa siempre por las tres asas, también con draw o fade, para que al arrastrar un asa la curva la siga. La forma abomba el vuelo hacia un lado entre las asas (un draw de diestro sale a la derecha y vuelve a la izquierda); para zurdos se refleja. Con los valores de `TracerConstants`, la curva se separa como mucho 1,4 px de la de la maqueta.
 - Tiempo: la bola parece muy rápida al salir y lenta al final (perspectiva y frenada). Fracción de recorrido f(τ) = 1 − (1 − τ)^2,4 con τ = t/T, ajustada para que el vértice se alcance hacia τ ≈ 0,5. Dejar las constantes en un solo sitio para afinarlas.
+  - Cómo quedó en GolfCore (etapa 2): el "ajuste" es el exponente. En cada curva se elige k para que 1 − 0,5^k sea la fracción del recorrido que ocupa la subida; así el vértice cae en τ = 0,5 y la velocidad baja siempre, sin saltos. El 2,4 es el valor cuando la subida es el 81 % del recorrido; en la curva de la maqueta (63 %) sale 1,43. Se limita entre 1,2 y 4.
 - El trazo arranca **en el instante exacto del impacto** y crece siguiendo a la bola (no aparece entero desde el principio). Al caer, se queda dibujado entero 1,5 s más y aparece la etiqueta (fundido de 0,3 s).
 
 ## Estilo (clave 6)

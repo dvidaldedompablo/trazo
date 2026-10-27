@@ -3,8 +3,8 @@
 Claude Code actualiza este archivo al final de cada etapa.
 
 ## Estado
-- Etapa actual: 1 (CI en verde; falta probar Inicio en el iPhone)
-- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (7), compilación nº 7 del CI del 27-10-2026
+- Etapa actual: 2 terminada (CI en verde, 97 tests de GolfCore). Sigue pendiente probar Inicio de la etapa 1 en el iPhone.
+- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (9), compilación nº 9 del CI del 27-10-2026 (por fuera, igual que la 7)
 - Repositorio: https://github.com/dvidaldedompablo/trazo (público)
 - Última instalación en el iPhone: (fecha)
 - Caduca: (fecha + 7 días)
@@ -93,6 +93,66 @@ Claude Code actualiza este archivo al final de cada etapa.
   - `Canvas` dibuja muchas formas de una vez con un `GraphicsContext` (rellenos, trazos, degradados, texto y capas con opacidad), como un `<svg>`.
   - `.task` lanza trabajo asíncrono al aparecer la vista y lo cancela al desaparecer; `Task.sleep` lanza un error si se cancela, y eso se usa para dejar la animación terminada.
   - `.sensoryFeedback` hace vibrar cuando cambia un valor; `@Environment(\.accessibilityReduceMotion)` dice si el usuario pidió menos movimiento.
+
+### Etapa 2: lógica pura en GolfCore con tests (27-10-2026)
+- Hecho (todo en `Packages/GolfCore`, solo Foundation: nada de UIKit, SwiftUI, AVFoundation ni Accelerate):
+  - `Math/`: `Point2D` (y hacia abajo, como los fotogramas), álgebra lineal mínima (Gauss con pivote, mínimos cuadrados, mediana) y `SeededRandom` (aleatorio con semilla, para que el RANSAC y los tests salgan siempre igual).
+  - `Math/Geometry`: ángulo en un vértice, entre segmentos y entre rectas, con la vertical y con la horizontal, intersección, distancia a recta y a segmento, y `PixelScale` (px por cm con la cadena tobillo-rodilla-cadera-cuello-nariz = 87 % de la estatura).
+  - `Math/Smoothing`: One Euro (muestra a muestra, para puntos y números), Savitzky-Golay con derivadas y extremos bien resueltos, y relleno de huecos de hasta 4 muestras.
+  - `Math/Kalman2D`: velocidad constante, predicción y corrección, distancia de Mahalanobis y radio de la puerta de búsqueda.
+  - `Math/TrajectoryFit`: tramos de 0,25 s solapados, RANSAC (variante LMedS) sobre x(t) e y(t) de segundo grado, atípico si se aleja más de 3 × el error mediano del tramo, toques fijos con peso 100 que nunca se descartan, error medio y extrapolación hasta la caída.
+  - `Audio/`: biquads (filtrado ida y vuelta sin retraso), FFT propia de base 2, `ImpactDetector` (paso banda 1,5 a 7 kHz, flujo espectral en ventanas de 256 cada 64, umbral mediana + 6 MAD en 500 ms, 400 ms de periodo refractario, afinado con la envolvente en ±5 ms) y `Loudness` (BS.1770: ponderación K, puertas de −70 LUFS y −10 LU, pico real con sobremuestreo x4, ganancia hasta −16 LUFS con techo de −1 dBTP).
+  - `Tracer/TracerConstants`: la tabla de parámetros de docs/03 en un solo archivo, con la tabla de palos.
+  - `Tracer/TracerCurve`: dos Bézier con la cima redonda, forma draw/recta/fade, tiempo de vuelo, posición de la bola en cada instante, trozo de trazo dibujado hasta un instante y propuesta inicial por palo.
+  - `Tracer/BlobTracker`: fondo por mediana de 15 fotogramas, umbral por píxel según su ruido, manchas de 1 a 40 px compactas, Kalman con puerta, arranque desde el tee, semilla en cualquier fotograma hacia delante y hacia atrás, y motivo del final (perdida, fuera de la imagen o fin del clip).
+  - `Swing/`: articulaciones de Vision y mano dominante (`Pose`), `PhaseDetector` (inicio de la subida, 7 posiciones con sus alternativas, orden y ritmo), `SwingMetrics` (las 16 medidas de docs/04), `Scoring`, `FaultLibrary`, `ScriptWriter` y `SwingRules` (todas las constantes del swing en un sitio).
+  - `Format/Units`: números en español, "2,8 : 1" y "2,8 a 1", "~2 cm", grados, segundos, m y yd, nota "78/100" y duraciones habladas ("siete décimas").
+  - CI: no hizo falta tocarlo; el paso "Tests de GolfCore" ya ejecuta `swift test` y ahora pasa 97 tests en 14 suites (8,7 s en el runner).
+  - `scripts/test-golfcore.sh`: los mismos tests en el PC con Docker (imagen oficial `swift:6.3`, la misma versión que el CI). Explicado en docs/06.
+- Qué cubre cada test (`Packages/GolfCore/Tests/GolfCoreTests/`, datos sintéticos de `SyntheticData.swift`):
+  | Suite | Qué comprueba |
+  |---|---|
+  | `ImpactDetectorTests` | La FFT pone un seno en su frecuencia. Un clic en ruido se detecta con menos de 2 ms de error (3 semillas). Tres clics dan tres impactos en su sitio. Solo ruido, silencio o audio demasiado corto: ningún impacto. Dos clics a menos de 400 ms cuentan como uno (el fuerte). Con golpes de otros jugadores, el más fuerte es el propio. Un tono grave fuerte no es un impacto. |
+  | `LoudnessTests` | Los coeficientes de la ponderación K a 48 kHz son los de la tabla de BS.1770. Un seno de 997 Hz a 0 dBFS en un canal da −3,01 LUFS (en mono y en estéreo con un canal mudo); a −20 dBFS, −23,01. Las pausas no bajan la cifra. Silencio o menos de 400 ms: sin valor. El pico real encuentra el pico escondido entre muestras. La ganancia se limita por el techo de pico. |
+  | `GeometryTests` | Ángulos (recto, pierna estirada, vertical, horizontal sin sentido, segmentos y rectas), segmentos de longitud cero sin ángulo, intersección y paralelas, distancias con signo y a segmento, escala de px a cm con 175 cm. |
+  | `SmoothingTests` | Savitzky-Golay deja intacto un polinomio de grado 3 (también en los extremos), da la derivada exacta de una parábola, quita ruido y se adapta a series cortas. One Euro calma el temblor y, con beta, se queda menos atrás en un movimiento rápido. Relleno de huecos cortos sí, largos y de los extremos no. |
+  | `KalmanFilter2DTests` | La predicción mueve con la velocidad; la duda crece al predecir y baja al corregir; la puerta crece sin medidas; aprende la velocidad de un movimiento con ruido; Mahalanobis crece con la distancia. |
+  | `TrajectoryFitTests` | Una parábola con un 20 % de atípicos se recupera: todos los atípicos fuera, como mucho un 2 % de puntos buenos descartados y la curva a menos de 1 px de la verdadera. Un toque fijo se respeta (no es atípico y la curva pasa a menos de 1 px). Un toque muy desviado sube el error medio. La extrapolación cae a menos de 0,1 s y 15 px de la caída verdadera; si la bola no tiende a bajar, no se inventa la caída. Con menos de 3 instantes no hay ajuste. Los tramos se solapan. |
+  | `TracerCurveTests` | La bola sale de S en t = 0 y llega a L en t = T; pasa por el vértice a mitad del vuelo; la curva pasa por las tres asas con cualquier forma; la velocidad baja siempre, sin saltos en el vértice, y al final va a menos de un tercio de la de salida; el perfil llega al vértice en τ = 0,5 y sale 2,4 cuando la subida es el 81 %; draw y fade doblan a lados opuestos (y al revés en zurdos); el trazo crece con el tiempo; la curva por defecto queda a menos de 1,5 px de la de la maqueta; la propuesta inicial usa la tabla de palos. |
+  | `BlobTrackerTests` | Con fotogramas sintéticos (cielo, suelo, jugador, palo que barre, pájaro y ruido), sigue la bola desde el tee hasta el final (90 % de los fotogramas, error < 1 px). Sembrada a mitad de vuelo sin velocidad, sigue hacia delante y hacia atrás; sembrada cerca del final con velocidad, también. Si la bola deja de verse, para a los 12 fotogramas y dice dónde la perdió (0,2 s). El fondo borra el palo, el palo alargado no cuenta como bola y el pájaro está lejos del vuelo. Sin fotogramas antes del impacto no arranca. |
+  | `PhaseDetectorTests` | En un swing sintético (brazo en péndulo), las 7 posiciones caen donde deben y en orden; ritmo = subida / bajada; sin sonido, el impacto sale de las manos; un zurdo reflejado da las mismas posiciones; sin el brazo de delante se usa la alternativa del 55 %; sin movimiento no hay swing; un impacto antes del top marca posiciones dudosas. |
+  | `SwingMetricsTests` | Un swing correcto: todas las medidas en rango (inclinación 32°, plano de unos 40°, escala de 5 px/cm). Un swing con fallos: takeaway por dentro, palo plano, cabeza 8 cm, se levanta 12° (de 32 a 20) y cadera 6 cm, cada uno con su fallo. Sin palo se omiten las medidas del palo. Un zurdo da las mismas medidas. Reglas: penalización proporcional y fallo solo pasado su umbral. |
+  | `ScoringTests` | Todo bien da 100; los pesos dan 81 en un caso calculado a mano; mínimo 2 por fase; etiquetas en sus límites; a mejorar son las 3 más bajas por debajo de 7; prioridad por peso × (10 − nota); cadena de causa (takeaway por dentro antes que palo plano); una fase sin medidas no cuenta; sin medidas no hay nota; de punta a punta con el swing sintético. |
+  | `ScriptWriterTests` | En 6 escenarios y 8 variantes, todas las frases tienen de 4 a 14 palabras, sin huecos, sin punto decimal y con punto final. Gancho según la nota. "Por eso," en la cadena de causa. Números dichos bien ("2,8 a 1", "de 35 a 23 grados", "unos 8 centímetros", "N sobre 100"). Ritmo rápido y lento. Lo que no se mide se dice. Misma semilla, mismo guion. La biblioteca de fallos está completa. |
+  | `UnitsTests` | Coma decimal, redondeo (2,85 → 2,9), signo menos, sin separador hasta 4 cifras, ritmo, "~2 cm", grados, segundos, "150 m" y "164 yd", y duraciones habladas. |
+  | `BuildLabelTests` | Los de la etapa 0 (versión y fecha). |
+- Decisiones:
+  - Asas siempre sobre la curva: la forma (draw o fade) abomba el vuelo hacia un lado entre las asas en vez de mover el vértice fuera de su asa (docs/03 actualizado). Constantes de los Bézier ajustadas para parecerse a la curva de la maqueta.
+  - Perfil de tiempo: 1 − (1 − τ)^k con k elegido en cada curva para llegar al vértice en τ = 0,5 (entre 1,2 y 4; con la subida en el 81 % sale el 2,4 de docs/03). Probé antes a mantener 2,4 en la subida y repartir la bajada, pero con la curva de la maqueta la bola no frenaba al final (docs/03 actualizado).
+  - Impacto: además de "mediana + 6 MAD", el pico tiene que superar 4 veces la mediana local. Probado en Python: con ruido blanco, "mediana + 6 MAD" daba hasta 4 falsos impactos en 3 s (sus picos no pasan de 2,9 veces la mediana); un clic claro la supera de 10 a 80 veces.
+  - Extrapolación: si todo lo visto encaja en una parábola, se usa entera; si no, los últimos 0,5 s. Con solo 0,5 s la caída salía a 23 px de la verdadera en el test.
+  - BlobTracker: umbral por píxel con su ruido en los 15 fotogramas del fondo (las hojas con viento piden más diferencia que el cielo), se ignora el "hueco" que deja la bola en el tee, un toque se ajusta a la mancha más cercana a menos de 6 px y una mancha que toca el borde de la zona de búsqueda se descarta (es un trozo de algo grande). Solo se buscan manchas cerca de la predicción, no en toda la imagen.
+  - Fallos: a los 13 de docs/04 se suman 4 para que cada medida tenga su fallo y su ejercicio por los dos lados: brazos pegados, bajada plana, ritmo lento y final corto. "Cadera hacia la bola" usa el fallo "Te levantas en el impacto" (mismo ejercicio de la silla).
+  - Nota: docs/04 solo fija 0,25 puntos por grado de inclinación. Las demás penalizaciones están en `SwingRules` como valores de partida "(a afinar)" con el profesor. Una fase sin ninguna medida (por ejemplo, sin tocar la cabeza del palo) no cuenta en la nota total y el informe lo dice.
+  - Guion: solo se nombra un fallo si la medida pasa su umbral de fallo (por ejemplo, "Subida corta" por debajo de 0,10 aunque la fase ya reste por debajo de 0,35).
+  - FFT propia en vez de Accelerate: para 256 muestras es de sobra rápida y así GolfCore compila en Linux (tests en el PC con Docker).
+- Problemas y cómo se resolvieron:
+  - `Measurement` chocaba con el tipo del mismo nombre de Foundation. Se llama `MetricResult` (también habría chocado en la app).
+  - Swift Testing no deja anidar `#require` dentro de otro `#require` (expansión recursiva de la macro): se sacan a variables.
+  - Por precaución no se usan rutas de clave a elementos de tuplas (`\.0`); se usan cierres (`{ $0.0 }`).
+  - En el CI aparecía un aviso de concurrencia de la etapa 1 en la fila de Ayuda (`Cards.swift`): la constante se marca `nonisolated`.
+- Pendiente (para las etapas que los usan):
+  - Etapa 4: comprobaciones de dirección y velocidad máxima de la bola (`maximumBallSpeed`, a fijar con la prueba de 5 golpes), confianza de 0 a 1 y aviso de pérdida con el tiempo de `BlobTrack`. Los valores de `BlobTrackerOptions` (umbral, ruido del Kalman, radio de arranque) están probados solo con datos sintéticos: se afinan con vídeos reales.
+  - Etapa 6: el takeaway por "palo paralelo al suelo" (alternativa con la cabeza del palo) y "a dónde apunta la empuñadura" en la mitad de subida no están (hacen falta los puntos del palo de la pantalla de revisión). La tolerancia de "manos quietas" (1 % de la estatura) se revisa con swings reales: en el sintético la preparación cae unos fotogramas después del arranque teórico.
+  - Etapa 7: `Loudness` mide y calcula la ganancia; aplicarla y montar la pista es de la etapa 7.
+- Pruebas para el iPhone: ninguna en esta etapa (no cambia nada que se vea). El `.ipa` nuevo se ve igual que el de la etapa 1.
+- Qué he aprendido de Swift en esta etapa:
+  - Los `struct` son valores: al pasarlos se copian, y un método que los cambia se marca `mutating` (como `KalmanFilter2D.predict`). Por eso el filtro de ida y el de vuelta del toque de refuerzo no se pisan.
+  - Un `enum` sin casos agrupa funciones (`Geometry`, `Scoring`); un `enum` con casos y `switch` (`FaultID`, `MetricKind`) obliga al compilador a comprobar que no falta ningún caso.
+  - `Sendable` le dice a Swift 6 que un tipo se puede pasar entre hilos sin peligro; en tipos de valor con datos simples basta con declararlo.
+  - Cumplir un protocolo de la biblioteca estándar (`RandomNumberGenerator` en `SeededRandom`) hace que funcionen cosas que ya existen, como `Int.random(in:using:)`.
+  - Swift Testing permite repetir un test con varios datos (`arguments:`) y `#require` para el test en seco si falta un valor, en vez de seguir con un `nil`.
+  - `guard let … else { return nil }` es la forma de Swift de decir "si falta esto, no invento nada": se usa en todas las medidas.
 
 <!-- Plantilla por etapa:
 ### Etapa N: título (fecha)

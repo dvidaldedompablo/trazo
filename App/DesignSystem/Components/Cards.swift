@@ -36,7 +36,9 @@ struct HelpRow: View {
     let title: String
     let subtitle: String
 
-    private static let textDrop: CGFloat = 2
+    // `nonisolated`: la guía de alineación la lee desde un cierre que puede correr fuera del hilo
+    // principal. Es una constante, así que no hay nada que proteger (Swift 6 avisaba de ello).
+    private nonisolated static let textDrop: CGFloat = 2
 
     var body: some View {
         HStack(spacing: Spacing.m) {

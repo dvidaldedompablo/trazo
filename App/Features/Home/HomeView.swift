@@ -116,12 +116,14 @@ struct HomeView: View {
 
     /// Fila de colores e interruptor de distancia. Con el texto muy grande, uno debajo de otro.
     private var tracerOptions: some View {
+        // Sin separación propia: el Spacer reparte lo que sobra, como `space-between` en la maqueta.
+        // Con separación, el HStack la pondría a los dos lados del Spacer y la fila no cabría.
         let layout = dynamicTypeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: Spacing.m))
-            : AnyLayout(HStackLayout(spacing: Spacing.s))
+            : AnyLayout(HStackLayout(spacing: 0))
         return layout {
             ColorSwatchRow(selection: $colorChoice, customColor: customColor)
-            if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 0) }
+            if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: Spacing.xs) }
             DistanceToggle(isOn: $showsDistance)
         }
     }

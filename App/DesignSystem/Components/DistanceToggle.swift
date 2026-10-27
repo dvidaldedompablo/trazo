@@ -21,7 +21,9 @@ struct TrazoSwitchStyle: ToggleStyle {
             configuration.label
                 .typeStyle(.etiqueta)
                 .foregroundStyle(Color.pino)
-                .fixedSize()
+                .lineLimit(1)
+                // Si la fila se queda corta, la etiqueta encoge un poco en vez de empujar la tarjeta.
+                .minimumScaleFactor(0.7)
             Capsule()
                 .fill(configuration.isOn ? Color.pino : Color.borde)
                 .frame(width: Size.switchWidth, height: Size.switchHeight)

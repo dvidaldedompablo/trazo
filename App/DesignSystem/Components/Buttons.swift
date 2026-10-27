@@ -18,7 +18,8 @@ struct PillButtonStyle: ButtonStyle {
             .typeStyle(.boton)
             .lineLimit(1)
             .foregroundStyle(foreground)
-            .padding(.horizontal, Spacing.xl)
+            // Margen mínimo a los lados; el contenido va centrado en lo que mida el botón.
+            .padding(.horizontal, Spacing.m)
             .frame(maxWidth: .infinity, minHeight: Size.buttonHeight)
             .background(background, in: Capsule())
             .contentShape(Capsule())
@@ -46,8 +47,8 @@ struct PillLabelStyle: LabelStyle {
             configuration.icon
                 .font(.system(size: Size.iconSmall, weight: .semibold))
             configuration.title
-                // El texto del botón nunca se corta: si no cabe, el botón ocupa lo que necesite.
-                .fixedSize()
+                // Si no cabe (letra muy grande), el texto encoge un poco antes que cortarse.
+                .minimumScaleFactor(0.75)
         }
     }
 }

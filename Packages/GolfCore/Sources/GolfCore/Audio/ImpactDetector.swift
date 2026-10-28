@@ -9,6 +9,12 @@ public struct Impact: Sendable, Equatable {
     public let strength: Double
     /// Cuántas MAD sobresale el pico de la mediana local. Un golpe claro da cientos.
     public let prominence: Double
+
+    public init(time: Double, strength: Double, prominence: Double) {
+        self.time = time
+        self.strength = strength
+        self.prominence = prominence
+    }
 }
 
 /// Opciones del detector. Los valores por defecto salen de `TracerConstants` (docs/03, paso 2).

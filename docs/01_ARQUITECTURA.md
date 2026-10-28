@@ -88,6 +88,7 @@ Grabar o importar ──► Clip (archivo en el contenedor de la app + metadatos
 ## Importar desde Fotos sin perder la cámara lenta
 - `PhotosPicker` con `photoLibrary: .shared()` para obtener el `itemIdentifier`.
 - `PHAsset` ► `PHImageManager.requestAVAsset(forVideo:options:)` con `version = .original`. Así se recibe el archivo a 240 fps con tiempos reales, sin el efecto de cámara lenta aplicado.
+  - Cómo quedó en la etapa 3: se copia el recurso original del `PHAsset` (`PHAssetResource` de tipo `.video`) con `PHAssetResourceManager.writeData(for:toFile:options:)`. Es el mismo archivo original, se escribe directamente en la carpeta de la app y funciona también si está en iCloud.
 - Si el usuario no da acceso a Fotos, importar el archivo con `Transferable` y comprobar `nominalFrameRate` y duración. Si parece estirado, avisar: "Este vídeo viene con la cámara lenta aplicada. Las duraciones del ritmo pueden salir mal."
 
 ## Lectura de fotogramas y audio

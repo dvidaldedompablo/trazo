@@ -3,8 +3,8 @@
 Claude Code actualiza este archivo al final de cada etapa.
 
 ## Estado
-- Etapa actual: 2 terminada (CI en verde, 97 tests de GolfCore). Sigue pendiente probar Inicio de la etapa 1 en el iPhone.
-- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (9), compilación nº 9 del CI del 27-10-2026 (por fuera, igual que la 7)
+- Etapa actual: 3 (CI en verde; falta probar la cámara en el iPhone). Sigue pendiente probar Inicio de la etapa 1.
+- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (14), compilación nº 14 del CI del 28-10-2026
 - Repositorio: https://github.com/dvidaldedompablo/trazo (público)
 - Última instalación en el iPhone: (fecha)
 - Caduca: (fecha + 7 días)
@@ -153,6 +153,60 @@ Claude Code actualiza este archivo al final de cada etapa.
   - Cumplir un protocolo de la biblioteca estándar (`RandomNumberGenerator` en `SeededRandom`) hace que funcionen cosas que ya existen, como `Int.random(in:using:)`.
   - Swift Testing permite repetir un test con varios datos (`arguments:`) y `#require` para el test en seco si falta un valor, en vez de seguir con un `nil`.
   - `guard let … else { return nil }` es la forma de Swift de decir "si falta esto, no invento nada": se usa en todas las medidas.
+
+### Etapa 3: cámara, importación y biblioteca (28-10-2026)
+- Hecho:
+  - GolfCore: `CaptureMode` (Tracer guarda 1 s antes y 8 s después del impacto; Swing, 2,5 s y 2 s), `ClipPlanner` (un clip por impacto, recortado a la grabación; marca los que quedan con menos de 1 s antes o después y propone los que suenan al menos una cuarta parte del más fuerte) y `Waveform` (la onda en barras). 5 tests nuevos: 102 en total.
+  - Biblioteca (`App/Data/`): SwiftData con `Clip` (modo, origen, archivo, miniatura, fps reales, duración, tamaño e impacto) y `Club` (los 14 palos de docs/01, con el hierro 7 a 150 m, se crean la primera vez). Los ajustes siguen en `@AppStorage`, como dice docs/01 (claves nuevas: fps, cuenta atrás, corte auto, obturación rápida y modo diagnóstico).
+  - Medios (`App/Media/`): los clips viven en Application Support/Clips, fuera de la copia de iCloud y guardados por nombre (no por ruta: al reinstalar con Sideloadly la ruta del contenedor puede cambiar). `VideoInspector` mide los fps reales con el instante de cada fotograma (sin decodificar), `AudioExtractor` saca el audio en mono a 48 kHz, `ClipExporter` recorta sin recodificar (se conservan los 240 fps), `Thumbnailer` hace las miniaturas, `PhotoLibrary` guarda el original en Fotos y trae el original de un vídeo de Fotos, `RecordingAnalyzer` busca los golpes y `ClipSaver` guarda lo elegido.
+  - Grabar (`App/Features/Capture/`), como s02: cámara trasera a 1080p y 240 fps (si no, 120 y luego 60), con audio, sin estabilización y en vertical. En Tracer, obturación rápida al empezar a grabar: 1/2000 s con el ISO que mantenga la luz; si el ISO no llega, se alarga lo justo. Chips de modo y fps (menú 240, 120 o 60), contador (parado, al tocarlo se elige la cuenta atrás de 3, 5 o 10 s), consejo en cristal (se esconde al tocarlo), guías de cada modo (silueta "Tú aquí", línea del golpe y "Bola aquí" en Tracer; silueta de perfil con la línea del palo en Swing), nivel con CoreMotion ("Nivelado" en verde con ±1,5°), miniatura del último clip (abre Tus vídeos), botón de grabar de 78 pt (rojo en Tracer, amarillo en Swing) y "Corte auto". La pantalla no se apaga mientras está abierta.
+  - Corte automático: al parar, "Buscando los golpes…" y la hoja "Elige los golpes" con la onda, un clip por golpe con su miniatura en el instante del impacto y el interruptor "Guardar también el vídeo entero" (apagado: la grabación completa se borra para no llenar el iPhone). Sin "Corte auto", el vídeo entero se guarda directamente.
+  - Elegir vídeo: PhotosPicker. Con acceso a Fotos se copia el archivo original (un vídeo a cámara lenta llega a 240 fps con los tiempos reales). Sin acceso, se importa la copia del selector y, si es de 60 fps o menos, se avisa de que puede venir estirado. Si el vídeo tiene dos golpes o más, sale la misma hoja de elegir golpes.
+  - Tus vídeos: rejilla de 3 columnas con el tipo (punto rojo o amarillo), la fecha ("27 oct") y la duración; al mantener pulsado, "Guardar original en Fotos" y "Borrar". Al tocar un clip se abre a pantalla completa en bucle, con sus datos y las mismas acciones.
+  - Permisos: si se deniega la cámara, "Trazo no puede usar la cámara" con "Abrir Ajustes" y "Elegir vídeo". Sin micrófono se graba igual, con el aviso "Sin micrófono: no habrá corte automático". Fotos pide solo permiso para añadir al guardar, y permiso de lectura al importar.
+  - Modo diagnóstico: Ajustes (aún provisional) → 5 toques en la versión. En Grabar enseña formato, fps, formato de píxel, audio, nivel y exposición; al abrir un clip, fps reales y declarados, fotogramas, duración, tamaño, códec y cada impacto encontrado (con cuántas MAD sobresale).
+  - Capturas del CI: `camera-tracer`, `camera-swing`, `library` y `autocut` (la hoja de elegir golpes). En las capturas no hay cámara: el fondo es el campo de la maqueta dibujado con sus coordenadas (`CaptureScene`).
+- Decisiones:
+  - Grabar y el clip abierto se presentan a pantalla completa por encima (`fullScreenCover`) y no apilados en la navegación. Apilados, el modo claro de la raíz mandaba sobre el oscuro de la pantalla de vídeo: la hora salía en negro sobre la cámara y el cristal se pintaba en claro. `HomeRoot` lleva Inicio con su navegación; desde Grabar, "Tus vídeos" cierra la cámara y abre la pantalla en Inicio.
+  - Cristal sobre vídeo: variante `.clear` de Liquid Glass con tinte (chips con Pino al 50 %, consejo al 55 % y botones con blanco al 6 %). Con `.regular`, la base propia del cristal lo dejaba claro sobre la hierba o demasiado oscuro sobre el cielo. Los porcentajes son algo mayores que en la maqueta (42 %, 45 % y 16 %) porque el cristal ya aclara por sí solo; están medidos contra s02.
+  - La cuenta atrás se elige tocando el contador "0:00" y los fps en su chip, para no añadir botones que s02 no tiene.
+  - El original de Fotos se copia con `PHAssetResourceManager` (anotado en docs/01).
+  - Los trabajos pesados (leer el audio, buscar impactos y medir fps) van marcados `@concurrent`: se hacen fuera del hilo principal aunque los pida la interfaz.
+- Comparación con s02 (captura `camera-tracer`, misma escala):
+  - Vuelta 1: posiciones de barra superior, consejo, nivel, carteles, silueta, línea del golpe, "Bola aquí", botón de grabar, miniatura y "Corte auto" iguales. Diferencias: la hora en negro y el cristal claro (por el modo claro de la raíz); "Corte auto" casi blanco sobre la hierba (99, 114, 105 frente a 20, 56, 31); la ✕ más gruesa; en Swing se veía la bola del Tracer además del círculo de la guía.
+  - Vuelta 2 (pantalla completa en oscuro): hora blanca y "Corte auto" igual, pero chips y consejo demasiado oscuros (49 frente a 84 en el chip). ✕ fina y sin la bola sobrante en Swing.
+  - Vuelta 3 (cristal `.clear` con tinte): todo a menos de 18 niveles de la maqueta, un poco más claro en general. Vuelta 4: tintes ajustados.
+  - Diferencias que quedan a propósito: la miniatura del último clip es una escena de demostración con golfista (en la maqueta, un trozo del campo); la barra de estado del simulador (batería cargando).
+- Problemas y cómo se resolvieron:
+  - Compiló a la primera en el CI (Swift 6, iOS 26). Para que el código de AVFoundation y Photos pase la comprobación de concurrencia de Swift 6: `@preconcurrency import`, la cámara como clase `@unchecked Sendable` con su cola y un candado, y las miniaturas como JPEG (`Data`, que es `Sendable`) en vez de `UIImage`.
+  - El modo claro forzado en la raíz pisaba el oscuro de Grabar (ver decisiones).
+- Pendiente:
+  - Probar todo lo de la cámara en el iPhone (lista de abajo): el simulador del CI no tiene cámara.
+  - Interruptor de "Obturación rápida" en Ajustes (etapa 9); de momento siempre activada en Tracer.
+  - Comprobación del impacto por movimiento y elegir el pico que coincide con el palo (etapa 4). Ahora el corte es solo por sonido.
+  - Estado de la cola ("En proceso", "Listo", "Falló") y "Abrir en Ajusta el vuelo" en Tus vídeos (etapas 4 y 5).
+  - Analizar el audio de una grabación muy larga ocupa memoria (unos 80 MB por minuto de grabación mientras dura el análisis). Para golpes sueltos sobra; grabaciones de más de 5 minutos no están probadas.
+- Pruebas para el iPhone:
+  - Abre Grabar golpe: iOS pide la cámara y el micrófono (textos en español). Se ve la cámara a pantalla completa con la hora en blanco, chips "Tracer" y "240 fps", el consejo, la silueta, la línea roja discontinua y "Bola aquí".
+  - Gira el móvil un poco: las dos rayas del centro se quedan horizontales con el mundo y, al ponerlo recto, el círculo se pone verde con "Nivelado".
+  - Ajustes → toca 5 veces seguidas la versión → "Modo diagnóstico activado". Vuelve a Grabar golpe: en el panel debe poner "1080 x 1920 · 240 fps".
+  - Desactiva "Corte auto" (se atenúa), graba 10 s y para: "Guardado en Tus vídeos". Abre el clip en Tus vídeos: el panel debe decir fps reales cerca de 240 y una duración de unos 10 s.
+  - Activa "Corte auto" y graba 3 golpes seguidos (o 3 golpes secos de un palo contra una bola). Al parar: "Elige los golpes" con 3 picos rojos en la onda y 3 golpes marcados. Guarda: en Tus vídeos aparecen 3 clips de 9 s; al abrirlos, el impacto cae a 1 s del principio.
+  - Graba swing (botón amarillo) con 2 swings: 2 clips de 4,5 s con el impacto a 2,5 s.
+  - Toca "0:00" y elige 5 s: el chip pasa a "5 s". Al grabar cuenta 5, 4, 3, 2, 1 con una vibración por número y luego empieza.
+  - Toca "240 fps" y elige 120: el chip cambia a 120 fps (y el diagnóstico también).
+  - Graba un vídeo a cámara lenta con la app Cámara del iPhone. En Trazo, Inicio → Elegir vídeo → permite el acceso a Fotos → elige el vídeo. Ábrelo en Tus vídeos con el modo diagnóstico: 240 fps y la duración real (no la estirada de cámara lenta).
+  - Mantén pulsado un clip → "Guardar original en Fotos" → permite añadir → "Guardado en Fotos". En Fotos, el vídeo debe tener la misma duración y verse fluido a cámara lenta al pasarlo al ordenador.
+  - Borra un clip (mantener pulsado → Borrar): desaparece de la rejilla.
+  - En Ajustes de iOS → Trazo, quita la cámara y abre Grabar golpe: "Trazo no puede usar la cámara" con "Abrir Ajustes" y "Elegir vídeo".
+  - Con Grabar abierto en el trípode, la pantalla no se apaga sola.
+- Qué he aprendido de Swift en esta etapa:
+  - `withCheckedThrowingContinuation` convierte un aviso de AVFoundation (el delegado que dice "la grabación ha terminado") en algo que se espera con `await`: `let archivo = try await camara.record(to:)`.
+  - `@MainActor` deja la interfaz en el hilo principal; `@concurrent` manda una función pesada a otro hilo aunque la llame la interfaz; y `Sendable` dice qué datos pueden viajar entre los dos sin peligro.
+  - Con SwiftData, `@Model` hace guardable una clase, `@Query` la lee y redibuja la vista cuando cambia, y `modelContext.insert` o `delete` la modifica.
+  - `UIViewRepresentable` mete una vista de UIKit en SwiftUI: así se ve la cámara (`AVCaptureVideoPreviewLayer`) y el vídeo sin controles (`AVPlayerLayer`).
+  - Un modelo `@Observable` guardado con `@State` es la "memoria" de una pantalla: la vista solo dibuja y el modelo decide qué pasa al tocar.
+  - `fullScreenCover` abre una pantalla por encima con su propia presentación (y su propio modo claro u oscuro); `NavigationStack(path:)` deja que el código decida qué pantalla se apila.
 
 <!-- Plantilla por etapa:
 ### Etapa N: título (fecha)

@@ -56,6 +56,8 @@ private struct RootView: View {
             NavigationStack { LibraryView() }
         case .autocut:
             ClipPickerView(pending: DemoData.pendingRecording()) { _, _ in }
+        case .autocutVoice:
+            ClipPickerView(pending: DemoData.pendingVoiceRecording()) { _, _ in }
         case nil:
             // Nombre que la app no conoce: se dice en la captura en vez de enseñar otra pantalla.
             Text("Pantalla de prueba desconocida: \(name)")

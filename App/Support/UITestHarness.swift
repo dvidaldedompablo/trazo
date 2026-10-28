@@ -13,6 +13,8 @@ enum UITestScreen: String {
     case library
     /// La hoja de elegir golpes tras grabar con "Corte auto".
     case autocut
+    /// La misma hoja con un vídeo narrado, sin golpes: el control de sensatez no propone clips.
+    case autocutVoice = "autocut-voice"
 }
 
 /// Arnés de capturas: con `-UITestScreen` la app abre esa pantalla con datos de demostración,

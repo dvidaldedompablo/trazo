@@ -15,7 +15,11 @@ struct PendingRecording: Identifiable, Sendable {
     let windows: [ClipWindow]
     let thumbnails: [Data?]
     /// El impacto más fuerte (s en la grabación), por si se guarda el vídeo entero.
+    /// `nil` si no se oyó ninguno o si los impactos no parecen una tanda de golpes.
     let strongestImpact: Double?
+    /// Los impactos parecen golpes de golf (`ClipPlanner.isShotSeries`). Si no (una voz, aplausos),
+    /// no se proponen clips: solo guardar el vídeo entero o descartarlo.
+    let isShotSeries: Bool
     /// Importado sin acceso a Fotos: si era a cámara lenta, puede venir estirado (docs/01).
     var mayBeStretched = false
 }
@@ -32,13 +36,21 @@ enum RecordingAnalyzer {
         let samples = info.hasAudio ? try await AudioExtractor.monoSamples(from: url) : []
         let impacts = ImpactDetector.detect(samples: samples, sampleRate: AudioExtractor.sampleRate)
         let windows = ClipPlanner.windows(for: impacts, recordingDuration: info.duration, mode: mode)
+        let isShotSeries = ClipPlanner.isShotSeries(impacts)
+        // Miniaturas solo si se van a enseñar los clips (con una voz podrían ser más de cien).
         var thumbnails: [Data?] = []
         for window in windows {
-            thumbnails.append(try? await Thumbnailer.jpeg(from: url, at: window.impactTime))
+            if isShotSeries {
+                thumbnails.append(try? await Thumbnailer.jpeg(from: url, at: window.impactTime))
+            } else {
+                thumbnails.append(nil)
+            }
         }
-        let strongest = impacts.max { $0.strength < $1.strength }?.time
+        // Si no es una tanda de golpes, esos picos no son de fiar: no se guarda ningún instante de impacto.
+        let strongest = isShotSeries ? impacts.max { $0.strength < $1.strength }?.time : nil
         return PendingRecording(sourceURL: url, mode: mode, origin: origin, info: info,
                                 bars: Waveform.bars(samples: samples, count: barCount),
-                                windows: windows, thumbnails: thumbnails, strongestImpact: strongest)
+                                windows: windows, thumbnails: thumbnails, strongestImpact: strongest,
+                                isShotSeries: isShotSeries)
     }
 }

@@ -15,14 +15,15 @@ struct ClipPickerView: View {
     init(pending: PendingRecording, onFinish: @escaping (_ selection: [Bool], _ keepFullRecording: Bool) -> Void) {
         self.pending = pending
         self.onFinish = onFinish
-        _selection = State(initialValue: pending.windows.map(\.isSuggested))
+        // Si no parece una tanda de golpes no hay nada propuesto (ni se enseña la lista).
+        _selection = State(initialValue: pending.windows.map { pending.isShotSeries && $0.isSuggested })
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.l) {
                 VStack(alignment: .leading, spacing: Spacing.s) {
-                    Text("Elige los golpes")
+                    Text(showsClips ? "Elige los golpes" : "¿Guardar el vídeo?")
                         .typeStyle(.tituloPantalla)
                         .foregroundStyle(Color.pino)
                         .accessibilityAddTraits(.isHeader)
@@ -37,16 +38,20 @@ struct ClipPickerView: View {
                         .foregroundStyle(Color.texto2)
                 }
                 waveformPanel
-                ForEach(pending.windows.indices, id: \.self) { index in
-                    ClipRow(number: index + 1, window: pending.windows[index], thumbnail: pending.thumbnails[index],
-                            mode: pending.mode, isSelected: selection[index]) {
-                        selection[index].toggle()
+                if showsClips {
+                    ForEach(pending.windows.indices, id: \.self) { index in
+                        ClipRow(number: index + 1, window: pending.windows[index], thumbnail: pending.thumbnails[index],
+                                mode: pending.mode, isSelected: selection[index]) {
+                            selection[index].toggle()
+                        }
                     }
+                    Toggle(isOn: $keepFull) { Text("Guardar también el vídeo entero") }
+                        .toggleStyle(TrazoSwitchStyle())
+                        .padding(.top, Spacing.xs)
+                    buttons
+                } else {
+                    wholeVideoButtons
                 }
-                Toggle(isOn: $keepFull) { Text("Guardar también el vídeo entero") }
-                    .toggleStyle(TrazoSwitchStyle())
-                    .padding(.top, Spacing.xs)
-                buttons
             }
             .padding(.horizontal, Spacing.cardMargin)
             .padding(.top, Spacing.xxl)
@@ -57,10 +62,17 @@ struct ClipPickerView: View {
 
     private var selectedCount: Int { selection.filter { $0 }.count }
 
+    /// Hay golpes que proponer: algún impacto y con pinta de tanda de golpes de golf.
+    private var showsClips: Bool { pending.isShotSeries && !pending.windows.isEmpty }
+
     private var summary: String {
         let duration = SpanishFormat.number(pending.info.duration, decimals: 0)
         if !pending.info.hasAudio {
             return "Este vídeo no tiene sonido: no puedo buscar los golpes. Puedes guardarlo entero (\(duration) s)."
+        }
+        if !pending.isShotSeries {
+            // Control de sensatez: muchos sonidos secos seguidos (una voz, aplausos) no son golpes.
+            return "No he reconocido una tanda de golpes en este vídeo. Puedes guardar el vídeo entero o descartarlo."
         }
         switch pending.windows.count {
         case 0: return "No se ha oído ningún golpe en \(duration) s. Puedes guardar el vídeo entero o descartarlo."
@@ -70,23 +82,13 @@ struct ClipPickerView: View {
     }
 
     private var waveformPanel: some View {
-        let markers = pending.windows.enumerated().map { offset, window in
-            (index: Waveform.barIndex(for: window.impactTime, duration: pending.info.duration, count: pending.bars.count),
-             label: "\(offset + 1)")
-        }
-        return VStack(alignment: .leading, spacing: Spacing.s) {
-            WaveformView(bars: pending.bars, markers: markers)
-                .frame(height: 76)
-            HStack {
-                Text("0:00")
-                Spacer()
-                Text(RecordScreen.clock(pending.info.duration))
-            }
-            .typeStyle(.nota)
-            .monospacedDigit()
-            .foregroundStyle(Color.texto3)
-        }
-        .padding(Spacing.l)
+        // Los golpes propuestos, en rojo en la onda. Si no es una tanda de golpes, ninguno.
+        let highlighted = showsClips
+            ? Set(pending.windows.map { Waveform.barIndex(for: $0.impactTime, duration: pending.info.duration, count: pending.bars.count) })
+            : []
+        return WaveformView(bars: pending.bars, highlighted: highlighted, duration: pending.info.duration)
+            .frame(height: 86)
+            .padding(Spacing.l)
         .background(Color.papel, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
     }
 
@@ -102,6 +104,25 @@ struct ClipPickerView: View {
             .buttonStyle(.principal)
             .disabled(total == 0)
             .opacity(total == 0 ? 0.5 : 1)
+            Button {
+                onFinish(selection.map { _ in false }, false)
+            } label: {
+                Text("Descartar")
+            }
+            .buttonStyle(.secundario)
+        }
+        .padding(.top, Spacing.s)
+    }
+
+    /// Sin golpes que proponer: guardar el vídeo entero o descartarlo.
+    private var wholeVideoButtons: some View {
+        VStack(spacing: Spacing.m) {
+            Button {
+                onFinish(selection.map { _ in false }, true)
+            } label: {
+                Text("Guardar el vídeo entero")
+            }
+            .buttonStyle(.principal)
             Button {
                 onFinish(selection.map { _ in false }, false)
             } label: {
@@ -176,7 +197,9 @@ private struct ClipRow: View {
 
     private var detail: String {
         var text = "A los \(RecordScreen.clock(window.impactTime)) · clip de \(SpanishFormat.number(window.duration)) s"
-        if window.isTooShort { text += " · corto: falta margen antes o después" }
+        if window.isTooShort {
+            text += mode == .tracer ? " · corto: le falta parte del vuelo" : " · corto: le falta parte del swing"
+        }
         return text
     }
 }

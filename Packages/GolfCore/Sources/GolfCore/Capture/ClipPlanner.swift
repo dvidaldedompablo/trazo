@@ -30,6 +30,9 @@ public enum CaptureMode: String, Sendable, Codable, CaseIterable {
         case .swing: 2
         }
     }
+
+    /// Duración prevista de un clip: 9 s en Tracer y 4,5 s en Swing.
+    public var clipDuration: Double { secondsBeforeImpact + secondsAfterImpact }
 }
 
 /// Un clip propuesto por el corte automático.
@@ -43,7 +46,8 @@ public struct ClipWindow: Sendable, Equatable {
     public var strength: Double
     /// La propuesta lo marca para guardar: suena como un golpe propio, no como uno lejano.
     public var isSuggested: Bool
-    /// Queda menos de 1 s antes o después del impacto: el clip no sirve para analizarlo.
+    /// Clip demasiado corto para analizarlo: queda menos de 1 s antes o después del impacto,
+    /// o el clip no llega al 60 % de su duración prevista (en Tracer, sin casi todo el vuelo).
     public var isTooShort: Bool
 
     public var duration: Double { end - start }
@@ -59,6 +63,11 @@ public struct ClipWindow: Sendable, Equatable {
 public enum ClipPlanner {
     /// Mínimo que tiene que quedar antes y después del golpe (docs/02: "al menos 1 s antes y 1 s después").
     public static let minimumMargin = 1.0
+    /// Un clip recortado por el principio o el final de la grabación tiene que durar al menos esta
+    /// fracción de lo previsto: 5,4 s de 9 en Tracer y 2,7 s de 4,5 en Swing.
+    public static let minimumDurationFraction = 0.6
+    /// Control de sensatez: dos golpes de golf seguidos no están a menos de 2 s.
+    public static let minimumShotSpacing = 2.0
     /// Se proponen los golpes que suenan al menos esta fracción del más fuerte.
     /// Los más flojos suelen ser de otros jugadores del campo de prácticas.
     public static let suggestionFraction = 0.25
@@ -69,9 +78,21 @@ public enum ClipPlanner {
             let start = max(0, impact.time - mode.secondsBeforeImpact)
             let end = min(recordingDuration, impact.time + mode.secondsAfterImpact)
             let tooShort = impact.time - start < minimumMargin - 1e-9 || end - impact.time < minimumMargin - 1e-9
+                || end - start < minimumDurationFraction * mode.clipDuration - 1e-9
             return ClipWindow(start: start, end: end, impactTime: impact.time, strength: impact.strength,
                               isSuggested: impact.strength >= suggestionFraction * strongest && !tooShort,
                               isTooShort: tooShort)
         }
+    }
+
+    /// ¿Parece una tanda de golpes de golf? Entre golpe y golpe pasan varios segundos: hay que
+    /// colocar la bola, prepararse y hacer el swing. Si más de la mitad de los impactos están a menos
+    /// de 2 s del anterior, son otra cosa (las consonantes de una voz, aplausos, un martillo) y el corte
+    /// automático no debe proponer clips. Con menos de dos impactos no hay nada que comparar.
+    public static func isShotSeries(_ impacts: [Impact]) -> Bool {
+        guard impacts.count >= 2 else { return true }
+        let times = impacts.map(\.time).sorted()
+        let close = zip(times, times.dropFirst()).filter { $1 - $0 < minimumShotSpacing }.count
+        return 2 * close <= impacts.count
     }
 }

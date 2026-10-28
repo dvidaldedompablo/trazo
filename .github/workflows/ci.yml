@@ -34,7 +34,9 @@ jobs:
       - name: Tests de GolfCore
         run: |
           mkdir -p test-results
-          swift test --package-path Packages/GolfCore --xunit-output test-results/golfcore.xml
+          # Compilados optimizados (-c release): los tests de audio procesan minutos de sonido y sin
+          # optimizar tardaban 90 s en el runner (unos 2 s así). SwiftPM mantiene los @testable import.
+          swift test -c release --package-path Packages/GolfCore --xunit-output test-results/golfcore.xml
       - name: Compilar IPA sin firmar
         run: |
           set -o pipefail

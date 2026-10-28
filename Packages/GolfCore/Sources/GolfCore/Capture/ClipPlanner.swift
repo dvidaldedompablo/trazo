@@ -78,7 +78,12 @@ public enum ClipPlanner {
     public static let minimumShotSpacing = 2.0
     /// Se proponen los golpes que suenan al menos esta fracción del más fuerte.
     /// Los más flojos suelen ser de otros jugadores del campo de prácticas.
-    public static let suggestionFraction = 0.25
+    ///
+    /// Ojo: el valor sale de un solo vídeo medido (46,5 s, 6 golpes; ver `AutoCutCasesTests`). Allí el
+    /// ruido de fondo más alto llega a 0,11 del golpe más fuerte y el golpe real más flojo a 0,27:
+    /// 0,18 deja 0,07 de margen por cada lado (con el 0,25 de antes solo quedaban 0,02 por arriba).
+    /// Hay que revisarlo con la prueba de 5 golpes de la etapa 4.
+    public static let suggestionFraction = 0.18
 
     /// La propuesta completa: el control de sensatez y, si lo pasa, un clip por golpe.
     /// Si no parece una tanda de golpes (una voz, aplausos), no se propone ninguna lista.
@@ -102,13 +107,20 @@ public enum ClipPlanner {
     }
 
     /// ¿Parece una tanda de golpes de golf? Entre golpe y golpe pasan varios segundos: hay que
-    /// colocar la bola, prepararse y hacer el swing. Si más de la mitad de los impactos están a menos
-    /// de 2 s del anterior, son otra cosa (las consonantes de una voz, aplausos, un martillo) y el corte
-    /// automático no debe proponer clips. Con menos de dos impactos no hay nada que comparar.
+    /// colocar la bola, prepararse y hacer el swing. Si más de la mitad de los golpes que se van a
+    /// proponer están a menos de 2 s del anterior, son otra cosa (las consonantes de una voz, aplausos,
+    /// un martillo) y el corte automático no debe proponer clips.
+    ///
+    /// Solo cuentan los impactos que pasan el corte de sugerencia (`suggestionFraction` del más fuerte):
+    /// en una cancha de prácticas, el ruido de fondo de otros jugadores trae muchos impactos flojos
+    /// y seguidos que, si contaran, harían saltar el control y se perderían los golpes buenos.
+    /// Con menos de dos golpes candidatos no hay nada que comparar.
     public static func isShotSeries(_ impacts: [Impact]) -> Bool {
-        guard impacts.count >= 2 else { return true }
-        let times = impacts.map(\.time).sorted()
+        let strongest = impacts.map(\.strength).max() ?? 0
+        let candidates = impacts.filter { $0.strength >= suggestionFraction * strongest }
+        guard candidates.count >= 2 else { return true }
+        let times = candidates.map(\.time).sorted()
         let close = zip(times, times.dropFirst()).filter { $1 - $0 < minimumShotSpacing }.count
-        return 2 * close <= impacts.count
+        return 2 * close <= candidates.count
     }
 }

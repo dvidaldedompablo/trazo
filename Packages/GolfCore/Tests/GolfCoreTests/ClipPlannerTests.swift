@@ -34,9 +34,9 @@ struct ClipPlannerTests {
         #expect(windows.map(\.isSuggested) == [false, true, false])
     }
 
-    @Test("Se proponen los golpes que suenan al menos una cuarta parte del más fuerte")
+    @Test("Se proponen los golpes que suenan al menos el 18 % del más fuerte")
     func suggestions() {
-        let windows = ClipPlanner.windows(for: [impact(5, 100), impact(15, 30), impact(25, 10)], recordingDuration: 40, mode: .tracer)
+        let windows = ClipPlanner.windows(for: [impact(5, 100), impact(15, 18), impact(25, 17.9)], recordingDuration: 40, mode: .tracer)
         #expect(windows.map(\.isSuggested) == [true, true, false])
         #expect(ClipPlanner.windows(for: [], recordingDuration: 40, mode: .tracer).isEmpty)
     }
@@ -88,6 +88,17 @@ struct ClipPlannerTests {
         #expect(!ClipPlanner.isShotSeries([impact(3), impact(1), impact(0), impact(2)]))
         #expect(ClipPlanner.isShotSeries([]))
         #expect(ClipPlanner.isShotSeries([impact(4)]))
+    }
+
+    @Test("Control de sensatez: solo cuentan los golpes que pasan el corte de sugerencia")
+    func shotSeriesIgnoresWeakImpacts() {
+        // Tres golpes fuertes separados y siete impactos flojos (8 % del más fuerte) muy seguidos.
+        let strong = [impact(2, 100), impact(14, 90), impact(27, 95)]
+        let weak = (0..<7).map { impact(5 + 0.5 * Double($0), 8) }
+        #expect(ClipPlanner.isShotSeries(strong + weak))
+        // Si esos siete fueran tan fuertes como los golpes, ya no sería una tanda.
+        let loud = (0..<7).map { impact(5 + 0.5 * Double($0), 80) }
+        #expect(!ClipPlanner.isShotSeries(strong + loud))
     }
 
     @Test("Marcas de tiempo de la onda: pocas, redondas y repartidas")

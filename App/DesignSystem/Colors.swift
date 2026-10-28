@@ -30,6 +30,8 @@ extension Color {
     static let bien = Color(hex: 0x1F9D63)
     /// Fondo de las pantallas de vídeo: negro puro.
     static let escenario = Color(hex: 0x000000)
+    /// Nivel de la cámara cuando el móvil está recto ("Nivelado"), de la maqueta (s02).
+    static let nivelado = Color(hex: 0x7CF0A9)
 
     /// Crea un color a partir de un número hexadecimal como 0xF6F7F4.
     /// Cada pareja de cifras es un canal (rojo, verde, azul) de 0 a 255.
@@ -71,7 +73,11 @@ enum SceneColors {
     // Carteles de distancia.
     static let board = Color(hex: 0xF7F7F2)
     static let boardPost = Color(hex: 0xE9EEEA)
-    // Figura del golfista en la tarjeta de Análisis.
+    // Zona de golpeo y bola del fondo de demostración de Grabar (s02).
+    static let teeBox = Color(hex: 0x3B7446)
+    static let teeBoxEdge = Color(hex: 0x9CC596)
+    static let ball = Color(hex: 0xFDFDFB)
+    // Figura del golfista en la tarjeta de Análisis (y pierna de atrás de la silueta de Grabar).
     static let figureBack = Color(hex: 0x2E3D36)
     static let figure = Color(hex: 0x2D4A3E)
     static let clubShaft = Color(hex: 0x151A18)

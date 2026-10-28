@@ -87,6 +87,8 @@ struct Chip: View {
     var dotColor: Color?
     var systemImage: String?
     var surface: Surface = .light
+    /// Alto mínimo: 32 pt; el de "Corte auto" en Grabar mide 36.
+    var height: CGFloat = Size.chipHeight
 
     var body: some View {
         HStack(spacing: Size.chipGap) {
@@ -106,7 +108,7 @@ struct Chip: View {
         .lineLimit(1)
         .foregroundStyle(surface == .video ? Color.white : Color.pino)
         .padding(.horizontal, Size.chipPadding)
-        .frame(minHeight: Size.chipHeight)
+        .frame(minHeight: height)
         .background { background }
     }
 

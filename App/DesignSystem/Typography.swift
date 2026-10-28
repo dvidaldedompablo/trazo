@@ -60,6 +60,8 @@ extension TypeStyle {
     static let filaTitulo = TypeStyle(family: .system(.semibold), size: 16)
     /// Subtítulo de una fila.
     static let filaSub = TypeStyle(family: .system(.regular), size: 13.5, relativeTo: .footnote)
+    /// Consejo en cristal sobre la cámara (s02): SF de peso medio, 15 pt, alto de línea 1,4.
+    static let consejo = TypeStyle(family: .system(.medium), size: 15, relativeTo: .subheadline, lineHeight: 1.4)
 }
 
 @MainActor

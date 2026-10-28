@@ -11,6 +11,8 @@ struct LibraryView: View {
     @Environment(\.modelContext) private var context
     @State private var message: String?
     @State private var clipToDelete: Clip?
+    /// Clip abierto: es una pantalla de vídeo (negra) y se abre a pantalla completa por encima.
+    @State private var openClip: Clip?
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: LibraryLayout.gap), count: 3)
 
@@ -30,7 +32,7 @@ struct LibraryView: View {
                 } else {
                     LazyVGrid(columns: columns, spacing: LibraryLayout.gap) {
                         ForEach(clips) { clip in
-                            NavigationLink(value: clip) {
+                            Button { openClip = clip } label: {
                                 ClipThumbnail(clip: clip)
                             }
                             .buttonStyle(.plain)
@@ -44,7 +46,7 @@ struct LibraryView: View {
         }
         .background(Color.bola)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(for: Clip.self) { clip in
+        .fullScreenCover(item: $openClip) { clip in
             ClipDetailView(clip: clip)
         }
         .confirmationDialog("¿Borrar este vídeo?", isPresented: Binding(get: { clipToDelete != nil }, set: { if !$0 { clipToDelete = nil } }),

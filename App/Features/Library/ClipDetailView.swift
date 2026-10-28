@@ -40,7 +40,6 @@ struct ClipDetailView: View {
             .padding(.bottom, Spacing.l)
             .overlay(alignment: .bottom) { Toast(message: $message).padding(.bottom, 70) }
         }
-        .toolbar(.hidden, for: .navigationBar)
         .preferredColorScheme(.dark)
         .task { await prepare() }
         .onDisappear { player?.pause() }

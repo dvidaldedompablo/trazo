@@ -7,6 +7,8 @@ import UIKit
 /// el botón de grabar, la miniatura del último clip y "Corte auto".
 struct RecordScreen: View {
     let mode: CaptureMode
+    /// Ir a otra pantalla (Tus vídeos, Elegir vídeo): la cámara se cierra y se abre en Inicio.
+    var navigate: (HomeDestination) -> Void = { _ in }
 
     @State private var model: RecordModel
     @State private var level = LevelMonitor()
@@ -22,8 +24,9 @@ struct RecordScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Clip.createdAt, order: .reverse) private var clips: [Clip]
 
-    init(mode: CaptureMode) {
+    init(mode: CaptureMode, navigate: @escaping (HomeDestination) -> Void = { _ in }) {
         self.mode = mode
+        self.navigate = navigate
         _model = State(initialValue: RecordModel(mode: mode, demo: UITestHarness.isActive))
     }
 
@@ -44,8 +47,8 @@ struct RecordScreen: View {
             overlays
         }
         .ignoresSafeArea()
-        .toolbar(.hidden, for: .navigationBar)
-        // Pantalla de vídeo: negro puro y barra de estado clara (docs/02).
+        // Pantalla de vídeo: negro puro y barra de estado clara (docs/02). Grabar se presenta
+        // a pantalla completa, así que este esquema vale solo para ella.
         .preferredColorScheme(.dark)
         .sheet(item: $model.pending) { pending in
             ClipPickerView(pending: pending) { selection, keepFull in
@@ -81,13 +84,17 @@ struct RecordScreen: View {
 
     private var isDemo: Bool { model.camera == .demo }
 
+    private func pickVideo() {
+        navigate(mode == .tracer ? .pickShotVideo : .pickSwingVideo)
+    }
+
     // MARK: Imagen
 
     @ViewBuilder
     private var cameraLayer: some View {
         switch model.camera {
         case .demo:
-            DesignSpace { DemoCameraBackground() }
+            DesignSpace { DemoCameraBackground(showsBall: mode == .tracer) }
         case .running, .starting:
             if let controller = model.controller {
                 CameraPreview(session: controller.session)
@@ -95,9 +102,9 @@ struct RecordScreen: View {
         case .denied:
             CameraProblem(title: "Trazo no puede usar la cámara",
                           detail: "Para grabar tus golpes, permite la cámara en Ajustes > Trazo. También puedes elegir un vídeo de Fotos.",
-                          showsSettings: true, mode: mode)
+                          showsSettings: true, pickVideo: pickVideo)
         case let .unavailable(detail):
-            CameraProblem(title: "La cámara no está disponible", detail: detail, showsSettings: false, mode: mode)
+            CameraProblem(title: "La cámara no está disponible", detail: detail, showsSettings: false, pickVideo: pickVideo)
         }
     }
 
@@ -155,8 +162,11 @@ struct RecordScreen: View {
 
     private var topBar: some View {
         HStack(spacing: Spacing.s) {
-            Button { dismiss() } label: { Image(systemName: "xmark") }
-                .buttonStyle(.crystal)
+            Button { dismiss() } label: {
+                // Más fina que el resto de iconos, como la de la maqueta.
+                Image(systemName: "xmark").font(.system(size: 17, weight: .regular))
+            }
+            .buttonStyle(.crystal)
                 .accessibilityLabel("Cerrar")
                 .disabled(model.isBusy)
             Spacer(minLength: 0)
@@ -266,7 +276,7 @@ struct RecordScreen: View {
 
     /// Miniatura del último clip de este modo; al tocarla se abre "Tus vídeos".
     private var lastClipThumbnail: some View {
-        NavigationLink(value: HomeDestination.library) {
+        Button { navigate(.library) } label: {
             Group {
                 if let image = lastThumbnail {
                     Image(uiImage: image).resizable().scaledToFill()
@@ -337,7 +347,7 @@ private struct CameraProblem: View {
     let title: String
     let detail: String
     let showsSettings: Bool
-    let mode: CaptureMode
+    let pickVideo: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
@@ -356,7 +366,7 @@ private struct CameraProblem: View {
                     Button("Abrir Ajustes") { Permissions.openSettings() }
                         .buttonStyle(CrystalButtonStyle(outline: .capsule))
                 }
-                NavigationLink(value: mode == .tracer ? HomeDestination.pickShotVideo : HomeDestination.pickSwingVideo) {
+                Button(action: pickVideo) {
                     Label("Elegir vídeo", systemImage: "photo.on.rectangle")
                 }
                 .buttonStyle(CrystalButtonStyle(outline: .capsule))

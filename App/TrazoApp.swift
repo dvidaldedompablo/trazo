@@ -21,8 +21,6 @@ struct TrazoApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                // Las pantallas de navegación van siempre en modo claro (docs/02).
-                .preferredColorScheme(.light)
         }
         // Todas las vistas de debajo pueden leer y escribir la biblioteca (@Query, modelContext).
         .modelContainer(container)
@@ -35,18 +33,25 @@ private struct RootView: View {
         // Sin argumento de capturas se abre Inicio.
         let name = UITestHarness.requestedName ?? UITestScreen.home.rawValue
         // UITestScreen(rawValue:) devuelve nil si el nombre no es ninguno de los casos.
-        switch UITestScreen(rawValue: name) {
+        let screen = UITestScreen(rawValue: name)
+        content(screen, name: name)
+            // Las pantallas de navegación van en modo claro y las de vídeo en oscuro (docs/02).
+            // Va aquí, en la raíz, porque la preferencia de más arriba manda sobre las de dentro.
+            .preferredColorScheme(screen == .cameraTracer || screen == .cameraSwing ? .dark : .light)
+    }
+
+    @ViewBuilder
+    private func content(_ screen: UITestScreen?, name: String) -> some View {
+        switch screen {
         case .home:
-            // NavigationStack lleva la pila de pantallas: Inicio abajo y lo que se abra encima.
-            NavigationStack {
-                HomeView()
-            }
+            // Inicio con su pila de navegación; Grabar se abre a pantalla completa por encima.
+            HomeRoot()
         case .components:
             ComponentCatalogView()
         case .cameraTracer:
-            NavigationStack { RecordScreen(mode: .tracer) }
+            RecordScreen(mode: .tracer)
         case .cameraSwing:
-            NavigationStack { RecordScreen(mode: .swing) }
+            RecordScreen(mode: .swing)
         case .library:
             NavigationStack { LibraryView() }
         case .autocut:

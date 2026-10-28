@@ -161,6 +161,9 @@ struct LevelIndicator: View {
 
 /// Fondo de demostración (sin cámara): el campo de prácticas de s02.
 struct DemoCameraBackground: View {
+    /// En modo Swing la bola va a los pies de la silueta: la del Tracer sobraría.
+    var showsBall = true
+
     var body: some View {
         // Los carteles usan Archivo; las fuentes se preparan aquí, fuera del dibujo.
         let fonts = CaptureScene.boards.map { board in
@@ -169,14 +172,14 @@ struct DemoCameraBackground: View {
         Canvas { context, size in
             // Por debajo de la maqueta (pantallas más altas) sigue la hierba.
             context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(SceneColors.grassBottom))
-            CaptureScenePainter.draw(in: &context, boardFonts: fonts)
+            CaptureScenePainter.draw(in: &context, boardFonts: fonts, showsBall: showsBall)
         }
     }
 }
 
 /// Dibuja el campo de s02 con las coordenadas de `CaptureScene`.
 private enum CaptureScenePainter {
-    static func draw(in context: inout GraphicsContext, boardFonts: [Font]) {
+    static func draw(in context: inout GraphicsContext, boardFonts: [Font], showsBall: Bool) {
         let width = CaptureScene.size.width
         // Cielo con el sol arriba a la derecha.
         let sky = CGRect(x: 0, y: CaptureScene.skyTop, width: width, height: CaptureScene.skyBottom - CaptureScene.skyTop)
@@ -230,6 +233,7 @@ private enum CaptureScenePainter {
         tee.closeSubpath()
         context.fill(tee, with: .color(SceneColors.teeBox))
         context.stroke(tee, with: .color(SceneColors.teeBoxEdge.opacity(0.35)), lineWidth: 1.2)
+        guard showsBall else { return }
         context.fill(Ellipse().path(in: CaptureScene.ballShadow), with: .color(.black.opacity(0.25)))
         let r = CaptureScene.ballRadius
         context.fill(Circle().path(in: CGRect(x: CaptureScene.ball.x - r, y: CaptureScene.ball.y - r, width: 2 * r, height: 2 * r)),

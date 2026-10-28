@@ -6,9 +6,7 @@ import SwiftUI
 enum HomeDestination: Hashable {
     case library
     case settings
-    case recordShot
     case pickShotVideo
-    case recordSwing
     case pickSwingVideo
     case help
 
@@ -16,9 +14,7 @@ enum HomeDestination: Hashable {
         switch self {
         case .library: "Tus vídeos"
         case .settings: "Ajustes"
-        case .recordShot: "Grabar golpe"
         case .pickShotVideo: "Elegir vídeo"
-        case .recordSwing: "Grabar swing"
         case .pickSwingVideo: "Elegir vídeo de swing"
         case .help: "Ayuda"
         }
@@ -27,7 +23,7 @@ enum HomeDestination: Hashable {
     /// Etapa de docs/00_PLAN_Y_PROMPTS.md en la que llega la pantalla completa.
     var stage: Int {
         switch self {
-        case .library, .recordShot, .pickShotVideo, .recordSwing, .pickSwingVideo: 3
+        case .library, .pickShotVideo, .pickSwingVideo: 3
         case .settings, .help: 9
         }
     }
@@ -38,8 +34,6 @@ enum HomeDestination: Hashable {
         switch self {
         case .library: LibraryView()
         case .settings: SettingsScreen()
-        case .recordShot: RecordScreen(mode: .tracer)
-        case .recordSwing: RecordScreen(mode: .swing)
         case .pickShotVideo: ImportScreen(mode: .tracer)
         case .pickSwingVideo: ImportScreen(mode: .swing)
         case .help: PlaceholderScreen(destination: .help)

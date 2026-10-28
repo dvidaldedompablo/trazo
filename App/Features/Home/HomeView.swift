@@ -1,8 +1,13 @@
+import GolfCore
 import SwiftUI
 
 /// Inicio (s01 en `design/capturas/`): la marca, la tarjeta del Tracer con la vista previa en vivo,
 /// la tarjeta de Análisis de swing y la fila de Ayuda.
 struct HomeView: View {
+    /// Abre Grabar en el modo pedido. Grabar es una pantalla de vídeo (negra): la presenta `HomeRoot`
+    /// a pantalla completa por encima, no apilada en la navegación.
+    var onRecord: (CaptureMode) -> Void = { _ in }
+
     // Ajustes del trazo. @AppStorage los guarda en el iPhone y los recupera al abrir la app.
     @AppStorage(SettingsKey.tracerColor) private var colorChoice: TracerColorChoice = .rojoTV
     @AppStorage(SettingsKey.tracerCustomColor) private var customColorHex = Int(TracerPalette.customDefaultHex)
@@ -130,7 +135,7 @@ struct HomeView: View {
 
     private var tracerButtons: some View {
         buttonRow {
-            NavigationLink(value: HomeDestination.recordShot) {
+            Button { onRecord(.tracer) } label: {
                 Label { Text("Grabar golpe") } icon: { RecordDot() }
             }
             .buttonStyle(.principal)
@@ -176,7 +181,7 @@ struct HomeView: View {
 
     private var swingButtons: some View {
         buttonRow {
-            NavigationLink(value: HomeDestination.recordSwing) {
+            Button { onRecord(.swing) } label: {
                 Label { Text("Grabar swing") } icon: { RecordDot(color: .pino, ringOpacity: 0.18) }
             }
             .buttonStyle(.amarillo)

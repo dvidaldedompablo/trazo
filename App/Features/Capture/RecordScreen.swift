@@ -230,7 +230,7 @@ struct RecordScreen: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, CaptureLayout.tipPaddingH)
             .padding(.vertical, CaptureLayout.tipPaddingV)
-            .glassEffect(.regular.tint(Color.pino.opacity(0.45)),
+            .glassEffect(.clear.tint(Color.pino.opacity(0.45)),
                          in: RoundedRectangle(cornerRadius: CaptureLayout.tipRadius, style: .continuous))
             .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { tipHidden = true } }
             .accessibilityHint("Toca para esconder el consejo")

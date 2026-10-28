@@ -119,7 +119,9 @@ struct Chip: View {
             Capsule().fill(Color.niebla)
         case .video:
             Capsule().fill(.clear)
-                .glassEffect(.regular.tint(Color.pino.opacity(0.42)), in: Capsule())
+                // Cristal "clear" teñido de Pino al 42 %: la imagen de detrás más un velo verde oscuro,
+                // como en la maqueta, sobre cielo claro o sobre hierba oscura.
+                .glassEffect(.clear.tint(Color.pino.opacity(0.42)), in: Capsule())
         }
     }
 }

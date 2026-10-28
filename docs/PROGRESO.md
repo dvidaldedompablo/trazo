@@ -3,8 +3,8 @@
 Claude Code actualiza este archivo al final de cada etapa.
 
 ## Estado
-- Etapa actual: 4 (en curso). Etapa 3 probada en el iPhone salvo la importación de un vídeo a cámara lenta. Sigue pendiente probar Inicio de la etapa 1.
-- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (19), compilación nº 19 del CI del 28-10-2026
+- Etapa actual: 4 (hecha en el CI; falta la prueba de 5 golpes en el iPhone). Etapa 3 probada en el iPhone salvo la importación de un vídeo a cámara lenta. Sigue pendiente probar Inicio de la etapa 1.
+- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (21), compilación nº 21 del CI del 28-10-2026
 - Repositorio: https://github.com/dvidaldedompablo/trazo (público)
 - Última instalación en el iPhone: (fecha)
 - Caduca: (fecha + 7 días)
@@ -226,6 +226,56 @@ Claude Code actualiza este archivo al final de cada etapa.
   - Un modelo `@Observable` guardado con `@State` es la "memoria" de una pantalla: la vista solo dibuja y el modelo decide qué pasa al tocar.
   - `fullScreenCover` abre una pantalla por encima con su propia presentación (y su propio modo claro u oscuro); `NavigationStack(path:)` deja que el código decida qué pantalla se apila.
 
+### Etapa 4: tracer automático (28-10-2026)
+- Hecho:
+  - GolfCore (`Tracer/`), con 17 tests nuevos (129 en total):
+    - `BallLocator`: busca la bola en un recorte del fotograma con una imagen integral. Puntúa cada candidato por el contraste entre su centro y el lado más claro de su anillo (así una raya clara no pasa por bola, porque tiene algún lado igual de claro) y por la cercanía a "Bola aquí". Con `sharpness` elige el fotograma más nítido.
+    - `BallMotion` e `ImpactChooser`: el impacto por movimiento es el fotograma en que el contraste de la bola cae a la mitad y no vuelve. Si el sonido y el movimiento caen a menos de 2 fotogramas, manda el sonido; si no, el movimiento. `HorizonFinder` encuentra el paso del cielo claro al suelo oscuro.
+    - `TrajectorySelector`: de las trayectorias de Vision se queda con las que empiezan cerca de la bola, poco después del impacto, suben y tienen confianza; y empalma las que siguen a otra.
+    - `TracerAssembler`: junta Vision, BlobTracker y los toques; quita atípicos por tramos (`TrajectoryFit`); calcula la confianza (puntos buenos, tiempo seguido y error medio, y que la bola suba al principio); da el aviso de pérdida ("Perdí la bola a los X s" si se siguió menos de 0,5 s o la confianza es baja); y completa la curva con `TracerCurve` (vértice y caída de lo visto si se ve el vértice; si no, siguiendo la dirección vista hasta la altura típica del palo y cayendo en el horizonte).
+  - App (`App/Features/Tracer/`):
+    - `TracerPipeline` (docs/03, pasos 1 a 5): impacto por el sonido; bola 0,3 s antes (el más nítido de 11 fotogramas, y los 3 mejores candidatos); impacto por movimiento con el contraste de la bola; ventana del vuelo de 2,5 s a unos 120 fps con BlobTracker y `DetectTrajectoriesRequest` de Vision a la vez (zona de interés alrededor de la bola y hacia arriba, y los parámetros de docs/03); montaje y tiempos de cada paso. Si no está seguro de la bola, no inventa: pide un toque ("Toca la bola") diciendo por qué.
+    - Toque de refuerzo (`reinforce`): BlobTracker hacia delante y hacia atrás desde el toque, con la velocidad del ajuste, y Vision con la zona de interés centrada en el toque. Se vuelve a montar todo; si el toque empeora el error medio, avisa "Ese toque no encaja con el resto. ¿Seguro que es la bola?". "Deshacer" quita el último toque; como mucho 5.
+    - `TracerQueue`: los golpes se procesan uno detrás de otro, con el estado guardado en SwiftData (`TracerResult`: en cola, en proceso, listo o falló, con el motivo). Se pausa con la cámara abierta y, si la app se cierra a medias, el golpe vuelve a la cola.
+    - Creando tu tracer (s03): onda real del sonido con el impacto, miniatura con los puntos de la bola apareciendo en directo y los cuatro pasos. "Cancelar" para el análisis. Al terminar abre el resultado; si falta la bola, "Toca la bola".
+    - Toca la bola: el fotograma exacto, pasos de fotograma y lupa x3 bajo el dedo.
+    - Ajusta el vuelo (provisional hasta la etapa 5): el vídeo con la curva propuesta y "Perdí la bola a los X s". En el modo diagnóstico, además: puntos de Vision (cian), de BlobTracker (magenta), descartados (gris), toques (con anillo), la curva ajustada sobre lo visto (blanca discontinua), el panel con confianza, puntos, impacto, tiempo seguido, error, fps, horizonte y tiempos de cada paso, y los botones "Tocar la bola" y "Deshacer".
+    - Tus vídeos: en los golpes del Tracer, "En proceso" (con el avance), "Listo" o "Falló". Al tocar uno que falló: el motivo y "Tocar la bola", "Abrir en Ajusta el vuelo", "Volver a intentar" o "Ver el vídeo". Al mantener pulsado: "Crear tracer" o "Volver a crear el tracer".
+    - Grabar e importar mandan los golpes del Tracer a la cola: con uno se abre Creando tu tracer; con varios, "N golpes en cola. Los verás en Tus vídeos."
+    - Capturas del CI nuevas: `processing`, `ball-tap` y `tracer-check` (Ajusta el vuelo con el diagnóstico y un toque).
+- Decisiones:
+  - Palo de la propuesta: hierros 5 a 7 (`longIrons`) mientras no se pueda elegir (etapa 5).
+  - "Exportando el vídeo" se queda pendiente: el vídeo con el trazo llega en la etapa 5.
+  - Ajusta el vuelo y Toca la bola llevan los controles sobre el negro, por encima y por debajo del vídeo, como s04. Encima del vídeo tapaban la bola y el cristal se partía entre el negro y el cielo.
+  - El panel de diagnóstico se pliega al tocarlo, para ver el vértice que queda debajo.
+- Problemas y cómo se resolvieron:
+  - Compiló a la primera en el CI (run 20). En los tests, `BallLocator` elegía los extremos de una raya clara: ahora el anillo usa su lado más claro.
+  - Run 20, la curva propuesta hacía un lazo a cada lado del vértice cuando se perdía la bola subiendo. Visto desde detrás, el vuelo es alto y estrecho (65 px de la salida al vértice en horizontal y 1394 px de alto), y `TracerCurve` ponía en el vértice asas de al menos 0,3 veces la altura (unos 190 px). Ahora el mínimo es 0,1. La curva de la maqueta no cambia y hay un test del caso estrecho.
+  - Run 20, "descartados 26" de 75 puntos: Vision y BlobTracker marcan el centro de la bola con 1 o 2 px de diferencia, y con el umbral mínimo de atípico de 1,5 px se descartaban todos los de BlobTracker. Al montar el tracer, el mínimo es ahora de 3 px en 1080 de ancho. Hay un test con dos fuentes separadas 2 px y un punto malo a 60 px.
+- Comparación con s03 (captura `processing`):
+  - Vuelta 1: título, frase, panel, pasos y nota en su sitio. Diferencias: la miniatura enseñaba el fotograma entero y los puntos (de 6,4 pt) se pisaban; el pico del impacto medía 95 pt y tapaba la línea punteada (en la maqueta, 89); la etiqueta era 9 pt más ancha; la nota estaba 9 pt más abajo.
+  - Vuelta 2: la miniatura se acerca a la bola (el 56 % del ancho, como la maqueta) y la sigue, y los puntos tienen el tamaño de la maqueta; el pico y la etiqueta ya son los de la maqueta; la nota está en su sitio. Además, como pide docs/02: al encontrar el impacto, la onda se rellena de izquierda a derecha, el pico late una vez y vibra (.rigid). Con "Reducir movimiento", nada se mueve.
+  - Diferencia que queda a propósito: "Por el sonido, en el fotograma 441" se parte en 3 líneas. Es el corte de líneas de iOS, que no deja "441" solo en la última línea.
+- Pendiente:
+  - La prueba de 5 golpes en el iPhone (abajo). Todo el tracer automático está probado solo con datos sintéticos: la bola real, Vision con vídeo real y los tiempos en el iPhone están sin probar.
+  - Con la prueba de 5 golpes: fijar `maximumBallSpeed` (ahora sin límite), revisar el corte de sugerencia (0,18), el umbral de atípico de 3 px y los parámetros de Vision.
+  - Ajusta el vuelo completo (asas, forma, altura, tiempo de vuelo, colores y distancia), elegir el palo y exportar el vídeo con el trazo: etapa 5.
+  - Memoria: la ventana del vuelo guarda unos 300 fotogramas en gris a media resolución (unos 160 MB) mientras se analiza. Hay que medirlo en el iPhone (objetivo: por debajo de 1,5 GB).
+- Pruebas para el iPhone:
+  - Activa el modo diagnóstico (Ajustes → 5 toques en la versión).
+  - Graba un golpe en Tracer con "Corte auto": al guardar se abre Creando tu tracer. La onda debe marcar el impacto en rojo con una vibración seca, la miniatura debe acercarse a la bola y los puntos deben salir sobre ella. Luego se abre Ajusta el vuelo con la curva.
+  - En Ajusta el vuelo, con el diagnóstico: los puntos cian y magenta deben ir sobre la bola; los grises (descartados) deben ser pocos y estar fuera de su camino. Apunta los tiempos del panel: el total debe bajar de 60 s para un clip de 9 s.
+  - Si sale "Perdí la bola a los X s": "Tocar la bola" → avanza fotogramas hasta ver la bola en el aire → tócala con la lupa → "Usar este punto". La curva debe pasar por el toque, y "Deshacer" debe dejarla como estaba.
+  - Graba 3 golpes seguidos con "Corte auto" y guarda los 3: "3 golpes en cola". En Tus vídeos, uno "En proceso" con el avance y los otros esperando; al terminar, "Listo" o "Falló".
+  - Toca uno que falló: debe decir por qué y ofrecer qué hacer. Mantén pulsado un clip del Tracer → "Volver a crear el tracer".
+  - Durante Creando tu tracer, toca "Cancelar": el análisis se para y el golpe queda sin estado en Tus vídeos. Al tocarlo otra vez, vuelve a crear el tracer (para verlo sin más: mantener pulsado → "Ver el vídeo").
+- Qué he aprendido de Swift en esta etapa:
+  - La API nueva de Vision en Swift (`DetectTrajectoriesRequest`) se usa con `await` y devuelve valores: no hace falta el manejador de peticiones de antes.
+  - `AsyncStream.makeStream()` crea un canal por el que el trabajo de fondo manda su avance a la pantalla, y `Task.checkCancellation()` lo para cuando se toca "Cancelar".
+  - `@Query` con `#Predicate` filtra en la base de datos, y se puede crear en el `init` de la vista para filtrar por un valor (aquí, el id del clip).
+  - `KeyframeAnimator` encadena animaciones por pasos (rellenar la onda y luego el latido), y `sensoryFeedback` da una vibración cuando cambia un valor.
+  - `@Entry` declara un valor del entorno (`homeNavigator`) que cualquier pantalla de Inicio lee para abrir otra sin pasarlo de mano en mano.
+
 <!-- Plantilla por etapa:
 ### Etapa N: título (fecha)
 - Hecho:
@@ -238,6 +288,16 @@ Claude Code actualiza este archivo al final de cada etapa.
 
 ## Prueba de 5 golpes
 Criterio de la guía de javiggil: 4 de 5 o más, sin toques de refuerzo (`docs/03`).
+Un golpe cuenta como bien si la app no pide tocar la bola, no sale "Perdí la bola" y la curva va sobre la bola y cae en un sitio creíble.
+
+| Golpe | Cielo y fondo | fps | Móvil | ¿Sigue la bola sin saltos? | ¿Caída creíble? | Notas (confianza, seguida hasta, puntos, tiempos) |
+|---|---|---|---|---|---|---|
+| 1 | Despejado | 240 | Trípode | | | |
+| 2 | Nublado | 240 | Trípode | | | |
+| 3 | Árboles detrás | 240 | Trípode | | | |
+| 4 | Despejado | 240 | Apoyado en la bolsa | | | |
+| 5 | Despejado | 240 | En la mano | | | |
+
 (pendiente)
 
 ## Etapa 4b: SAM 2.1 en prueba de laboratorio

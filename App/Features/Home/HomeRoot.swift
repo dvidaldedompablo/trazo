@@ -15,6 +15,8 @@ struct HomeRoot: View {
         NavigationStack(path: $path) {
             HomeView { mode in recording = RecordRequest(mode: mode) }
         }
+        // Cualquier pantalla de Inicio puede abrir otra (por ejemplo, "Creando tu tracer" al importar).
+        .environment(\.homeNavigator, HomeNavigator { destination in path.append(destination) })
         .fullScreenCover(item: $recording) { request in
             RecordScreen(mode: request.mode) { destination in
                 // Desde Grabar se va a otra pantalla: se cierra la cámara y se abre debajo.

@@ -22,6 +22,7 @@ struct RecordScreen: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(TracerQueue.self) private var tracerQueue
     @Query(sort: \Clip.createdAt, order: .reverse) private var clips: [Clip]
 
     init(mode: CaptureMode, navigate: @escaping (HomeDestination) -> Void = { _ in }) {
@@ -61,15 +62,28 @@ struct RecordScreen: View {
         .task {
             model.context = modelContext
             guard !isDemo else { return }
-            // Que la pantalla no se apague con el móvil en el trípode.
+            // Que la pantalla no se apague con el móvil en el trípode, y la cola del tracer en pausa:
+            // la cámara a 240 fps necesita todo el iPhone.
             UIApplication.shared.isIdleTimerDisabled = true
+            tracerQueue.isPaused = true
             level.start()
             await model.start(frameRate: frameRate)
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
+            if !isDemo { tracerQueue.isPaused = false }
             level.stop()
             model.stop()
+        }
+        .onChange(of: model.savedBatch) { _, batch in
+            // Golpes del Tracer: a la cola. Con uno, se abre "Creando tu tracer"; con varios, se sigue grabando.
+            guard mode == .tracer, let ids = batch?.clipIDs, !ids.isEmpty else { return }
+            tracerQueue.enqueue(ids)
+            if ids.count == 1 {
+                navigate(.tracerProcessing(ids[0]))
+            } else {
+                model.message = "\(ids.count) golpes en cola. Los verás en Tus vídeos."
+            }
         }
         .onChange(of: frameRate) { _, newValue in
             Task { await model.changeFrameRate(newValue) }

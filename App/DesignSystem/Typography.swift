@@ -62,6 +62,14 @@ extension TypeStyle {
     static let filaSub = TypeStyle(family: .system(.regular), size: 13.5, relativeTo: .footnote)
     /// Consejo en cristal sobre la cámara (s02): SF de peso medio, 15 pt, alto de línea 1,4.
     static let consejo = TypeStyle(family: .system(.medium), size: 15, relativeTo: .subheadline, lineHeight: 1.4)
+    /// Frase bajo un título de pantalla ("Mantén la app abierta…", s03): 15 pt, alto de línea 1,4.
+    static let leadText = TypeStyle(family: .system(.regular), size: 15, relativeTo: .subheadline, lineHeight: 1.4)
+    /// Nota en un recuadro (pie de s03): 14 pt, alto de línea 1,45.
+    static let footNote = TypeStyle(family: .system(.regular), size: 14, relativeTo: .footnote, lineHeight: 1.45)
+    /// Título de un panel o de un paso ("Sonido del golpe", "Impacto encontrado"): 15,5 pt seminegrita.
+    static let panelTitle = TypeStyle(family: .system(.semibold), size: 15.5, relativeTo: .subheadline)
+    /// Paso que aún no ha empezado: mismo tamaño, más fino.
+    static let stepPending = TypeStyle(family: .system(.medium), size: 15.5, relativeTo: .subheadline)
 }
 
 @MainActor

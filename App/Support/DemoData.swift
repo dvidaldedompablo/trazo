@@ -24,8 +24,86 @@ enum DemoData {
                             frameRate: 240, duration: duration, width: 1080, height: 1920,
                             impactTime: mode == .tracer ? 1 : 2.5)
             context.insert(clip)
+            // Estado del tracer en algunos golpes: uno en proceso, uno listo y uno que falló.
+            if mode == .tracer, index < 4 {
+                let result = TracerResult(clipID: clip.id, createdAt: clip.createdAt)
+                switch index {
+                case 0: result.status = .processing
+                case 2:
+                    result.status = .ready
+                    result.analysis = reviewAnalysis()
+                default:
+                    result.status = .failed
+                    result.needsBall = true
+                    result.failureReason = "No he encontrado la bola antes del golpe. Tócala para seguir."
+                }
+                context.insert(result)
+            }
         }
         try? context.save()
+    }
+
+    /// Bola de la escena de demostración (`escena_tracer`, 1080 x 1920).
+    static let sceneBall = Point2D(903, 1740)
+
+    /// "Creando tu tracer" a mitad del seguimiento, como en s03: impacto en el fotograma 441 (1,84 s),
+    /// siguiendo el 212 de 480 y 13 puntos de la bola.
+    static func processingLive() -> TracerLive {
+        var rng = SeededRandom(seed: 9)
+        var live = TracerLive()
+        live.step = .tracking
+        live.bars = (0..<TracerPipeline.waveformBars).map { _ in 0.07 + rng.nextUnit() * 0.11 }
+        live.bars[37] = 1
+        live.bars[36] = 0.5
+        live.bars[38] = 0.5
+        live.impactBar = 37
+        live.impactTime = 1.84
+        live.impactFrame = 441
+        live.impactSource = .sound
+        live.frame = 212
+        live.totalFrames = 480
+        live.points = (0..<13).map { i in
+            let t = Double(i) / 12
+            return Point2D((sceneBall.x - 60 * t) / 1080, (sceneBall.y - 560 * t) / 1920)
+        }
+        live.thumbnail = UIImage(named: "escena_tracer")?.jpegData(compressionQuality: 0.8)
+        live.progress = 0.55
+        return live
+    }
+
+    /// Toca la bola en el fotograma de 0,3 s antes del impacto.
+    static func ballTapRequest() -> BallTapRequest {
+        BallTapRequest(url: MediaStore.temporaryURL(extension: "mov"), time: 1.54, frameRate: 240, videoWidth: 1080,
+                       videoHeight: 1920, title: "Toca la bola",
+                       hint: "No he encontrado la bola antes del golpe. Busca un fotograma nítido y tócala.")
+    }
+
+    /// Un tracer con puntos de Vision y BlobTracker, dos descartados y un toque, perdido a los 0,4 s.
+    static func reviewAnalysis() -> TracerAnalysis {
+        func point(_ t: Double) -> Point2D { Point2D(sceneBall.x - 70 * t, sceneBall.y - 1500 * t + 600 * t * t) }
+        var points: [SourcedSample] = []
+        for i in 1...48 {
+            let t = Double(i) / 120
+            points.append(SourcedSample(TrajectorySample(time: t, point: point(t) + Point2D(0.8, -0.5)), source: .vision))
+            if i % 2 == 0 {
+                points.append(SourcedSample(TrajectorySample(time: t + 0.002, point: point(t) + Point2D(-0.6, 0.7)), source: .blob))
+            }
+        }
+        points.append(SourcedSample(TrajectorySample(time: 0.21, point: Point2D(640, 900)), source: .blob))
+        points.append(SourcedSample(TrajectorySample(time: 0.33, point: Point2D(980, 1100)), source: .vision))
+        let tap = TrajectorySample(time: 0.25, point: point(0.25), isFixed: true)
+        let input = TracerInput(ball: sceneBall, imageWidth: 1080, imageHeight: 1920, points: points + [SourcedSample(tap, source: .tap)],
+                                horizonY: 760)
+        var outcome = TracerAssembler.assemble(input).outcome
+        // Para la captura: que se vea el aviso de pérdida.
+        outcome.needsReview = true
+        outcome.lostAt = outcome.trackedDuration
+        return TracerAnalysis(outcome: outcome, impactTime: 1.84, impactSource: .sound, impactFrame: 441, ball: sceneBall,
+                              ballFromTap: false, videoWidth: 1080, videoHeight: 1920, frameRate: 240, horizonY: 760,
+                              basePoints: points, reinforcements: [Reinforcement(tap: tap, added: [])],
+                              timings: [StepTiming(name: "Vídeo y sonido", seconds: 0.4), StepTiming(name: "Bola e impacto", seconds: 0.9),
+                                        StepTiming(name: "Vuelo y Vision", seconds: 3.2), StepTiming(name: "BlobTracker", seconds: 1.1)],
+                              notes: ["Datos de demostración."])
     }
 
     /// Una grabación de 38 s con tres golpes (el tercero, flojo: de otro jugador) para la hoja de elegir golpes.

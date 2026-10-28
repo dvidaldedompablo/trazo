@@ -15,6 +15,12 @@ enum UITestScreen: String {
     case autocut
     /// La misma hoja con un vídeo narrado, sin golpes: el control de sensatez no propone clips.
     case autocutVoice = "autocut-voice"
+    /// "Creando tu tracer" (s03) a mitad del seguimiento.
+    case processing
+    /// Toca la bola, con un toque y la lupa.
+    case ballTap = "ball-tap"
+    /// El resultado del tracer con el modo diagnóstico (puntos, descartados, curva y datos).
+    case tracerCheck = "tracer-check"
 }
 
 /// Arnés de capturas: con `-UITestScreen` la app abre esa pantalla con datos de demostración,

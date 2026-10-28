@@ -42,6 +42,8 @@ final class RecordModel {
     var pending: PendingRecording?
     /// Mensaje corto tras guardar o si algo falla.
     var message: String?
+    /// Clips recién guardados (cada vez uno nuevo): la pantalla los manda a la cola del tracer.
+    private(set) var savedBatch: SavedBatch?
 
     @ObservationIgnored let controller: CameraController?
     @ObservationIgnored var context: ModelContext?
@@ -151,9 +153,10 @@ final class RecordModel {
             } else {
                 phase = .saving
                 guard let context else { return }
-                try await ClipSaver.saveWhole(analyzed, in: context)
+                let clip = try await ClipSaver.saveWhole(analyzed, in: context)
                 phase = .idle
                 message = "Guardado en Tus vídeos"
+                savedBatch = SavedBatch(clipIDs: [clip.id])
             }
         } catch {
             phase = .idle
@@ -179,6 +182,7 @@ final class RecordModel {
             do {
                 let clips = try await ClipSaver.save(pending, selection: selection, keepFullRecording: keepFullRecording, in: context)
                 message = clips.count == 1 ? "1 vídeo guardado en Tus vídeos" : "\(clips.count) vídeos guardados en Tus vídeos"
+                savedBatch = SavedBatch(clipIDs: clips.map(\.id))
             } catch {
                 message = "No se han podido guardar los clips: \(error.localizedDescription)"
             }
@@ -189,4 +193,10 @@ final class RecordModel {
     /// Sin espacio para unos minutos a 240 fps no se empieza a grabar (docs/02: "Libera al menos 1 GB").
     private static let minimumFreeSpace: Int64 = 1_000_000_000
     private static let logger = Logger(subsystem: "io.github.dvidaldedompablo.trazo", category: "Record")
+}
+
+/// Clips guardados de una vez. Cada lote es distinto aunque tenga los mismos clips (para `onChange`).
+struct SavedBatch: Equatable {
+    let id = UUID()
+    let clipIDs: [UUID]
 }

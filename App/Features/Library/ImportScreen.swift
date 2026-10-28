@@ -26,6 +26,8 @@ struct ImportScreen: View {
     @State private var pending: PendingRecording?
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(TracerQueue.self) private var tracerQueue
+    @Environment(\.homeNavigator) private var navigator
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
@@ -102,8 +104,9 @@ struct ImportScreen: View {
             if analyzed.windows.count >= 2 || !analyzed.isShotSeries {
                 pending = analyzed
             } else {
-                try await ClipSaver.saveWhole(analyzed, in: context)
+                let clip = try await ClipSaver.saveWhole(analyzed, in: context)
                 step = .done(doneText(count: 1, stretched: analyzed.mayBeStretched))
+                startTracer([clip.id])
             }
         } catch {
             step = .failed("No se ha podido importar el vídeo: \(error.localizedDescription)")
@@ -138,9 +141,17 @@ struct ImportScreen: View {
         do {
             let clips = try await ClipSaver.save(pending, selection: selection, keepFullRecording: keepFull, in: context)
             step = .done(doneText(count: clips.count, stretched: pending.mayBeStretched))
+            startTracer(clips.map(\.id))
         } catch {
             step = .failed("No se han podido guardar los clips: \(error.localizedDescription)")
         }
+    }
+
+    /// Golpes del Tracer: a la cola; con uno, se abre "Creando tu tracer".
+    private func startTracer(_ clipIDs: [UUID]) {
+        guard mode == .tracer, !clipIDs.isEmpty else { return }
+        tracerQueue.enqueue(clipIDs)
+        if clipIDs.count == 1 { navigator.open(.tracerProcessing(clipIDs[0])) }
     }
 
     private func doneText(count: Int, stretched: Bool) -> String {

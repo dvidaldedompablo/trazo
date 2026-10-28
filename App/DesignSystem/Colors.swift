@@ -55,6 +55,14 @@ extension Color {
     }
 }
 
+/// Colores del modo diagnóstico del tracer (docs/03): puntos de Vision en cian, de BlobTracker en magenta,
+/// descartados en gris. Solo se ven con el modo diagnóstico activado.
+enum DiagnosticColors {
+    static let vision = Color(hex: 0x2FD9F0)
+    static let blob = Color(hex: 0xE94FD8)
+    static let discarded = Color(hex: 0x9AA39E)
+}
+
 /// Colores de las ilustraciones de Inicio (la ventana del Tracer y la figura del telestrador).
 /// Son dibujos, no interfaz: salen tal cual de `design/maqueta.html`.
 enum SceneColors {

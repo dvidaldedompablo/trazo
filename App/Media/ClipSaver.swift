@@ -54,11 +54,15 @@ enum ClipSaver {
         return clip
     }
 
-    /// Borra un clip: su vídeo, su miniatura y su ficha.
+    /// Borra un clip: su vídeo, su miniatura, su tracer y su ficha.
     static func delete(_ clip: Clip, in context: ModelContext) {
         if !clip.isDemo {
             MediaStore.removeIfPresent(clip.fileURL)
             if let thumbnail = clip.thumbnailName { MediaStore.removeIfPresent(MediaStore.url(forFile: thumbnail)) }
+        }
+        let clipID = clip.id
+        if let results = try? context.fetch(FetchDescriptor<TracerResult>(predicate: #Predicate { $0.clipID == clipID })) {
+            for result in results { context.delete(result) }
         }
         context.delete(clip)
         try? context.save()

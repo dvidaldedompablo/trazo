@@ -8,7 +8,7 @@ enum DataStore {
     /// El contenedor de la app. En las capturas del CI va en memoria (no toca nada guardado)
     /// y con datos de demostración.
     static func makeContainer(inMemory: Bool) -> ModelContainer {
-        let schema = Schema([Clip.self, Club.self])
+        let schema = Schema([Clip.self, Club.self, TracerResult.self])
         do {
             let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
             return try ModelContainer(for: schema, configurations: [configuration])

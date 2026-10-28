@@ -3,7 +3,7 @@
 Claude Code actualiza este archivo al final de cada etapa.
 
 ## Estado
-- Etapa actual: 3 (CI en verde; falta probar la cámara en el iPhone). Sigue pendiente probar Inicio de la etapa 1.
+- Etapa actual: 4 (en curso). Etapa 3 probada en el iPhone salvo la importación de un vídeo a cámara lenta. Sigue pendiente probar Inicio de la etapa 1.
 - Último .ipa: `builds/Trazo.ipa`, versión 0.1 (19), compilación nº 19 del CI del 28-10-2026
 - Repositorio: https://github.com/dvidaldedompablo/trazo (público)
 - Última instalación en el iPhone: (fecha)
@@ -199,6 +199,10 @@ Claude Code actualiza este archivo al final de cada etapa.
   - Revisar el corte de sugerencia (0,18 del golpe más fuerte) con la prueba de 5 golpes de la etapa 4: sale de un solo vídeo medido.
   - Estado de la cola ("En proceso", "Listo", "Falló") y "Abrir en Ajusta el vuelo" en Tus vídeos (etapas 4 y 5).
   - Analizar el audio de una grabación muy larga ocupa memoria (unos 80 MB por minuto de grabación mientras dura el análisis). Para golpes sueltos sobra; grabaciones de más de 5 minutos no están probadas.
+- Probado en el iPhone (28-10-2026, lo cuenta el usuario):
+  - La cámara graba a 241 fps reales en 1080p (el diagnóstico enseña los fps medidos con el instante de cada fotograma, no los declarados).
+  - Importar el vídeo del swing de Si Woo funciona y el corte automático propone lo esperado.
+  - Pendiente: importar un vídeo a cámara lenta (Slo-mo) de Fotos.
 - Pruebas para el iPhone:
   - Abre Grabar golpe: iOS pide la cámara y el micrófono (textos en español). Se ve la cámara a pantalla completa con la hora en blanco, chips "Tracer" y "240 fps", el consejo, la silueta, la línea roja discontinua y "Bola aquí".
   - Gira el móvil un poco: las dos rayas del centro se quedan horizontales con el mundo y, al ponerlo recto, el círculo se pone verde con "Nivelado".

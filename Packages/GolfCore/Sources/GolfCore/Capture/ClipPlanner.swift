@@ -55,6 +55,14 @@ public struct ClipWindow: Sendable, Equatable {
     public var impactOffset: Double { impactTime - start }
 }
 
+/// Lo que propone el corte automático para una grabación.
+public struct ClipProposal: Sendable, Equatable {
+    /// Un clip por golpe. Vacío si los impactos no parecen una tanda de golpes.
+    public var windows: [ClipWindow]
+    /// Los impactos parecen golpes de golf (`ClipPlanner.isShotSeries`).
+    public var isShotSeries: Bool
+}
+
 /// Corte automático (etapa 3): de los impactos encontrados en el audio a un clip por golpe.
 ///
 /// Cada clip va de `secondsBeforeImpact` antes del impacto a `secondsAfterImpact` después,
@@ -71,6 +79,14 @@ public enum ClipPlanner {
     /// Se proponen los golpes que suenan al menos esta fracción del más fuerte.
     /// Los más flojos suelen ser de otros jugadores del campo de prácticas.
     public static let suggestionFraction = 0.25
+
+    /// La propuesta completa: el control de sensatez y, si lo pasa, un clip por golpe.
+    /// Si no parece una tanda de golpes (una voz, aplausos), no se propone ninguna lista.
+    public static func propose(for impacts: [Impact], recordingDuration: Double, mode: CaptureMode) -> ClipProposal {
+        guard isShotSeries(impacts) else { return ClipProposal(windows: [], isShotSeries: false) }
+        return ClipProposal(windows: windows(for: impacts, recordingDuration: recordingDuration, mode: mode),
+                            isShotSeries: true)
+    }
 
     public static func windows(for impacts: [Impact], recordingDuration: Double, mode: CaptureMode) -> [ClipWindow] {
         let strongest = impacts.map(\.strength).max() ?? 0

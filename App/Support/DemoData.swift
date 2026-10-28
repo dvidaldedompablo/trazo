@@ -61,12 +61,12 @@ enum DemoData {
             impacts.append(Impact(time: t, strength: 200 + rng.nextUnit() * 400, prominence: 30))
             t += 0.42 + rng.nextUnit() * 0.6
         }
-        let windows = ClipPlanner.windows(for: impacts, recordingDuration: duration, mode: .swing)
+        let proposal = ClipPlanner.propose(for: impacts, recordingDuration: duration, mode: .swing)
         let bars = (0..<RecordingAnalyzer.barCount).map { _ in 0.25 + rng.nextUnit() * 0.75 }
         let info = VideoInfo(duration: duration, nominalFrameRate: 30, measuredFrameRate: 30, frameCount: 2850,
                              width: 1080, height: 1920, codec: "avc1", hasAudio: true)
         return PendingRecording(sourceURL: MediaStore.temporaryURL(extension: "mov"), mode: .swing, origin: .imported,
-                                info: info, bars: bars, windows: windows, thumbnails: windows.map { _ -> Data? in nil },
-                                strongestImpact: nil, isShotSeries: ClipPlanner.isShotSeries(impacts))
+                                info: info, bars: bars, windows: proposal.windows, thumbnails: [],
+                                strongestImpact: nil, isShotSeries: proposal.isShotSeries)
     }
 }

@@ -97,7 +97,9 @@ struct ImportScreen: View {
             let (url, isOriginal) = try await copyVideo(item)
             var analyzed = try await RecordingAnalyzer.analyze(url, mode: mode, origin: .imported)
             analyzed.mayBeStretched = !isOriginal && analyzed.info.nominalFrameRate <= 61
-            if analyzed.windows.count >= 2 {
+            // Varios golpes: se eligen en la hoja. Si no parece una tanda de golpes, la hoja lo dice
+            // y ofrece guardar el vídeo entero o descartarlo.
+            if analyzed.windows.count >= 2 || !analyzed.isShotSeries {
                 pending = analyzed
             } else {
                 try await ClipSaver.saveWhole(analyzed, in: context)

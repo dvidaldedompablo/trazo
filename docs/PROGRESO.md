@@ -4,7 +4,7 @@ Claude Code actualiza este archivo al final de cada etapa.
 
 ## Estado
 - Etapa actual: 3 (CI en verde; falta probar la cámara en el iPhone). Sigue pendiente probar Inicio de la etapa 1.
-- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (17), compilación nº 17 del CI del 28-10-2026
+- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (18), compilación nº 18 del CI del 28-10-2026
 - Repositorio: https://github.com/dvidaldedompablo/trazo (público)
 - Última instalación en el iPhone: (fecha)
 - Caduca: (fecha + 7 días)
@@ -177,6 +177,10 @@ Claude Code actualiza este archivo al final de cada etapa.
   - La onda ya no pone una etiqueta y una línea por golpe, que con muchos golpes se pisaban: como mucho 5 marcas de tiempo a intervalos redondos (0:00, 0:10, 0:20… o 0:00, 0:20, 0:40…) y los golpes en rojo en la propia onda. Cada fila dice "A los 0:12".
   - Un clip también es "corto" si no llega al 60 % de su duración prevista (5,4 s de 9 en Tracer, 2,7 s de 4,5 en Swing), aunque tenga 1 s de margen a cada lado. En la fila: "corto: le falta parte del vuelo" o "del swing".
   - Tests nuevos en `ClipPlannerTests`: una voz simulada (133 impactos cada 0,4 a 1 s) no es una tanda; golpes cada 15 a 30 s sí, también con un eco justo detrás; la regla es "más de la mitad" (2 de 4 sí es tanda, 3 de 4 no) y con menos de dos impactos no se aplica; la regla del 60 % justo por encima y por debajo en Tracer y Swing; y las marcas de tiempo (38 s: 0, 10, 20 y 30; 95 s: 0, 20, 40, 60 y 80).
+  - `ClipPlanner.propose`: la propuesta completa (control de sensatez y clips). Si no es una tanda de golpes, llega sin clips: "no proponer ninguna lista" queda en GolfCore y no solo en la pantalla.
+  - Casos completos (`AutoCutCasesTests`, 3 tests; 109 en total):
+    - Caso real medido: vídeo de 46,5 s con golpes a 1,27, 9,05, 19,10, 29,20, 37,98 y 43,58 s y fuerzas de 128, 154, 42, 70, 100 y 97 veces el umbral, más ruido de fondo por debajo de 17 veces (9 transitorios sueltos entre los golpes: el caso medido no da sus instantes). En Swing se proponen los 6 y el fondo queda sin marcar. En Tracer se proponen 5: el de 43,58 s solo tiene 2,92 s de vuelo grabado (clip de 3,92 s, menos del 60 % de 9) y queda "corto". El golpe de 42 está a 0,27 del más fuerte, cerca del corte de 0,25.
+    - Caso contrario, de punta a punta con el detector: 95 s de voz sintética con 214 transitorios (consonantes), hueco mediano de 0,30 s y más energía en 200 a 1000 Hz que en 1,5 a 7 kHz (el test comprueba las tres cosas). El detector oye 97 "impactos" (el periodo refractario de 0,4 s junta los demás), 88 a menos de 2 s del anterior: no es una tanda en ningún modo y no hay lista.
 - Comparación con s02 (captura `camera-tracer`, misma escala):
   - Vuelta 1: posiciones de barra superior, consejo, nivel, carteles, silueta, línea del golpe, "Bola aquí", botón de grabar, miniatura y "Corte auto" iguales. Diferencias: la hora en negro y el cristal claro (por el modo claro de la raíz); "Corte auto" casi blanco sobre la hierba (99, 114, 105 frente a 20, 56, 31); la ✕ más gruesa; en Swing se veía la bola del Tracer además del círculo de la guía.
   - Vuelta 2 (pantalla completa en oscuro): hora blanca y "Corte auto" igual, pero chips y consejo demasiado oscuros (49 frente a 84 en el chip). ✕ fina y sin la bola sobrante en Swing.

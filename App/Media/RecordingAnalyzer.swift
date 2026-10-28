@@ -35,16 +35,13 @@ enum RecordingAnalyzer {
         let info = try await VideoInspector.info(of: url, measureFrames: false)
         let samples = info.hasAudio ? try await AudioExtractor.monoSamples(from: url) : []
         let impacts = ImpactDetector.detect(samples: samples, sampleRate: AudioExtractor.sampleRate)
-        let windows = ClipPlanner.windows(for: impacts, recordingDuration: info.duration, mode: mode)
-        let isShotSeries = ClipPlanner.isShotSeries(impacts)
-        // Miniaturas solo si se van a enseñar los clips (con una voz podrían ser más de cien).
+        // Si los impactos no parecen una tanda de golpes (una voz), la propuesta llega sin clips.
+        let proposal = ClipPlanner.propose(for: impacts, recordingDuration: info.duration, mode: mode)
+        let windows = proposal.windows
+        let isShotSeries = proposal.isShotSeries
         var thumbnails: [Data?] = []
         for window in windows {
-            if isShotSeries {
-                thumbnails.append(try? await Thumbnailer.jpeg(from: url, at: window.impactTime))
-            } else {
-                thumbnails.append(nil)
-            }
+            thumbnails.append(try? await Thumbnailer.jpeg(from: url, at: window.impactTime))
         }
         // Si no es una tanda de golpes, esos picos no son de fiar: no se guarda ningún instante de impacto.
         let strongest = isShotSeries ? impacts.max { $0.strength < $1.strength }?.time : nil

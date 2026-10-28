@@ -193,3 +193,76 @@ enum SyntheticFlight {
         }
     }
 }
+
+/// Voz continua sintética: frases de 6 a 14 sílabas, una cada ~0,30 s, con pausas entre frases.
+/// Cada sílaba empieza con una consonante (un chasquido de ruido de 15 ms en 1,5 a 7 kHz, el transitorio)
+/// y sigue con una vocal (armónicos de 110 a 170 Hz hasta 1 kHz), así que la mayor parte de la energía
+/// está en 200 a 1000 Hz, como en una narración.
+enum SyntheticVoice {
+    struct Recording {
+        let samples: [Float]
+        /// Instante de cada transitorio (el principio de cada consonante).
+        let transientTimes: [Double]
+        let sampleRate: Double
+    }
+
+    static func make(seconds: Double, transients: Int, seed: UInt64, sampleRate: Double = 48_000) -> Recording {
+        var rng = SeededRandom(seed: seed)
+        // Momentos de las sílabas: 0,25 a 0,35 s entre ellas dentro de una frase; pausa de 0,85 a 1,65 s entre frases.
+        var times: [Double] = []
+        var t = 0.5
+        while times.count < transients {
+            let syllables = 6 + Int(rng.nextUnit() * 9)
+            for _ in 0..<syllables where times.count < transients {
+                times.append(t)
+                t += 0.25 + rng.nextUnit() * 0.10
+            }
+            t += 0.85 + rng.nextUnit() * 0.8
+        }
+
+        let count = Int(seconds * sampleRate)
+        var voiced = (0..<count).map { _ in rng.nextGaussian() * 0.003 }
+        var bursts = [Double](repeating: 0, count: count)
+        var f0 = 140.0
+        for (index, start) in times.enumerated() {
+            if index % 10 == 0 { f0 = 110 + rng.nextUnit() * 60 }
+            // Consonante: ruido que se apaga en unos milisegundos.
+            let first = Int(start * sampleRate)
+            let burstLength = Int(0.015 * sampleRate)
+            let burstLevel = 0.10 + rng.nextUnit() * 0.06
+            for n in 0..<burstLength where first + n < count {
+                bursts[first + n] += burstLevel * exp(-Double(n) / (0.005 * sampleRate)) * rng.nextGaussian()
+            }
+            // Vocal: armónicos hasta 1 kHz, más fuertes entre 300 y 800 Hz, con subida y bajada suaves.
+            let vowelStart = first + Int(0.02 * sampleRate)
+            let vowelLength = Int(0.18 * sampleRate)
+            let level = 0.25 + rng.nextUnit() * 0.1
+            let harmonics = Int(1000 / f0)
+            for n in 0..<vowelLength where vowelStart + n < count {
+                let u = Double(n) / Double(vowelLength)
+                let envelope = sin(Double.pi * u) * sin(Double.pi * u)
+                let time = Double(n) / sampleRate
+                var sample = 0.0
+                for k in 1...harmonics {
+                    let f = f0 * Double(k)
+                    let weight = f >= 300 && f <= 800 ? 1.0 : 0.4
+                    sample += weight * sin(2 * Double.pi * f * time) / Double(k).squareRoot()
+                }
+                voiced[vowelStart + n] += level * envelope * sample / Double(harmonics).squareRoot()
+            }
+        }
+        // Las consonantes, solo en la banda de 1,5 a 7 kHz.
+        Biquad.highPass(cutoff: 1500, sampleRate: sampleRate).applyZeroPhase(to: &bursts)
+        Biquad.lowPass(cutoff: 7000, sampleRate: sampleRate).applyZeroPhase(to: &bursts)
+        let samples = zip(voiced, bursts).map { Float($0 + $1) }
+        return Recording(samples: samples, transientTimes: times, sampleRate: sampleRate)
+    }
+
+    /// Energía de la señal dentro de una banda (filtros paso alto y paso bajo, ida y vuelta).
+    static func bandEnergy(_ samples: [Float], low: Double, high: Double, sampleRate: Double) -> Double {
+        var x = samples.map(Double.init)
+        Biquad.highPass(cutoff: low, sampleRate: sampleRate).applyZeroPhase(to: &x)
+        Biquad.lowPass(cutoff: high, sampleRate: sampleRate).applyZeroPhase(to: &x)
+        return x.reduce(0) { $0 + $1 * $1 }
+    }
+}

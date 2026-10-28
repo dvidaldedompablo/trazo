@@ -10,8 +10,14 @@ struct ImpactWaveformView: View {
     let impactBar: Int?
     /// Texto de la etiqueta ("Impacto 1,84 s").
     let label: String?
+    /// Parte de la onda dibujada, de 0 a 1: al encontrar el impacto se rellena de izquierda a derecha.
+    var reveal: Double = 1
+    /// Escala del pico del impacto: late una vez al encontrarlo.
+    var pulse: Double = 1
 
     static let size = CGSize(width: 340, height: 120)
+    /// Alto máximo de una barra: el del pico de la maqueta.
+    private static let maximumBar: CGFloat = 92
 
     var body: some View {
         let font = Font.system(size: 11.5, weight: .bold)
@@ -19,15 +25,18 @@ struct ImpactWaveformView: View {
             let scale = size.width / Self.size.width
             context.scaleBy(x: scale, y: scale)
             let middle = Self.size.height / 2
-            for (index, value) in bars.enumerated() {
+            let visible = Int((reveal * Double(bars.count)).rounded(.up))
+            for (index, value) in bars.enumerated() where index < visible {
                 let isImpact = impactBar.map { abs(index - $0) <= 1 } ?? false
-                // Entre 6 y 100 de alto: el silencio también se ve y el golpe casi llena el panel.
-                let height = max(6, min(100, CGFloat(value) * 100))
+                // Entre 6 y 92 de alto: el silencio también se ve y el golpe casi llena el panel.
+                var height = max(6, min(Self.maximumBar, CGFloat(value) * 100))
+                if isImpact { height = min(height * pulse, Self.size.height - 8) }
                 let rect = CGRect(x: 14 + CGFloat(index) * 5, y: middle - height / 2, width: 3, height: height)
                 context.fill(Path(roundedRect: rect, cornerRadius: 1.5),
                              with: .color(isImpact ? Color.rojoTrazo : Color.pino.opacity(0.28)))
             }
-            guard let impactBar else { return }
+            // La línea y la etiqueta aparecen cuando la onda llega al impacto.
+            guard let impactBar, impactBar < visible else { return }
             let x = 14 + CGFloat(impactBar) * 5 + 1.5
             var line = Path()
             line.move(to: CGPoint(x: x, y: 6))
@@ -37,7 +46,7 @@ struct ImpactWaveformView: View {
             // Etiqueta a la derecha de la línea; si no cabe, a la izquierda.
             let text = context.resolve(Text(label).font(font).foregroundStyle(.white))
             let textSize = text.measure(in: Self.size)
-            let pillWidth = max(98, textSize.width + 22)
+            let pillWidth = max(98, textSize.width + 16)
             let pillX = x + 9.5 + pillWidth <= Self.size.width ? x + 9.5 : x - 9.5 - pillWidth
             let pill = CGRect(x: pillX, y: 6, width: pillWidth, height: 24)
             context.fill(Path(roundedRect: pill, cornerRadius: 12), with: .color(Color.rojoTrazo))

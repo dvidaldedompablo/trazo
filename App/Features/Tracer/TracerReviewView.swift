@@ -40,43 +40,27 @@ struct TracerReviewView: View {
     private var showsDiagnostics: Bool { diagnostics || demo != nil }
 
     var body: some View {
-        ZStack {
-            Color.escenario
-            GeometryReader { proxy in
-                if let analysis {
-                    let videoSize = CGSize(width: analysis.videoWidth, height: analysis.videoHeight)
-                    let fit = AVMakeRect(aspectRatio: videoSize, insideRect: CGRect(origin: .zero, size: proxy.size))
-                    ZStack(alignment: .topLeading) {
-                        Group {
-                            if let image = demo?.image {
-                                Image(uiImage: image).resizable()
-                            } else if let player {
-                                PlayerLayerView(player: player)
-                            }
-                        }
-                        .frame(width: fit.width, height: fit.height)
-                        .position(x: fit.midX, y: fit.midY)
-                        TracerOverlay(analysis: analysis, showsDiagnostics: showsDiagnostics)
-                            .frame(width: fit.width, height: fit.height)
-                            .position(x: fit.midX, y: fit.midY)
-                            .allowsHitTesting(false)
+        // Como en s04: la barra de arriba, el aviso y los botones van sobre el negro, y el vídeo entre ellos.
+        VStack(spacing: Spacing.s) {
+            topBar
+                .padding(.horizontal, Spacing.cardMargin)
+            if let lostAt = analysis?.outcome.lostAt, analysis?.outcome.needsReview == true {
+                Chip(title: "Perdí la bola a los \(SpanishFormat.number(lostAt, decimals: 1)) s",
+                     systemImage: "exclamationmark.triangle", surface: .video)
+            }
+            videoArea
+                .overlay(alignment: .top) {
+                    if showsDiagnostics, let analysis {
+                        DiagnosticsPanel(analysis: analysis).padding(.horizontal, Spacing.cardMargin)
                     }
                 }
-            }
-            .ignoresSafeArea()
-            VStack(spacing: Spacing.s) {
-                topBar
-                if let lostAt = analysis?.outcome.lostAt, analysis?.outcome.needsReview == true {
-                    Chip(title: "Perdí la bola a los \(SpanishFormat.number(lostAt, decimals: 1)) s",
-                         systemImage: "exclamationmark.triangle", surface: .video)
-                }
-                if showsDiagnostics, let analysis { DiagnosticsPanel(analysis: analysis) }
-                Spacer()
-                bottomBar
-            }
-            .padding(.horizontal, Spacing.cardMargin)
-            .padding(.top, Spacing.s)
-            .padding(.bottom, Spacing.l)
+            bottomBar
+                .padding(.horizontal, Spacing.cardMargin)
+        }
+        .padding(.top, Spacing.s)
+        .padding(.bottom, Spacing.l)
+        .background(Color.escenario)
+        .overlay {
             if isReinforcing {
                 Color.black.opacity(0.5).ignoresSafeArea()
                 VStack(spacing: Spacing.m) {
@@ -96,6 +80,31 @@ struct TracerReviewView: View {
         .fullScreenCover(item: $tapRequest) { request in
             BallTapView(request: request) { time, point in
                 Task { await reinforce(time: time, point: point) }
+            }
+        }
+    }
+
+    /// El vídeo encajado en el hueco que dejan los controles, con el trazo encima.
+    private var videoArea: some View {
+        GeometryReader { proxy in
+            if let analysis {
+                let videoSize = CGSize(width: analysis.videoWidth, height: analysis.videoHeight)
+                let fit = AVMakeRect(aspectRatio: videoSize, insideRect: CGRect(origin: .zero, size: proxy.size))
+                ZStack(alignment: .topLeading) {
+                    Group {
+                        if let image = demo?.image {
+                            Image(uiImage: image).resizable()
+                        } else if let player {
+                            PlayerLayerView(player: player)
+                        }
+                    }
+                    .frame(width: fit.width, height: fit.height)
+                    .position(x: fit.midX, y: fit.midY)
+                    TracerOverlay(analysis: analysis, showsDiagnostics: showsDiagnostics)
+                        .frame(width: fit.width, height: fit.height)
+                        .position(x: fit.midX, y: fit.midY)
+                        .allowsHitTesting(false)
+                }
             }
         }
     }
@@ -251,8 +260,10 @@ private struct TracerOverlay: View {
 }
 
 /// Datos del análisis para el modo diagnóstico (docs/03): confianza, puntos, tiempos, fps e instante de pérdida.
+/// Al tocarlo se pliega a una línea, para ver el trazo que queda debajo.
 private struct DiagnosticsPanel: View {
     let analysis: TracerAnalysis
+    @State private var isExpanded = true
 
     var body: some View {
         let outcome = analysis.outcome
@@ -269,12 +280,16 @@ private struct DiagnosticsPanel: View {
             lines.append(analysis.timings.map { "\($0.name) \(SpanishFormat.seconds($0.seconds, decimals: 1))" }.joined(separator: " · "))
         }
         lines += analysis.notes
-        return Text(lines.joined(separator: "\n"))
+        let shown = isExpanded ? lines : [lines[0] + " · toca para ver más"]
+        return Text(shown.joined(separator: "\n"))
             .font(.system(size: 11, weight: .medium).monospacedDigit())
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.s)
             .background(Color.black.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.thumbnailSmall))
+            .contentShape(Rectangle())
+            .onTapGesture { isExpanded.toggle() }
             .accessibilityLabel("Diagnóstico del tracer")
+            .accessibilityAddTraits(.isButton)
     }
 }

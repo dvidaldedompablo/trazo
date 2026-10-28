@@ -126,7 +126,7 @@ enum TracerPipeline {
         live.bars = waveform(samples, around: impact.time)
         live.impactBar = barIndex(for: impact.time, around: impact.time)
         live.step = .tracking
-        live.thumbnail = try? await FrameGrabber.jpeg(from: job.url, at: impact.time, maximumSize: CGSize(width: 360, height: 640),
+        live.thumbnail = try? await FrameGrabber.jpeg(from: job.url, at: impact.time, maximumSize: CGSize(width: 540, height: 960),
                                                       exact: false)
         live.progress = 0.15
         progress.yield(live)

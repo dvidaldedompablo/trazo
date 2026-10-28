@@ -17,8 +17,11 @@ struct BallTapRequest: Identifiable {
     let hint: String
 }
 
-/// Toca la bola (docs/03, pasos 3 y 4 bis): el fotograma a pantalla completa, pasos de fotograma
+/// Toca la bola (docs/03, pasos 3 y 4 bis): el fotograma lo más grande posible, pasos de fotograma
 /// para elegir uno nítido y una lupa x3 bajo el dedo para tocar justo encima de la bola.
+///
+/// Como en s04, los controles van sobre el negro, por encima y por debajo del fotograma: así no tapan
+/// la bola (que suele estar abajo) y el cristal no se parte entre el negro y el cielo.
 struct BallTapView: View {
     let request: BallTapRequest
     /// Instante elegido (s del clip) y punto en píxeles del vídeo girado.
@@ -46,62 +49,71 @@ struct BallTapView: View {
     }
 
     var body: some View {
-        ZStack {
-            Color.escenario
-            GeometryReader { proxy in
-                if let image {
-                    let fit = AVMakeRect(aspectRatio: image.size, insideRect: CGRect(origin: .zero, size: proxy.size))
-                    ZStack(alignment: .topLeading) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .frame(width: fit.width, height: fit.height)
-                            .position(x: fit.midX, y: fit.midY)
-                        if let marker {
-                            let p = viewPoint(marker, fit: fit)
-                            Circle().stroke(Color.white, lineWidth: 2).frame(width: 22, height: 22).position(p)
-                            Circle().fill(Color.rojoTrazo).frame(width: 5, height: 5).position(p)
-                        }
-                        if let loupeCenter = finger ?? (demoImage != nil ? marker.map { viewPoint($0, fit: fit) } : nil) {
-                            Loupe(image: image, fit: fit, focus: loupeCenter)
-                                .position(x: loupeCenter.x, y: max(loupeCenter.y - 100, 70))
-                        }
-                    }
-                    .contentShape(Rectangle())
-                    .gesture(DragGesture(minimumDistance: 0)
-                        .onChanged { value in finger = clamp(value.location, to: fit) }
-                        .onEnded { value in
-                            marker = videoPoint(clamp(value.location, to: fit), fit: fit)
-                            finger = nil
-                        })
-                }
-            }
-            .ignoresSafeArea()
-            if isLoading { ProgressView().tint(.white) }
-            controls
-        }
-        .preferredColorScheme(.dark)
-        .task(id: time) { await loadFrame() }
-    }
-
-    private var controls: some View {
         VStack(spacing: Spacing.m) {
-            HStack(spacing: Spacing.s) {
-                Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 17, weight: .regular)) }
-                    .buttonStyle(.crystal)
-                    .accessibilityLabel("Cerrar")
-                Spacer(minLength: 0)
-                Chip(title: request.title, systemImage: "scope", surface: .video)
-                Spacer(minLength: 0)
-                Color.clear.frame(width: Size.glassButton, height: Size.glassButton)
-            }
+            topBar
+                .padding(.horizontal, Spacing.cardMargin)
             Text(request.hint)
                 .typeStyle(.consejo)
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, CaptureLayout.tipPaddingH)
-                .padding(.vertical, CaptureLayout.tipPaddingV)
-                .glassEffect(.clear.tint(Color.pino.opacity(0.55)), in: RoundedRectangle(cornerRadius: CaptureLayout.tipRadius, style: .continuous))
-            Spacer()
+                .padding(.horizontal, Spacing.textMargin)
+            frameArea
+            bottomControls
+                .padding(.horizontal, Spacing.cardMargin)
+        }
+        .padding(.top, Spacing.s)
+        .padding(.bottom, Spacing.l)
+        .background(Color.escenario)
+        .preferredColorScheme(.dark)
+        .task(id: time) { await loadFrame() }
+    }
+
+    /// El fotograma encajado en el hueco que dejan los controles.
+    private var frameArea: some View {
+        GeometryReader { proxy in
+            if let image {
+                let fit = AVMakeRect(aspectRatio: image.size, insideRect: CGRect(origin: .zero, size: proxy.size))
+                ZStack(alignment: .topLeading) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .frame(width: fit.width, height: fit.height)
+                        .position(x: fit.midX, y: fit.midY)
+                    if let marker {
+                        let p = viewPoint(marker, fit: fit)
+                        Circle().stroke(Color.white, lineWidth: 2).frame(width: 22, height: 22).position(p)
+                        Circle().fill(Color.rojoTrazo).frame(width: 5, height: 5).position(p)
+                    }
+                    if let loupeCenter = finger ?? (demoImage != nil ? marker.map { viewPoint($0, fit: fit) } : nil) {
+                        Loupe(image: image, fit: fit, focus: loupeCenter)
+                            .position(Self.loupePosition(for: loupeCenter, in: proxy.size))
+                    }
+                }
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 0)
+                    .onChanged { value in finger = clamp(value.location, to: fit) }
+                    .onEnded { value in
+                        marker = videoPoint(clamp(value.location, to: fit), fit: fit)
+                        finger = nil
+                    })
+            }
+        }
+        .overlay { if isLoading { ProgressView().tint(.white) } }
+    }
+
+    private var topBar: some View {
+        HStack(spacing: Spacing.s) {
+            Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 17, weight: .regular)) }
+                .buttonStyle(.crystal)
+                .accessibilityLabel("Cerrar")
+            Spacer(minLength: 0)
+            Chip(title: request.title, systemImage: "scope", surface: .video)
+            Spacer(minLength: 0)
+            Color.clear.frame(width: Size.glassButton, height: Size.glassButton)
+        }
+    }
+
+    private var bottomControls: some View {
+        VStack(spacing: Spacing.m) {
             HStack(spacing: Spacing.m) {
                 Button { step(-1) } label: { Image(systemName: "chevron.left") }
                     .buttonStyle(.crystal)
@@ -122,9 +134,14 @@ struct BallTapView: View {
             .disabled(marker == nil)
             .opacity(marker == nil ? 0.6 : 1)
         }
-        .padding(.horizontal, Spacing.cardMargin)
-        .padding(.top, Spacing.s)
-        .padding(.bottom, Spacing.l)
+    }
+
+    /// La lupa va 100 pt por encima del dedo (si no cabe, por debajo) y sin salirse por los lados.
+    private static func loupePosition(for focus: CGPoint, in size: CGSize) -> CGPoint {
+        let radius = Loupe.diameter / 2
+        let y = focus.y - 100 >= radius ? focus.y - 100 : focus.y + 100
+        let x = min(max(focus.x, radius), max(size.width - radius, radius))
+        return CGPoint(x: x, y: y)
     }
 
     private func step(_ frames: Int) {

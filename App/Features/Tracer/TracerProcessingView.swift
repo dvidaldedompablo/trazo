@@ -13,6 +13,7 @@ struct TracerProcessingView: View {
 
     @Environment(TracerQueue.self) private var queue
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var results: [TracerResult]
     @Query private var clips: [Clip]
     @State private var showsReview = false
@@ -90,6 +91,8 @@ struct TracerProcessingView: View {
             guard demo == nil, result == nil else { return }
             queue.enqueue([clipID])
         }
+        // Al encontrar el impacto, un toque seco (docs/02, "Movimiento y vibración").
+        .sensoryFeedback(trigger: live.impactBar) { old, new in old == nil && new != nil ? .impact(flexibility: .rigid) : nil }
         .onChange(of: result?.status) { _, newStatus in react(to: newStatus) }
         .onAppear { react(to: result?.status) }
         .fullScreenCover(isPresented: $showsReview, onDismiss: { dismiss() }) {
@@ -131,9 +134,26 @@ struct TracerProcessingView: View {
                     .typeStyle(.nota)
                     .foregroundStyle(Color.texto3)
             }
-            ImpactWaveformView(bars: live.bars.isEmpty ? Self.flatBars : live.bars, impactBar: live.impactBar,
-                               label: live.impactTime.map { "Impacto \(SpanishFormat.seconds($0))" })
-                .padding(.top, 2)
+            // Al encontrar el impacto, la onda se rellena de izquierda a derecha y el pico late una vez.
+            // `KeyframeAnimator` repite la animación cada vez que cambia el disparador; con "Reducir
+            // movimiento" el disparador no cambia nunca y la onda sale ya completa.
+            KeyframeAnimator(initialValue: WaveMotion(), trigger: reduceMotion ? nil : live.impactBar) { motion in
+                ImpactWaveformView(bars: live.bars.isEmpty ? Self.flatBars : live.bars, impactBar: live.impactBar,
+                                   label: live.impactTime.map { "Impacto \(SpanishFormat.seconds($0))" },
+                                   reveal: motion.reveal, pulse: motion.pulse)
+            } keyframes: { _ in
+                KeyframeTrack(\.reveal) {
+                    MoveKeyframe(0)
+                    LinearKeyframe(1, duration: 0.6)
+                }
+                KeyframeTrack(\.pulse) {
+                    MoveKeyframe(1)
+                    LinearKeyframe(1, duration: 0.6)
+                    SpringKeyframe(1.12, duration: 0.12)
+                    SpringKeyframe(1, duration: 0.25)
+                }
+            }
+            .padding(.top, 2)
         }
         .padding(.top, 14)
         .padding(.horizontal, Spacing.l)
@@ -150,29 +170,33 @@ struct TracerProcessingView: View {
         let image = live.thumbnail.flatMap { UIImage(data: $0) } ?? Thumbnailer.load(named: clip?.thumbnailName)
         let aspect = image.map { $0.size.width / max($0.size.height, 1) } ?? 9 / 16
         let points = live.points
+        let frame = ProcessingLayout.thumbnail
+        let crop = Self.thumbnailCrop(points: points, imageAspect: aspect)
+        // La imagen entera a la escala del recorte; se desplaza para que el recorte caiga en el marco.
+        let shown = CGSize(width: frame.width / crop.width, height: frame.height / crop.height)
         return ZStack(alignment: .bottomLeading) {
-            Group {
+            ZStack {
                 if let image {
-                    Image(uiImage: image).resizable().scaledToFill()
+                    Image(uiImage: image).resizable()
                 } else {
                     Color.niebla
                 }
-            }
-            .frame(width: ProcessingLayout.thumbnail.width, height: ProcessingLayout.thumbnail.height)
-            .overlay {
-                // Los puntos encontrados, en rojo con borde blanco. La imagen llena el marco recortando lo
-                // que sobra: los puntos se recortan igual para caer sobre la bola.
+                // Los puntos encontrados, en rojo con borde blanco, del tamaño de los de la maqueta
+                // (no crecen con el zoom).
                 Canvas { context, size in
-                    let shown = CGSize(width: max(size.width, size.height * aspect), height: max(size.height, size.width / aspect))
-                    let offset = CGPoint(x: (shown.width - size.width) / 2, y: (shown.height - size.height) / 2)
                     for point in points {
-                        let p = CGPoint(x: point.x * shown.width - offset.x, y: point.y * shown.height - offset.y)
-                        let dot = Path(ellipseIn: CGRect(x: p.x - 3.2, y: p.y - 3.2, width: 6.4, height: 6.4))
+                        let p = CGPoint(x: point.x * size.width, y: point.y * size.height)
+                        let dot = Path(ellipseIn: CGRect(x: p.x - 1.7, y: p.y - 1.7, width: 3.4, height: 3.4))
                         context.fill(dot, with: .color(Color.rojoTrazo))
-                        context.stroke(dot, with: .color(.white), lineWidth: 1.2)
+                        context.stroke(dot, with: .color(.white), lineWidth: 0.7)
                     }
                 }
             }
+            .frame(width: shown.width, height: shown.height)
+            .offset(x: -crop.minX * shown.width, y: -crop.minY * shown.height)
+            .frame(width: frame.width, height: frame.height, alignment: .topLeading)
+            // El recorte se mueve con suavidad al seguir a la bola.
+            .animation(reduceMotion ? nil : .smooth(duration: 0.5), value: crop)
             if !live.points.isEmpty {
                 Text(live.points.count == 1 ? "1 punto" : "\(live.points.count) puntos")
                     .font(.system(size: 11.5, weight: .bold))
@@ -183,10 +207,37 @@ struct TracerProcessingView: View {
                     .padding(8)
             }
         }
-        .frame(width: ProcessingLayout.thumbnail.width, height: ProcessingLayout.thumbnail.height)
+        .frame(width: frame.width, height: frame.height)
         .clipShape(RoundedRectangle(cornerRadius: Radius.thumbnail, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Puntos de la bola encontrados: \(live.points.count)")
+    }
+
+    /// Parte de la imagen que enseña la miniatura (en fracciones de 0 a 1), como en s03: sin puntos, el
+    /// fotograma entero recortado al marco; con puntos, más cerca (el 56 % del ancho, como la maqueta) y
+    /// siguiendo a la bola, con el último punto siempre dentro.
+    static func thumbnailCrop(points: [Point2D], imageAspect: Double) -> CGRect {
+        let frameAspect = Double(ProcessingLayout.thumbnail.width / ProcessingLayout.thumbnail.height)
+        // Ancho y alto del recorte con la forma del marco.
+        var width = points.isEmpty ? 1 : ProcessingLayout.zoomWidth
+        var height = width * imageAspect / frameAspect
+        if height > 1 {
+            height = 1
+            width = frameAspect / imageAspect
+        }
+        guard let last = points.last else {
+            return CGRect(x: (1 - width) / 2, y: (1 - height) / 2, width: width, height: height)
+        }
+        // Centro: el de todos los puntos, pero sin dejar el último a menos del 15 % del borde.
+        let xs = points.map(\.x), ys = points.map(\.y)
+        var centerX = (xs.min()! + xs.max()!) / 2
+        var centerY = (ys.min()! + ys.max()!) / 2
+        centerX = min(max(centerX, last.x - 0.35 * width), last.x + 0.35 * width)
+        centerY = min(max(centerY, last.y - 0.35 * height), last.y + 0.35 * height)
+        // Sin salirse de la imagen.
+        centerX = min(max(centerX, width / 2), 1 - width / 2)
+        centerY = min(max(centerY, height / 2), 1 - height / 2)
+        return CGRect(x: centerX - width / 2, y: centerY - height / 2, width: width, height: height)
     }
 
     // MARK: Pasos
@@ -299,6 +350,15 @@ private enum ProcessingLayout {
     static let titleToLead: CGFloat = 6
     static let leadToPanel: CGFloat = 6
     static let panelToSteps: CGFloat = 30
-    static let stepsToNote: CGFloat = 32
+    /// La nota empieza 208 pt por debajo de la miniatura (los pasos ocupan unos 186).
+    static let stepsToNote: CGFloat = 22
     static let thumbnail = CGSize(width: 112, height: 176)
+    /// Parte del ancho del vídeo que enseña la miniatura cuando ya hay puntos.
+    static let zoomWidth = 0.56
+}
+
+/// Lo que anima la onda al encontrar el impacto.
+private struct WaveMotion {
+    var reveal = 1.0
+    var pulse = 1.0
 }

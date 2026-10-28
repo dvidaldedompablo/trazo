@@ -6,6 +6,13 @@ enum UITestScreen: String {
     case home
     /// Catálogo de componentes del sistema de diseño (no es una pantalla de la app).
     case components
+    /// Grabar en modo Tracer y en modo Swing, con el campo de la maqueta en vez de la cámara.
+    case cameraTracer = "camera-tracer"
+    case cameraSwing = "camera-swing"
+    /// Tus vídeos con clips de demostración.
+    case library
+    /// La hoja de elegir golpes tras grabar con "Corte auto".
+    case autocut
 }
 
 /// Arnés de capturas: con `-UITestScreen` la app abre esa pantalla con datos de demostración,
@@ -23,7 +30,7 @@ enum UITestHarness {
     @MainActor
     static func prepare() {
         UIView.setAnimationsEnabled(false)
-        // Ajustes de fábrica (trazo rojo, distancia activada), por si quedó algo de otra prueba.
+        // Ajustes de fábrica (trazo rojo, distancia activada, 240 fps…), por si quedó algo de otra prueba.
         for key in SettingsKey.all {
             UserDefaults.standard.removeObject(forKey: key)
         }

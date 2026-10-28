@@ -1,8 +1,8 @@
 import GolfCore
 import SwiftUI
 
-/// Las pantallas que se abren desde Inicio. Cada una existe de momento como pantalla provisional
-/// con su título; se irán construyendo en las etapas que dice `stage`.
+/// Las pantallas que se abren desde Inicio. Las que aún no existen se ven como pantalla provisional
+/// con su título y la etapa en que llegan (`stage`).
 enum HomeDestination: Hashable {
     case library
     case settings
@@ -24,7 +24,7 @@ enum HomeDestination: Hashable {
         }
     }
 
-    /// Etapa de docs/00_PLAN_Y_PROMPTS.md en la que llega la pantalla de verdad.
+    /// Etapa de docs/00_PLAN_Y_PROMPTS.md en la que llega la pantalla completa.
     var stage: Int {
         switch self {
         case .library, .recordShot, .pickShotVideo, .recordSwing, .pickSwingVideo: 3
@@ -32,9 +32,18 @@ enum HomeDestination: Hashable {
         }
     }
 
-    /// Las pantallas de cámara son de vídeo: fondo negro puro (docs/02).
-    var isVideoScreen: Bool {
-        self == .recordShot || self == .recordSwing
+    /// La pantalla de cada destino.
+    @MainActor @ViewBuilder
+    var screen: some View {
+        switch self {
+        case .library: LibraryView()
+        case .settings: SettingsScreen()
+        case .recordShot: RecordScreen(mode: .tracer)
+        case .recordSwing: RecordScreen(mode: .swing)
+        case .pickShotVideo: ImportScreen(mode: .tracer)
+        case .pickSwingVideo: ImportScreen(mode: .swing)
+        case .help: PlaceholderScreen(destination: .help)
+        }
     }
 }
 
@@ -50,25 +59,13 @@ struct PlaceholderScreen: View {
             Text("Esta pantalla llega en la etapa \(destination.stage).")
                 .typeStyle(.sub)
                 .opacity(0.8)
-            if destination == .settings {
-                // Hasta que exista Ajustes, aquí se ve qué compilación tienes instalada.
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text(BuildLabel.version(BuildInfo.version, build: BuildInfo.build))
-                    Text(BuildInfo.date.map { "Compilada el \(BuildLabel.date($0))" } ?? "Sin fecha de compilación")
-                }
-                .typeStyle(.sub)
-                .foregroundStyle(Color.texto2)
-                .padding(.top, Spacing.l)
-            }
             Spacer()
         }
-        .foregroundStyle(destination.isVideoScreen ? Color.white : Color.pino)
+        .foregroundStyle(Color.pino)
         .padding(.horizontal, Spacing.textMargin)
         .padding(.top, Spacing.s)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(destination.isVideoScreen ? Color.escenario : Color.bola)
+        .background(Color.bola)
         .navigationBarTitleDisplayMode(.inline)
-        // En las pantallas negras, la flecha de volver va en claro para que se vea.
-        .toolbarColorScheme(destination.isVideoScreen ? .dark : .light, for: .navigationBar)
     }
 }

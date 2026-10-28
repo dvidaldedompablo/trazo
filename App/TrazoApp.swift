@@ -1,11 +1,20 @@
+import SwiftData
 import SwiftUI
 
 /// Punto de entrada de la app. `@main` le dice a Swift que la app empieza aquí.
 @main
 struct TrazoApp: App {
+    /// La biblioteca (SwiftData). En las capturas del CI va en memoria y con datos de demostración.
+    private let container: ModelContainer
+
     init() {
         if UITestHarness.isActive {
             UITestHarness.prepare()
+        }
+        container = DataStore.makeContainer(inMemory: UITestHarness.isActive)
+        DataStore.seedClubsIfNeeded(in: container.mainContext)
+        if UITestHarness.isActive {
+            DemoData.populateLibrary(in: container.mainContext)
         }
     }
 
@@ -15,6 +24,8 @@ struct TrazoApp: App {
                 // Las pantallas de navegación van siempre en modo claro (docs/02).
                 .preferredColorScheme(.light)
         }
+        // Todas las vistas de debajo pueden leer y escribir la biblioteca (@Query, modelContext).
+        .modelContainer(container)
     }
 }
 
@@ -32,6 +43,14 @@ private struct RootView: View {
             }
         case .components:
             ComponentCatalogView()
+        case .cameraTracer:
+            NavigationStack { RecordScreen(mode: .tracer) }
+        case .cameraSwing:
+            NavigationStack { RecordScreen(mode: .swing) }
+        case .library:
+            NavigationStack { LibraryView() }
+        case .autocut:
+            ClipPickerView(pending: DemoData.pendingRecording()) { _, _ in }
         case nil:
             // Nombre que la app no conoce: se dice en la captura en vez de enseñar otra pantalla.
             Text("Pantalla de prueba desconocida: \(name)")

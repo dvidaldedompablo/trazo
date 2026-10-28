@@ -50,7 +50,7 @@ struct HomeView: View {
         .background(Color.bola)
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(for: HomeDestination.self) { destination in
-            PlaceholderScreen(destination: destination)
+            destination.screen
         }
         // Vibración ligera cuando la bola cae.
         .sensoryFeedback(.impact(weight: .light), trigger: landingFeedback)

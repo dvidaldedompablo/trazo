@@ -74,6 +74,23 @@ struct TracerCurveTests {
         #expect(clamped.fraction(at: 0) == 0 && clamped.fraction(at: 1) == 1)
     }
 
+    @Test("Vuelo alto y estrecho visto desde detrás: sin lazos, la curva no se sale de la salida ni de la caída")
+    func narrowFlightHasNoLoops() {
+        // Caso de la propuesta cuando se pierde la bola subiendo: 65 px de la salida al vértice y 42 px a la caída
+        // en horizontal, con 1394 px de altura (vídeo de 1080 x 1920).
+        let curve = TracerCurve(launch: Point2D(903, 1740), apex: Point2D(838, 346), landing: Point2D(796, 760),
+                                flightTime: 5.5)
+        let flight = curve.makeFlight()
+        let rise = flight.points[...flight.apexPointIndex]
+        let fall = flight.points[flight.apexPointIndex...]
+        // La subida va de la salida al vértice sin pasarse por fuera (como mucho 3 px de redondeo).
+        #expect(rise.allSatisfy { $0.x <= 903 + 3 && $0.x >= 838 - 3 })
+        // La bajada, del vértice a la caída, se pasa como mucho un 2 % de la altura del vuelo.
+        #expect(fall.allSatisfy { $0.x <= 838 + 3 && $0.x >= 796 - 0.02 * 1394 })
+        // Y la cima sigue siendo el vértice.
+        #expect(abs(flight.highestPoint.y - curve.apex.y) < 0.5)
+    }
+
     @Test("Draw y fade doblan el vuelo hacia lados opuestos; en un zurdo, al revés")
     func shapeBendsSideways() {
         func midRiseX(shape: Double, handedness: Handedness = .right) -> Double {

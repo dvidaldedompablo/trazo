@@ -102,6 +102,9 @@ public enum TracerAssembler {
     public static func assemble(_ input: TracerInput, options: TrajectoryFitOptions = .init()) -> TracerAssembly {
         let scale = input.imageWidth / 1080
         let horizon = input.horizonY ?? TracerConstants.defaultHorizonFraction * input.imageHeight
+        // Dos detectores juntos: el umbral de atípico no baja de lo que se separan entre ellos.
+        var options = options
+        options.minimumOutlierThreshold = max(options.minimumOutlierThreshold, TracerConstants.sourceOutlierFloor * scale)
         // Solo cuenta lo de después del impacto.
         let usable = input.points.filter { $0.sample.time > 0 }
         let samples = usable.map(\.sample)

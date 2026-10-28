@@ -86,7 +86,7 @@ enum DemoData {
             let t = Double(i) / 120
             points.append(SourcedSample(TrajectorySample(time: t, point: point(t) + Point2D(0.8, -0.5)), source: .vision))
             if i % 2 == 0 {
-                points.append(SourcedSample(TrajectorySample(time: t + 0.002, point: point(t) + Point2D(-0.6, 0.7)), source: .blob))
+                points.append(SourcedSample(TrajectorySample(time: t + 0.002, point: point(t + 0.002) + Point2D(-0.6, 0.7)), source: .blob))
             }
         }
         points.append(SourcedSample(TrajectorySample(time: 0.21, point: Point2D(640, 900)), source: .blob))

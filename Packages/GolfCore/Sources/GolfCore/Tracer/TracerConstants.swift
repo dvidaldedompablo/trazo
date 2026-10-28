@@ -92,6 +92,10 @@ public enum TracerConstants {
     /// Umbral mínimo de atípico (px): con datos casi perfectos el error mediano es casi cero
     /// y 3 veces casi cero descartaría puntos buenos por décimas de píxel.
     public static let minimumOutlierThreshold = 1.5
+    /// Umbral mínimo de atípico al montar el tracer (px en un vídeo de 1080 de ancho; se escala).
+    /// Vision y BlobTracker no marcan el centro de la bola en el mismo píxel (1 a 2 px de diferencia):
+    /// con el mínimo de 1,5 px, la fuente con menos puntos se descartaría entera.
+    public static let sourceOutlierFloor = 3.0
     /// Peso de un toque del usuario en el ajuste frente a 1 de un punto detectado.
     public static let fixedPointWeight = 100.0
     /// Últimos segundos de puntos buenos que se usan para extrapolar hasta la caída.
@@ -128,6 +132,10 @@ public enum TracerConstants {
     public static let launchLean = 0.2
     public static let launchRise = 0.5
     public static let apexRoundness = 0.45
+    /// Asa mínima en el vértice, en fracción de la altura del vuelo, para que la cima salga redonda aunque
+    /// la bola suba casi recta. Pequeña a propósito: visto desde detrás, el vuelo es alto y estrecho
+    /// (salida, vértice y caída a menos de 100 px en horizontal) y un asa mayor dibujaba un lazo a cada lado.
+    public static let apexMinimumHandle = 0.1
     public static let descentLean = 0.15
     public static let descentDrop = 0.65
     /// Cuánto se dobla el vuelo hacia un lado con draw o fade, en fracción de la altura del vuelo.

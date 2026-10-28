@@ -171,6 +171,24 @@ struct TracerAssemblerTests {
         #expect(abs(outcome.trackedDuration - 1.2) < 0.01)
     }
 
+    @Test("Vision y BlobTracker separados 2 px: no se descarta ninguno; un punto a 40 px, sí")
+    func twoSourcesAgree() {
+        func position(_ t: Double) -> Point2D { Point2D(540 + 40 * t, 1700 - 1500 * t + 500 * t * t) }
+        var points: [SourcedSample] = []
+        for sample in Self.rising(until: 0.6) {
+            let t = sample.sample.time
+            points.append(SourcedSample(TrajectorySample(time: t, point: position(t) + Point2D(1, -0.6)), source: .vision))
+            points.append(SourcedSample(TrajectorySample(time: t + 0.002, point: position(t + 0.002) + Point2D(-0.7, 0.8)), source: .blob))
+        }
+        points.append(SourcedSample(TrajectorySample(time: 0.3, point: Point2D(540 + 40 * 0.3 + 40, 1700 - 1500 * 0.3 + 45)), source: .blob))
+        let input = TracerInput(ball: Self.ball, imageWidth: Self.size.width, imageHeight: Self.size.height, points: points)
+        let outcome = TracerAssembler.assemble(input).outcome
+        let discarded = outcome.points.filter(\.isOutlier)
+        #expect(discarded.count == 1)
+        #expect(discarded.first?.time == 0.3)
+        #expect(outcome.points.filter { $0.source == .blob && !$0.isOutlier }.count == 72)
+    }
+
     @Test("Seguida menos de 0,5 s: aviso de pérdida con el instante")
     func lostEarly() throws {
         let input = TracerInput(ball: Self.ball, imageWidth: Self.size.width, imageHeight: Self.size.height,

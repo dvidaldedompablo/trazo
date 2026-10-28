@@ -69,8 +69,11 @@ public struct TracerCurve: Hashable, Sendable, Codable {
         let clampedShape = min(max(shape, -1), 1)
         let bulge = -clampedShape * handedness.xSign * TracerConstants.shapeBulge * height
 
-        let riseHandle = TracerConstants.apexRoundness * max(abs(rise.x), 0.3 * height)
-        let fallHandle = TracerConstants.apexRoundness * max(abs(fall.x), 0.3 * height)
+        // Las asas del vértice siguen al recorrido horizontal de cada tramo: así la curva no se pasa
+        // de la salida ni de la caída. Solo con un vuelo casi vertical manda el mínimo (cima redonda).
+        let minimumHandle = TracerConstants.apexMinimumHandle * height
+        let riseHandle = TracerConstants.apexRoundness * max(abs(rise.x), minimumHandle)
+        let fallHandle = TracerConstants.apexRoundness * max(abs(fall.x), minimumHandle)
         let first = CubicBezier(
             s,
             Point2D(s.x + TracerConstants.launchLean * rise.x + bulge / 2, s.y + TracerConstants.launchRise * rise.y),

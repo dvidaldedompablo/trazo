@@ -25,6 +25,32 @@ public enum TracerConstants {
     /// Por debajo de esta amplitud (−50 dBFS) no hay impacto: es silencio digital o casi.
     public static let impactMinimumPeakAmplitude = 0.003
 
+    // MARK: Impacto por movimiento y bola antes del impacto (docs/03, pasos 2 y 3)
+
+    /// Si el sonido y el movimiento discrepan en más de 2 fotogramas, manda el movimiento.
+    public static let impactAgreementFrames = 2.0
+    /// La bola se busca en el fotograma de 0,3 s antes del impacto (sin el palo encima)…
+    public static let ballLookBack = 0.3
+    /// …o en el más nítido de los 10 anteriores si ese sale movido.
+    public static let ballSharpnessFrames = 10
+    /// Radio de la bola: de 2 a 10 px con el vídeo a 1080 de ancho.
+    public static let ballRadii = [2, 3, 4, 5, 6, 8, 10]
+    /// La bola es clara: al menos 120 de brillo y 25 niveles más clara que lo que la rodea.
+    public static let ballMinimumBrightness = 120.0
+    public static let ballMinimumContrast = 25.0
+    /// Hay confianza si la mejor candidata contrasta el doble del mínimo y puntúa un 40 % más que la segunda.
+    public static let ballConfidentContrast = 50.0
+    public static let ballConfidentLead = 1.4
+    /// La bola ha desaparecido cuando su contraste cae por debajo de la mitad y sigue así 4 fotogramas.
+    public static let ballDisappearFraction = 0.5
+    public static let ballDisappearHold = 4
+
+    // MARK: Horizonte (docs/03, paso 6)
+
+    /// Se busca entre el 10 % y el 75 % de la altura; el cielo tiene que ser 12 niveles más claro que el suelo.
+    public static let horizonSearch = 0.10...0.75
+    public static let horizonMinimumContrast = 12.0
+
     // MARK: Vision (docs/03, paso 4 A). Se usan en la etapa 4.
 
     public static let analysisFrameRate = 120.0
@@ -35,6 +61,15 @@ public enum TracerConstants {
     public static let regionOfInterestHalfWidth = 0.35
     /// Ventana de análisis tras el impacto (s).
     public static let flightAnalysisWindow = 2.5
+    /// Trayectorias de Vision que valen: empiezan a menos del 8 % (del ancho) de la bola, en los primeros
+    /// 150 ms tras el impacto, suben y tienen una confianza de más de 0,8.
+    public static let visionStartDistance = 0.08
+    public static let visionStartWindow = 0.15
+    public static let visionMinimumConfidence = 0.8
+    /// Una trayectoria que empieza donde acaba otra ya elegida (a menos del 6 % del ancho y como mucho
+    /// 0,3 s después) es la misma bola: Vision a veces la parte en dos.
+    public static let visionChainDistance = 0.06
+    public static let visionChainGap = 0.3
 
     // MARK: BlobTracker (docs/03, paso 4 B)
 
@@ -68,6 +103,15 @@ public enum TracerConstants {
     public static let minimumConfidence = 0.5
     /// Toques de refuerzo por golpe.
     public static let maximumReinforcementTaps = 5
+    /// Confianza de 0 a 1 (docs/03, paso 5): puntos válidos (24 = 0,2 s a 120 fps cuentan como todos),
+    /// tiempo cubierto (1 s cuenta como todo) y error medio (hasta 1,5 px es perfecto; 6 px o más, nada),
+    /// con el vídeo a 1080 de ancho. Si la bola no sube al principio, la confianza se multiplica por 0,3.
+    public static let confidenceFullPoints = 24.0
+    public static let confidenceFullDuration = 1.0
+    public static let confidenceGoodError = 1.5
+    public static let confidenceBadError = 6.0
+    public static let confidenceWeights = (points: 0.35, duration: 0.35, error: 0.30)
+    public static let confidenceNotRisingFactor = 0.3
 
     // MARK: Curva del vuelo (docs/03, "Modelo de la curva")
 

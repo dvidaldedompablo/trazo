@@ -4,7 +4,7 @@ Claude Code actualiza este archivo al final de cada etapa.
 
 ## Estado
 - Etapa actual: 3 (CI en verde; falta probar la cámara en el iPhone). Sigue pendiente probar Inicio de la etapa 1.
-- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (16), compilación nº 16 del CI del 28-10-2026
+- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (17), compilación nº 17 del CI del 28-10-2026
 - Repositorio: https://github.com/dvidaldedompablo/trazo (público)
 - Última instalación en el iPhone: (fecha)
 - Caduca: (fecha + 7 días)
@@ -185,6 +185,7 @@ Claude Code actualiza este archivo al final de cada etapa.
 - Problemas y cómo se resolvieron:
   - Compiló a la primera en el CI (Swift 6, iOS 26). Para que el código de AVFoundation y Photos pase la comprobación de concurrencia de Swift 6: `@preconcurrency import`, la cámara como clase `@unchecked Sendable` con su cola y un candado, y las miniaturas como JPEG (`Data`, que es `Sendable`) en vez de `UIImage`.
   - El modo claro forzado en la raíz pisaba el oscuro de Grabar (ver decisiones).
+  - Run 16: el job de capturas se quedó 15 minutos en cola sin runner de macOS y GitHub lo canceló. Al relanzarlo, en un runner lento, "Tus vídeos" y las dos hojas salieron con la pantalla de arranque (en blanco): el script esperaba 5 s fijos. Ahora, en modo capturas, la app deja una marca de "pantalla lista" en su carpeta temporal y el script espera a que exista (hasta 60 s) antes de la foto; si no aparece, el CI falla en vez de guardar una captura vacía.
 - Pendiente:
   - Probar todo lo de la cámara en el iPhone (lista de abajo): el simulador del CI no tiene cámara.
   - Interruptor de "Obturación rápida" en Ajustes (etapa 9); de momento siempre activada en Tracer.

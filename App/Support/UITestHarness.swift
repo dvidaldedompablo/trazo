@@ -28,10 +28,21 @@ enum UITestHarness {
 
     static var isActive: Bool { requestedName != nil }
 
+    /// Marca de "pantalla lista" para el script de capturas: un archivo vacío en la carpeta temporal
+    /// de la app. El script espera a que exista antes de hacer la foto, así no captura la pantalla de
+    /// arranque cuando el runner del CI va lento (pasó en el run 16 con una espera fija de 5 s).
+    static let readyMarker = URL.temporaryDirectory.appending(path: "uitest-ready", directoryHint: .notDirectory)
+
+    /// La pantalla pedida ya se ha abierto.
+    static func markReady() {
+        try? Data().write(to: readyMarker)
+    }
+
     /// Se llama una vez al arrancar, solo en modo de capturas.
     @MainActor
     static func prepare() {
         UIView.setAnimationsEnabled(false)
+        try? FileManager.default.removeItem(at: readyMarker)
         // Ajustes de fábrica (trazo rojo, distancia activada, 240 fps…), por si quedó algo de otra prueba.
         for key in SettingsKey.all {
             UserDefaults.standard.removeObject(forKey: key)

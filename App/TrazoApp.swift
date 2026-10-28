@@ -38,6 +38,10 @@ private struct RootView: View {
             // Las pantallas de navegación van en modo claro y las de vídeo en oscuro (docs/02).
             // Va aquí, en la raíz, porque la preferencia de más arriba manda sobre las de dentro.
             .preferredColorScheme(screen == .cameraTracer || screen == .cameraSwing ? .dark : .light)
+            // En las capturas del CI: avisa al script de que la pantalla ya está abierta.
+            .task {
+                if UITestHarness.isActive { UITestHarness.markReady() }
+            }
     }
 
     @ViewBuilder

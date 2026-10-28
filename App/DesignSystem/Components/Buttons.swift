@@ -141,10 +141,11 @@ struct CrystalButtonStyle: ButtonStyle {
         case .video:
             content
                 .contentShape(shape)
-                // Cristal "clear" con un 16 % de blanco, como el de la maqueta: deja ver la imagen
-                // casi tal cual. El "regular" pone una base propia (clara u oscura según el modo)
-                // que se alejaba de s02. .interactive(): reacciona al dedo (se ilumina y se estira).
-                .glassEffect(.clear.tint(Color.white.opacity(0.16)).interactive(), in: shape)
+                // Cristal "clear" con un velo blanco, como el de la maqueta (blanco al 16 %): deja ver la
+                // imagen casi tal cual. El "regular" pone una base propia (clara u oscura según el modo)
+                // que se alejaba de s02. El cristal ya aclara algo por sí solo: por eso el velo es del 6 %,
+                // medido contra s02. .interactive(): reacciona al dedo (se ilumina y se estira).
+                .glassEffect(.clear.tint(Color.white.opacity(0.06)).interactive(), in: shape)
         case .darkCard:
             content
                 .background(Color.white.opacity(0.12), in: shape)

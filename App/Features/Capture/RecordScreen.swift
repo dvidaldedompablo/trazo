@@ -230,7 +230,8 @@ struct RecordScreen: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, CaptureLayout.tipPaddingH)
             .padding(.vertical, CaptureLayout.tipPaddingV)
-            .glassEffect(.clear.tint(Color.pino.opacity(0.45)),
+            // Pino al 45 % en la maqueta; el 55 % compensa lo que aclara el cristal (como en los chips).
+            .glassEffect(.clear.tint(Color.pino.opacity(0.55)),
                          in: RoundedRectangle(cornerRadius: CaptureLayout.tipRadius, style: .continuous))
             .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { tipHidden = true } }
             .accessibilityHint("Toca para esconder el consejo")

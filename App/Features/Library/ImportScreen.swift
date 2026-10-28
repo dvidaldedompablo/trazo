@@ -21,7 +21,7 @@ struct ImportScreen: View {
     }
 
     @State private var item: PhotosPickerItem?
-    @State private var showsPicker = true
+    @State private var showsPicker = false
     @State private var step = Step.picking
     @State private var pending: PendingRecording?
     @Environment(\.modelContext) private var context
@@ -74,6 +74,13 @@ struct ImportScreen: View {
         .onChange(of: showsPicker) { _, isShown in
             // Si se cierra el selector sin elegir nada nada más entrar, se vuelve atrás.
             if !isShown, item == nil, step == .picking { dismiss() }
+        }
+        .task {
+            // El selector se abre un instante después de entrar: abrirlo a la vez que la animación
+            // de la navegación puede hacer que iOS no lo enseñe.
+            guard step == .picking, item == nil else { return }
+            try? await Task.sleep(for: .milliseconds(400))
+            showsPicker = true
         }
         .sheet(item: $pending) { pending in
             ClipPickerView(pending: pending) { selection, keepFull in

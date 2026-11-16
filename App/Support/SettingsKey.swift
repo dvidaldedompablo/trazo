@@ -19,7 +19,18 @@ enum SettingsKey {
     static let captureAutoCut = "capture.autoCut"
     /// Modo diagnóstico (5 toques en la versión, en Ajustes).
     static let diagnostics = "diagnostics.enabled"
+    /// Mano dominante ("right" o "left"), para las reglas del swing.
+    static let handedness = "user.handedness"
+    /// Estatura en cm: la escala aproximada de las medidas del swing.
+    static let heightCentimeters = "user.heightCm"
+    /// Identificador de la voz elegida para el análisis (vacío = la mejor de español de España).
+    static let analysisVoice = "analysis.voice"
+    /// Generar la versión corta del vídeo del análisis (30 a 40 s) en vez de la completa.
+    static let shortAnalysisVideo = "analysis.shortVideo"
+    /// Subtítulos en el vídeo del análisis (activados por defecto).
+    static let analysisSubtitles = "analysis.subtitles"
 
     static let all = [tracerColor, tracerCustomColor, tracerShowsDistance, tracerFastShutter,
-                      captureFrameRate, captureCountdown, captureAutoCut, diagnostics]
+                      captureFrameRate, captureCountdown, captureAutoCut, diagnostics,
+                      handedness, heightCentimeters, analysisVoice, shortAnalysisVideo, analysisSubtitles]
 }

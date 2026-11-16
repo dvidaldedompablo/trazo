@@ -64,6 +64,12 @@ enum ClipSaver {
         if let results = try? context.fetch(FetchDescriptor<TracerResult>(predicate: #Predicate { $0.clipID == clipID })) {
             for result in results { context.delete(result) }
         }
+        if let swings = try? context.fetch(FetchDescriptor<SwingResult>(predicate: #Predicate { $0.clipID == clipID })) {
+            for result in swings {
+                if let video = result.videoURL { MediaStore.removeIfPresent(video) }
+                context.delete(result)
+            }
+        }
         context.delete(clip)
         try? context.save()
     }

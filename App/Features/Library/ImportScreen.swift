@@ -147,11 +147,17 @@ struct ImportScreen: View {
         }
     }
 
-    /// Golpes del Tracer: a la cola; con uno, se abre "Creando tu tracer".
+    /// Golpes del Tracer: a la cola (con uno se abre "Creando tu tracer").
+    /// Un swing suelto abre "Revisa las posiciones".
     private func startTracer(_ clipIDs: [UUID]) {
-        guard mode == .tracer, !clipIDs.isEmpty else { return }
-        tracerQueue.enqueue(clipIDs)
-        if clipIDs.count == 1 { navigator.open(.tracerProcessing(clipIDs[0])) }
+        guard !clipIDs.isEmpty else { return }
+        switch mode {
+        case .tracer:
+            tracerQueue.enqueue(clipIDs)
+            if clipIDs.count == 1 { navigator.open(.tracerProcessing(clipIDs[0])) }
+        case .swing:
+            if clipIDs.count == 1 { navigator.open(.swingReview(clipIDs[0])) }
+        }
     }
 
     private func doneText(count: Int, stretched: Bool) -> String {

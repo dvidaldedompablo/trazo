@@ -10,6 +10,7 @@ struct LibraryView: View {
     // @Query lee de SwiftData y vuelve a dibujar la vista cuando cambia la biblioteca.
     @Query(sort: \Clip.createdAt, order: .reverse) private var clips: [Clip]
     @Query private var tracers: [TracerResult]
+    @Query private var swings: [SwingResult]
     @Environment(\.modelContext) private var context
     @Environment(TracerQueue.self) private var queue
     @Environment(\.homeNavigator) private var navigator
@@ -19,6 +20,8 @@ struct LibraryView: View {
     @State private var openClip: Clip?
     /// Tracer listo abierto (también a pantalla completa).
     @State private var openTracer: UUID?
+    /// "Tu análisis" de un swing analizado.
+    @State private var openSwingResult: UUID?
     /// Golpe que falló y se ha tocado: se enseña el motivo y qué hacer.
     @State private var failedClip: Clip?
 
@@ -41,7 +44,7 @@ struct LibraryView: View {
                     LazyVGrid(columns: columns, spacing: LibraryLayout.gap) {
                         ForEach(clips) { clip in
                             Button { open(clip) } label: {
-                                ClipThumbnail(clip: clip, tracer: tracer(for: clip),
+                                ClipThumbnail(clip: clip, tracer: tracer(for: clip), swing: swing(for: clip),
                                               progress: queue.activeClipID == clip.id ? queue.live.progress : nil)
                             }
                             .buttonStyle(.plain)
@@ -60,6 +63,9 @@ struct LibraryView: View {
         }
         .fullScreenCover(item: Binding(get: { openTracer.map(TracerSheet.init) }, set: { openTracer = $0?.id })) { sheet in
             TracerReviewView(clipID: sheet.id)
+        }
+        .fullScreenCover(item: Binding(get: { openSwingResult.map(TracerSheet.init) }, set: { openSwingResult = $0?.id })) { sheet in
+            SwingResultView(clipID: sheet.id)
         }
         .confirmationDialog(failedClip.flatMap { tracer(for: $0)?.failureReason } ?? "El tracer ha fallado.",
                             isPresented: Binding(get: { failedClip != nil }, set: { if !$0 { failedClip = nil } }),
@@ -93,10 +99,24 @@ struct LibraryView: View {
         tracers.first { $0.clipID == clip.id }
     }
 
-    /// Al tocar un clip: los de Swing (y los de Tracer sin tracer) se ven; un tracer en cola se sigue en
-    /// "Creando tu tracer"; uno listo se abre; uno que falló dice por qué.
+    private func swing(for clip: Clip) -> SwingResult? {
+        swings.first { $0.clipID == clip.id }
+    }
+
+    /// Al tocar un clip: un tracer en cola se sigue en "Creando tu tracer"; uno listo se abre; uno
+    /// que falló dice por qué. Un swing se revisa o, si ya está analizado, abre "Tu análisis".
     private func open(_ clip: Clip) {
-        guard clip.mode == .tracer, !clip.isDemo || tracer(for: clip) != nil else {
+        if clip.mode == .swing {
+            if swing(for: clip)?.analysis?.reviewed == true {
+                openSwingResult = clip.id
+            } else if !clip.isDemo {
+                navigator.open(.swingReview(clip.id))
+            } else {
+                openClip = clip
+            }
+            return
+        }
+        guard !clip.isDemo || tracer(for: clip) != nil else {
             openClip = clip
             return
         }
@@ -116,6 +136,15 @@ struct LibraryView: View {
                 navigator.open(.tracerProcessing(clip.id))
             } label: {
                 Label(tracer(for: clip) == nil ? "Crear tracer" : "Volver a crear el tracer", systemImage: "scope")
+            }
+            Button { openClip = clip } label: { Label("Ver el vídeo", systemImage: "play.fill") }
+        }
+        if clip.mode == .swing && !clip.isDemo {
+            Button { navigator.open(.swingReview(clip.id)) } label: {
+                Label(swing(for: clip) == nil ? "Analizar el swing" : "Revisar las posiciones", systemImage: "figure.golf")
+            }
+            if swing(for: clip)?.analysis?.reviewed == true {
+                Button { openSwingResult = clip.id } label: { Label("Ver el análisis", systemImage: "chart.bar") }
             }
             Button { openClip = clip } label: { Label("Ver el vídeo", systemImage: "play.fill") }
         }
@@ -147,6 +176,7 @@ struct LibraryView: View {
 struct ClipThumbnail: View {
     let clip: Clip
     var tracer: TracerResult?
+    var swing: SwingResult?
     /// Avance del que se está procesando ahora (de 0 a 1).
     var progress: Double?
 
@@ -214,7 +244,12 @@ struct ClipThumbnail: View {
         case .failed?:
             statusChip("Falló", background: Color.rojoTrazo)
         case nil:
-            EmptyView()
+            // En un swing analizado, la nota.
+            if let total = swing?.scoreTotal {
+                statusChip("\(total)", background: Color.pino)
+            } else {
+                EmptyView()
+            }
         }
     }
 

@@ -11,6 +11,8 @@ enum HomeDestination: Hashable {
     case help
     /// "Creando tu tracer" de un clip (y, al terminar, su resultado).
     case tracerProcessing(UUID)
+    /// "Revisa las posiciones" de un swing (y, al generar, "Tu análisis").
+    case swingReview(UUID)
 
     var title: String {
         switch self {
@@ -20,6 +22,7 @@ enum HomeDestination: Hashable {
         case .pickSwingVideo: "Elegir vídeo de swing"
         case .help: "Ayuda"
         case .tracerProcessing: "Creando tu tracer"
+        case .swingReview: "Revisa las posiciones"
         }
     }
 
@@ -28,6 +31,7 @@ enum HomeDestination: Hashable {
         switch self {
         case .library, .pickShotVideo, .pickSwingVideo: 3
         case .tracerProcessing: 4
+        case .swingReview: 6
         case .settings, .help: 9
         }
     }
@@ -42,6 +46,7 @@ enum HomeDestination: Hashable {
         case .pickSwingVideo: ImportScreen(mode: .swing)
         case .help: PlaceholderScreen(destination: .help)
         case let .tracerProcessing(clipID): TracerProcessingView(clipID: clipID)
+        case let .swingReview(clipID): SwingReviewView(clipID: clipID)
         }
     }
 }

@@ -24,6 +24,12 @@ enum DemoData {
                             frameRate: 240, duration: duration, width: 1080, height: 1920,
                             impactTime: mode == .tracer ? 1 : 2.5)
             context.insert(clip)
+            // El primer swing está analizado: en la rejilla se ve su nota.
+            if mode == .swing, index == 1 {
+                let result = SwingResult(clipID: clip.id, createdAt: clip.createdAt)
+                result.analysis = swingAnalysis(reviewed: true)
+                context.insert(result)
+            }
             // Estado del tracer en algunos golpes: uno en proceso, uno listo y uno que falló.
             if mode == .tracer, index < 4 {
                 let result = TracerResult(clipID: clip.id, createdAt: clip.createdAt)
@@ -45,6 +51,27 @@ enum DemoData {
 
     /// Bola de la escena de demostración (`escena_tracer`, 1080 x 1920).
     static let sceneBall = Point2D(903, 1740)
+
+    /// El análisis de swing de demostración: el swing sintético de GolfCore (`DemoSwing`), pasado
+    /// por el detector de posiciones de verdad. Un test de GolfCore garantiza que nunca sale nil.
+    static func swingAnalysis(reviewed: Bool = false) -> SwingAnalysis {
+        let frames = PoseSeries.process(DemoSwing.frames())
+        let phases = PhaseDetector.detect(frames: frames, impactTime: DemoSwing.impactTime)!
+        var analysis = SwingAnalysis(videoWidth: 1080, videoHeight: 1920, frameRate: 240,
+                                     analysisFrameRate: DemoSwing.sampleRate,
+                                     impactTime: DemoSwing.impactTime, impactFromSound: true,
+                                     poses: frames, phases: phases, handedness: .right, heightCentimeters: 175,
+                                     clubHeadAtAddress: DemoSwing.clubHeadAtAddress,
+                                     clubHeadAtTakeaway: DemoSwing.clubHeadAtTakeaway,
+                                     clubLineAtMidBackswing: DemoSwing.clubLineAtMidBackswing,
+                                     clubLineAtTransition: DemoSwing.clubLineAtTransition)
+        analysis.reviewed = reviewed
+        analysis.notes = ["Datos de demostración."]
+        analysis.timings = [StepTiming(name: "Vídeo y sonido", seconds: 0.3),
+                            StepTiming(name: "Pose", seconds: 6.1),
+                            StepTiming(name: "Posiciones", seconds: 0.1)]
+        return analysis
+    }
 
     /// "Creando tu tracer" a mitad del seguimiento, como en s03: impacto en el fotograma 441 (1,84 s),
     /// siguiendo el 212 de 480 y 13 puntos de la bola.

@@ -77,6 +77,10 @@ private struct RootView: View {
             BallTapView(request: DemoData.ballTapRequest(), demoImage: UIImage(named: "escena_tracer")) { _, _ in }
         case .tracerCheck:
             TracerReviewView(clipID: UUID(), demo: (DemoData.reviewAnalysis(), UIImage(named: "escena_tracer")))
+        case .review:
+            NavigationStack { SwingReviewView(clipID: UUID(), demoImage: UIImage(named: "escena_swing")) }
+        case .swingResult:
+            SwingResultView(clipID: UUID(), demoImage: UIImage(named: "escena_swing"))
         case nil:
             // Nombre que la app no conoce: se dice en la captura en vez de enseñar otra pantalla.
             Text("Pantalla de prueba desconocida: \(name)")

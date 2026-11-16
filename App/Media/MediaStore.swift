@@ -38,6 +38,14 @@ enum MediaStore {
     }
 
     /// Borra un archivo si existe. Un fallo al borrar no es grave: se apunta y se sigue.
+    /// Mueve un archivo recién exportado a la carpeta de clips con el nombre pedido.
+    static func moveIntoClips(_ source: URL, named name: String) throws {
+        try prepareClipsDirectory()
+        let destination = url(forFile: name)
+        removeIfPresent(destination)
+        try FileManager.default.moveItem(at: source, to: destination)
+    }
+
     static func removeIfPresent(_ url: URL) {
         guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else { return }
         do {

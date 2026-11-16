@@ -21,6 +21,10 @@ enum UITestScreen: String {
     case ballTap = "ball-tap"
     /// El resultado del tracer con el modo diagnóstico (puntos, descartados, curva y datos).
     case tracerCheck = "tracer-check"
+    /// Revisa las posiciones del swing (s06).
+    case review
+    /// Tu análisis (s07).
+    case swingResult = "swing-result"
 }
 
 /// Arnés de capturas: con `-UITestScreen` la app abre esa pantalla con datos de demostración,

@@ -76,13 +76,23 @@ struct RecordScreen: View {
             model.stop()
         }
         .onChange(of: model.savedBatch) { _, batch in
-            // Golpes del Tracer: a la cola. Con uno, se abre "Creando tu tracer"; con varios, se sigue grabando.
-            guard mode == .tracer, let ids = batch?.clipIDs, !ids.isEmpty else { return }
-            tracerQueue.enqueue(ids)
-            if ids.count == 1 {
-                navigate(.tracerProcessing(ids[0]))
-            } else {
-                model.message = "\(ids.count) golpes en cola. Los verás en Tus vídeos."
+            guard let ids = batch?.clipIDs, !ids.isEmpty else { return }
+            switch mode {
+            case .tracer:
+                // Golpes del Tracer: a la cola. Con uno, se abre "Creando tu tracer"; con varios, se sigue grabando.
+                tracerQueue.enqueue(ids)
+                if ids.count == 1 {
+                    navigate(.tracerProcessing(ids[0]))
+                } else {
+                    model.message = "\(ids.count) golpes en cola. Los verás en Tus vídeos."
+                }
+            case .swing:
+                // Un swing se revisa al momento; con varios, se abren desde Tus vídeos.
+                if ids.count == 1 {
+                    navigate(.swingReview(ids[0]))
+                } else {
+                    model.message = "\(ids.count) swings guardados. Analízalos desde Tus vídeos."
+                }
             }
         }
         .onChange(of: frameRate) { _, newValue in

@@ -3,7 +3,7 @@
 Claude Code actualiza este archivo al final de cada etapa.
 
 ## Estado
-- Etapa actual: 4 (hecha en el CI; falta la prueba de 5 golpes en el iPhone). Etapa 3 probada en el iPhone salvo la importación de un vídeo a cámara lenta. Sigue pendiente probar Inicio de la etapa 1.
+- Etapa actual: 6 a 8 hechas en el CI (análisis de swing completo); falta probarlas en el iPhone. La etapa 5 (tracer: ajuste manual, estilo y vídeo final) se saltó de momento: el usuario pidió el análisis de swing primero. Pendientes de iPhone: prueba de 5 golpes (etapa 4), importación a cámara lenta (etapa 3) e Inicio (etapa 1).
 - Último .ipa: `builds/Trazo.ipa`, versión 0.1 (21), compilación nº 21 del CI del 28-10-2026
 - Repositorio: https://github.com/dvidaldedompablo/trazo (público)
 - Última instalación en el iPhone: (fecha)
@@ -275,6 +275,50 @@ Claude Code actualiza este archivo al final de cada etapa.
   - `@Query` con `#Predicate` filtra en la base de datos, y se puede crear en el `init` de la vista para filtrar por un valor (aquí, el id del clip).
   - `KeyframeAnimator` encadena animaciones por pasos (rellenar la onda y luego el latido), y `sensoryFeedback` da una vibración cuando cambia un valor.
   - `@Entry` declara un valor del entorno (`homeNavigator`) que cualquier pantalla de Inicio lee para abrir otra sin pasarlo de mano en mano.
+
+### Etapas 6 a 8: análisis de swing completo (16-11-2026)
+El usuario pidió adelantar el análisis de swing ("adjuntar el vídeo y que me haga el análisis hoy"), así que las etapas 6, 7 y 8 van juntas y la 5 (tracer manual y vídeo final del tracer) queda para después.
+- Hecho (GolfCore, 140 tests):
+  - `PoseSeries`: huecos cortos (≤ 4 fotogramas) interpolados y suavizado Savitzky-Golay por articulación y por tramos.
+  - `ClubLineFinder`: línea del palo por bordes y votación de rectas ancladas en el grip; la cabeza es el final del tramo seguido de bordes fuertes (sin el filtro, el ruido del fondo alargaba el palo).
+  - `TemplateTracker`: correlación normalizada para seguir la cabeza del palo en el takeaway.
+  - `DemoSwing`: swing sintético verosímil (ritmo medido 2,7:1, takeaway por dentro a propósito) que alimenta las capturas del CI; un test garantiza que `PhaseDetector` siempre lo reconoce.
+  - `AnalysisTimeline`: los bloques del vídeo; cada uno dura max(mínimo visual, narración + 0,6 s), así los cambios caen en los silencios. Versión corta: gancho, cámara lenta × 0,5, 3 fases importantes, nota e informe.
+  - `PoseFrame`, `DetectedPosition` y `SwingPhases` son `Codable` para guardarlos en SwiftData.
+- Hecho (app):
+  - `SwingAnalyzer`: pose con `DetectHumanBodyPoseRequest` (API Swift de Vision, confirmada en la documentación) a ~120 fps, confianza ≥ 0,3, elección del cuerpo más grande si Vision ve a varios; impacto del corte automático o de `ImpactDetector`; posiciones con `PhaseDetector`. Errores con los textos de docs/02 ("No se ve a nadie…").
+  - Revisa las posiciones (s06): telestrador sobre el fotograma, tira de 7 miniaturas con avisos de orden, pasos de fotograma, toque de la cabeza del palo (con seguimiento al takeaway), líneas del palo propuestas y arrastrables en 3 y 5. Con el modo diagnóstico, dos toques en el pie abren la tabla de medidas.
+  - Tu análisis (s07): nota, etiqueta, ritmo con subida y bajada, "Lo primero a trabajar", informe completo y pie de honestidad.
+  - `SwingResult` (SwiftData): el análisis entero como JSON; medidas, nota y guion se recalculan siempre de ahí (no se pueden desincronizar).
+  - Voz: cada frase con `AVSpeechSynthesizer.write(_:toBufferCallback:toMarkerCallback:)`; los marcadores dan el instante de cada palabra (vienen en bytes y se pasan a segundos, con red de seguridad por si una voz los diera en muestras). Pista montada con los silencios de docs/04 (0,45 s / 1,2 s, silencio digital) y normalizada a −16 LUFS, pico ≤ −1 dBTP con el `Loudness` de GolfCore.
+  - Vista previa del guion: voz con subtítulos palabra a palabra sobre el fotograma de cada fase.
+  - Ajustes: mano dominante, estatura, selector de voz (es-ES primero, calidad, "Probar", cómo descargar mejores), vídeo corto y subtítulos.
+  - Vídeo del análisis: composición AVFoundation con el gancho real, cámara lenta (escala de tiempo del clip de 240 fps), fotogramas congelados por fase y tarjetas; gráficos como capas de Core Animation en píxeles de vídeo según docs/02; exportación 1080 x 1920, 30 fps, H.264 + AAC, guardado en Fotos y compartir.
+- Decisiones:
+  - La etapa 5 se pospone: el flujo del tracer se queda en el "Ajusta el vuelo" provisional de la etapa 4.
+  - El vídeo generado se guarda en la carpeta de clips (`analisis-<id>.mp4`) y se borra con el clip.
+  - La velocidad de la voz queda en 0,5 (el valor por defecto de iOS); el objetivo de 155 palabras por minuto se afinará oyéndola en el iPhone.
+  - La opción "sonido del golpe en el gancho" (docs/04, apagada por defecto) aún no está: llega con la etapa 9 si hace falta.
+- Pendiente:
+  - Probar todo en el iPhone (lista de abajo): la pose de Vision con vídeo real, los tiempos y la memoria del montaje están sin medir.
+  - La cámara lenta parte del clip tal cual: con un clip de 240 fps reales la escala × 4 sale fluida; con uno de 30 fps se verá a saltos (se anotará al probar).
+  - Etapa 5 completa del tracer; etapa 9 (Ayuda, Ajustes completos, historial, caducidad).
+- Pruebas para el iPhone (análisis de swing):
+  - En Ajustes: comprueba tu mano dominante y tu estatura (las medidas en cm salen de ahí). Elige voz y toca "Probar".
+  - Graba un swing (botón amarillo) o importa el vídeo del Si Woo: al guardar se abre "Revisa las posiciones" con la barra de avance de la pose.
+  - Comprueba las 7 miniaturas: si una posición cae mal, tócala y muévela con las flechas. Toca la cabeza del palo en la preparación: debe salir la línea blanca y, al pasar al takeaway, la marca seguida automáticamente.
+  - En 3 y 5, mira la línea propuesta del palo y arrastra el extremo si no cae sobre la varilla.
+  - "Generar análisis": sale "Tu análisis" con nota, ritmo y prioridad. "Ver informe" y la tabla de medidas (diagnóstico) deben cuadrar con lo que ves.
+  - Toca el play: la vista previa lee el guion con subtítulos palabra a palabra. Comprueba que las pausas suenan naturales y que la palabra iluminada va con la voz.
+  - "Guardar": se genera el vídeo (barra de pasos), se guarda en Fotos y aparece su duración. Mira el vídeo entero: gancho, cámara lenta con el lazo de las manos, 7 pausas con medidas, ritmo con barras, nota contando desde 0, informe y cierre. La versión completa debe quedar entre 60 y 90 s.
+  - En Ajustes activa "Vídeo corto" y genera otro análisis: entre 30 y 40 s con 3 fases.
+  - Borra el clip del swing: el análisis y el vídeo generado se van con él.
+- Qué he aprendido de Swift en esta etapa:
+  - La API Swift de Vision para la pose (`DetectHumanBodyPoseRequest`) devuelve articulaciones con nombre, posición normalizada y confianza; `joint(for:)` y `toImageCoordinates` las pasan a píxeles.
+  - `AVSpeechSynthesizer.write` entrega el audio por búferes y los marcadores de palabra por otro callback; un búfer vacío marca el final.
+  - Un montaje de AVFoundation se arma con `AVMutableComposition` (insertar rangos, escalarlos para cámara lenta o congelar un fotograma) y los gráficos van en capas de Core Animation cuyo tiempo 0 es `AVCoreAnimationBeginTimeAtZero`.
+  - `AVAssetExportSession` moderno exporta con `export(to:as:)` y cuenta su avance con `states(updateInterval:)`, un `AsyncSequence`.
+  - Un `@Model` de SwiftData puede guardar un struct entero como JSON en un `Data` y exponerlo con una propiedad calculada.
 
 <!-- Plantilla por etapa:
 ### Etapa N: título (fecha)

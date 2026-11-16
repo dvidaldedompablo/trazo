@@ -148,8 +148,11 @@ enum AnalysisVideoExporter {
         session.videoComposition = videoComposition
         let outputURL = MediaStore.temporaryURL(extension: "mp4")
         MediaStore.removeIfPresent(outputURL)
+        // La secuencia de estados es Sendable; la sesión no. Se saca fuera para que la tarea
+        // del avance no capture la sesión (Swift 6 no la dejaría cruzar a otra tarea).
+        let states = session.states(updateInterval: 0.4)
         let monitor = Task {
-            for await state in session.states(updateInterval: 0.4) {
+            for await state in states {
                 if case let .exporting(exportProgress) = state {
                     progress(ExportProgress(stepName: "Exportando el vídeo",
                                             fraction: 0.45 + 0.55 * exportProgress.fractionCompleted))

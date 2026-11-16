@@ -158,3 +158,26 @@ struct DemoSwingTests {
         #expect(script[.score]?.lines.first?.contains("\(total) sobre 100") == true)
     }
 }
+
+struct AnalysisTimelineTests {
+    @Test("Cada bloque dura el máximo entre su mínimo visual y su narración + 0,6 s, sin huecos")
+    func buildsSequentially() {
+        let kinds = AnalysisTimeline.blockKinds(short: false, importantPhases: [])
+        #expect(kinds == [.hook, .slowMotion, .address, .takeaway, .midBackswing, .top, .transition, .impact, .finish, .tempo, .score, .report])
+        let narration: [ScriptBlockKind: Double] = [.hook: 4.1, .address: 1.0, .score: 2.0]
+        let blocks = AnalysisTimeline.build(kinds: kinds, narration: narration, swingDuration: 1.6, slowMotionFactor: 4)
+        // El gancho manda su narración (4,1 + 0,6 > 3); la preparación, su mínimo (2,5 > 1,6).
+        #expect(abs(blocks[0].duration - 4.7) < 1e-9)
+        #expect(abs(blocks[1].duration - 6.4) < 1e-9)
+        #expect(blocks[2].duration == 2.5)
+        // Sin huecos ni solapes, y el cierre de 2 s al final.
+        for (a, b) in zip(blocks, blocks.dropFirst()) { #expect(abs(a.end - b.start) < 1e-9) }
+        #expect(blocks.last?.kind == .closing && blocks.last?.duration == 2)
+    }
+
+    @Test("La versión corta lleva gancho, cámara lenta, 3 fases, nota e informe")
+    func shortVersion() {
+        let kinds = AnalysisTimeline.blockKinds(short: true, importantPhases: [.takeaway, .impact, .midBackswing, .top])
+        #expect(kinds == [.hook, .slowMotion, .takeaway, .midBackswing, .top, .score, .report])
+    }
+}

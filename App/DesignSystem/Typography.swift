@@ -88,7 +88,7 @@ enum Typography {
     /// Una fuente variable lleva dentro todos los pesos y anchuras: se elige un punto de cada eje.
     /// Los ejes se identifican con códigos de 4 letras ('wght' es el peso, 'wdth' la anchura)
     /// guardados como un número de 32 bits.
-    static func archivoUIFont(_ size: CGFloat, width: CGFloat, weight: CGFloat) -> UIFont {
+    nonisolated static func archivoUIFont(_ size: CGFloat, width: CGFloat, weight: CGFloat) -> UIFont {
         guard let base = UIFont(name: archivoPostScriptName, size: size) else {
             // No se inventa nada: se usa la del sistema y la pantalla avisa (ver HomeView).
             logger.error("No se ha cargado la fuente Archivo; uso la del sistema")
@@ -146,7 +146,7 @@ enum Typography {
 
     private static let weightAxis: UInt32 = 0x7767_6874 // 'wght'
     private static let widthAxis: UInt32 = 0x7764_7468 // 'wdth'
-    private static let logger = Logger(subsystem: "io.github.dvidaldedompablo.trazo", category: "Typography")
+    nonisolated private static let logger = Logger(subsystem: "io.github.dvidaldedompablo.trazo", category: "Typography")
 }
 
 /// Aplica un estilo de texto. Lee el tamaño de texto del entorno para que la fuente crezca

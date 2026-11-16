@@ -544,7 +544,7 @@ struct SwingMetricsTable: View {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(valueText(item)).typeStyle(.valor).monospacedDigit()
                         Text(statusText(item)).typeStyle(.filaSub)
-                            .foregroundStyle(item.status == .ok ? Color.bien : item.status == .fault ? Color.rojoTrazo : Color.texto3)
+                            .foregroundStyle(statusColor(item.status))
                     }
                 }
             }
@@ -561,16 +561,25 @@ struct SwingMetricsTable: View {
         case .centimeters: return "~\(SpanishFormat.number(value, decimals: 0)) cm"
         case .seconds: return SpanishFormat.seconds(value, decimals: 2)
         case .ratio: return SpanishFormat.number(value, decimals: 2)
-        case .flag: return value > 0.5 ? "Sí" : "No"
+        case .trunkFraction: return SpanishFormat.number(value, decimals: 2)
+        case .yesNo: return value > 0.5 ? "Sí" : "No"
         }
     }
 
     private func statusText(_ item: MetricResult) -> String {
         switch item.status {
-        case .ok: "Bien"
-        case .info: "Informativa"
-        case .fault: item.fault.map { FaultLibrary.fault($0).name } ?? "Fuera de rango"
+        case .good: "Bien"
+        case .informative: "Informativa"
+        case .low, .high: item.fault.map { FaultLibrary.fault($0).name } ?? "Fuera de rango"
         case .unavailable: "Sin datos"
+        }
+    }
+
+    private func statusColor(_ status: MeasurementStatus) -> Color {
+        switch status {
+        case .good: Color.bien
+        case .low, .high: Color.rojoTrazo
+        case .informative, .unavailable: Color.texto3
         }
     }
 }

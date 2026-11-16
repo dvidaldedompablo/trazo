@@ -149,7 +149,7 @@ enum AnalysisVideoExporter {
         let outputURL = MediaStore.temporaryURL(extension: "mp4")
         MediaStore.removeIfPresent(outputURL)
         let monitor = Task {
-            for await state in session.states(updateInterval: .milliseconds(400)) {
+            for await state in session.states(updateInterval: 0.4) {
                 if case let .exporting(exportProgress) = state {
                     progress(ExportProgress(stepName: "Exportando el vídeo",
                                             fraction: 0.45 + 0.55 * exportProgress.fractionCompleted))
@@ -237,7 +237,8 @@ enum AnalysisVideoExporter {
         case .centimeters: return "~\(SpanishFormat.number(value)) cm"
         case .seconds: return SpanishFormat.seconds(value, decimals: 2)
         case .ratio: return "\(SpanishFormat.number(value, decimals: 1)) : 1"
-        case .flag: return value > 0.5 ? "Sí" : "No"
+        case .trunkFraction: return SpanishFormat.number(value, decimals: 2)
+        case .yesNo: return value > 0.5 ? "Sí" : "No"
         }
     }
 }

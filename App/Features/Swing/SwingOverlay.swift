@@ -37,14 +37,16 @@ struct SwingOverlayView: View {
             Canvas { context, size in
                 let mapping = FillMapping(video: CGSize(width: analysis.videoWidth, height: analysis.videoHeight),
                                           view: size)
-                draw(in: &context, mapping: mapping, size: size)
+                // Se dibuja sobre una copia: los métodos de dibujo no cambian el contexto y las
+                // funciones anidadas de `draw` no pueden capturar un parámetro inout.
+                draw(in: context, mapping: mapping, size: size)
             }
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
-    private func draw(in context: inout GraphicsContext, mapping: FillMapping, size: CGSize) {
+    private func draw(in context: GraphicsContext, mapping: FillMapping, size: CGSize) {
         guard analysis.poses.indices.contains(frameIndex) else { return }
         let pose = analysis.poses[frameIndex]
         let handedness = analysis.handedness

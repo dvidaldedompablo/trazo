@@ -25,7 +25,8 @@ enum AnalysisCards {
         let title = VideoLayers.text("¿Qué nota le pones\na este swing?", font: VideoLayers.archivo(84, width: 74, weight: 820),
                                      color: .white, alignment: .center, outline: true)
         title.alignmentMode = .center
-        title.frame = CGRect(x: 0, y: 170, width: VideoLayers.width, height: 220)
+        title.isWrapped = true
+        title.frame = CGRect(x: 0, y: 170, width: VideoLayers.width, height: 240)
         root.addSublayer(title)
 
         let badgeText = VideoLayers.text("?/100", font: VideoLayers.archivo(56), color: pino)

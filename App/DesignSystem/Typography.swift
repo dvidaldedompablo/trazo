@@ -76,7 +76,7 @@ extension TypeStyle {
 enum Typography {
     /// Nombre interno (PostScript) de la fuente variable. Es el de su instancia por defecto
     /// (peso 600, anchura 100); los demás pesos y anchuras se piden con variaciones.
-    static let archivoPostScriptName = "Archivo-SemiBold"
+    nonisolated static let archivoPostScriptName = "Archivo-SemiBold"
 
     /// `true` si iOS ha registrado la fuente. Se registra sola al arrancar
     /// porque el Info.plist la lista en `UIAppFonts`.
@@ -144,8 +144,8 @@ enum Typography {
         }
     }
 
-    private static let weightAxis: UInt32 = 0x7767_6874 // 'wght'
-    private static let widthAxis: UInt32 = 0x7764_7468 // 'wdth'
+    nonisolated private static let weightAxis: UInt32 = 0x7767_6874 // 'wght'
+    nonisolated private static let widthAxis: UInt32 = 0x7764_7468 // 'wdth'
     nonisolated private static let logger = Logger(subsystem: "io.github.dvidaldedompablo.trazo", category: "Typography")
 }
 

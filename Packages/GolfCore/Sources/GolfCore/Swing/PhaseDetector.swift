@@ -21,7 +21,7 @@ public enum SwingPosition: Int, Sendable, Codable, CaseIterable, Comparable {
 }
 
 /// Una posición encontrada.
-public struct DetectedPosition: Sendable, Equatable {
+public struct DetectedPosition: Sendable, Equatable, Codable {
     public var position: SwingPosition
     public var frameIndex: Int
     public var time: Double
@@ -32,7 +32,7 @@ public struct DetectedPosition: Sendable, Equatable {
 }
 
 /// Resultado del detector: el inicio de la subida (B), las 7 posiciones y el ritmo.
-public struct SwingPhases: Sendable, Equatable {
+public struct SwingPhases: Sendable, Equatable, Codable {
     public var backswingStartFrame: Int
     public var backswingStartTime: Double
     /// Las 7 posiciones, en orden.

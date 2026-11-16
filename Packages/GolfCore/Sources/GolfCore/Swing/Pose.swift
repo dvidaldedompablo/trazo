@@ -36,7 +36,7 @@ public enum Joint: String, Sendable, Codable, CaseIterable, Hashable {
 
 /// La pose de un fotograma: el instante y las articulaciones que se ven (en píxeles).
 /// Una articulación que falta (tapada o con confianza < 0,3) simplemente no está en el diccionario.
-public struct PoseFrame: Sendable, Equatable {
+public struct PoseFrame: Sendable, Equatable, Codable {
     public var time: Double
     public var joints: [Joint: Point2D]
 

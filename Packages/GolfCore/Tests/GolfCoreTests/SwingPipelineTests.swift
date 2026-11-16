@@ -125,3 +125,36 @@ struct TemplateTrackerTests {
         #expect((found?.score ?? 0) < 0.45)
     }
 }
+
+/// El swing de demostración de punta a punta: posiciones, medidas, nota y guion.
+/// Las capturas del CI dependen de que esto nunca devuelva nil.
+struct DemoSwingTests {
+    @Test("PhaseDetector reconoce el swing de demostración con ritmo 2,8 y en orden")
+    func demoSwingDetects() throws {
+        let frames = PoseSeries.process(DemoSwing.frames())
+        let phases = try #require(PhaseDetector.detect(frames: frames, impactTime: DemoSwing.impactTime))
+        #expect(phases.isOrdered)
+        #expect(abs(phases[.impact].time - DemoSwing.impactTime) < 0.05)
+        let tempo = try #require(phases.tempo)
+        #expect(abs(tempo - 2.8) < 0.4)
+    }
+
+    @Test("Del swing de demostración salen medidas, una nota y el takeaway por dentro como prioridad")
+    func demoSwingScores() throws {
+        let frames = PoseSeries.process(DemoSwing.frames())
+        let phases = try #require(PhaseDetector.detect(frames: frames, impactTime: DemoSwing.impactTime))
+        let input = SwingMetricsInput(frames: frames, phases: phases, heightCentimeters: 175,
+                                      clubHeadAtAddress: DemoSwing.clubHeadAtAddress,
+                                      clubHeadAtTakeaway: DemoSwing.clubHeadAtTakeaway,
+                                      clubLineAtMidBackswing: DemoSwing.clubLineAtMidBackswing,
+                                      clubLineAtTransition: DemoSwing.clubLineAtTransition)
+        let measurements = SwingMetrics.measure(input)
+        let score = Scoring.score(measurements)
+        let total = try #require(score.total)
+        #expect(total > 40 && total < 95)
+        #expect(score.phases.first { $0.phase == .takeaway }?.faults.contains(.takeawayInside) == true)
+        let script = ScriptWriter.write(measurements: measurements, score: score)
+        #expect(script.allLines.count >= 10)
+        #expect(script[.score]?.lines.first?.contains("\(total) sobre 100") == true)
+    }
+}

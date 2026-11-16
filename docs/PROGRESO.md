@@ -4,7 +4,7 @@ Claude Code actualiza este archivo al final de cada etapa.
 
 ## Estado
 - Etapa actual: 6 a 8 hechas en el CI (análisis de swing completo); falta probarlas en el iPhone. La etapa 5 (tracer: ajuste manual, estilo y vídeo final) se saltó de momento: el usuario pidió el análisis de swing primero. Pendientes de iPhone: prueba de 5 golpes (etapa 4), importación a cámara lenta (etapa 3) e Inicio (etapa 1).
-- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (21), compilación nº 21 del CI del 28-10-2026
+- Último .ipa: `builds/Trazo.ipa`, versión 0.1 (28), compilación nº 28 del CI del 16-11-2026 (análisis de swing completo)
 - Repositorio: https://github.com/dvidaldedompablo/trazo (público)
 - Última instalación en el iPhone: (fecha)
 - Caduca: (fecha + 7 días)
@@ -299,6 +299,14 @@ El usuario pidió adelantar el análisis de swing ("adjuntar el vídeo y que me 
   - El vídeo generado se guarda en la carpeta de clips (`analisis-<id>.mp4`) y se borra con el clip.
   - La velocidad de la voz queda en 0,5 (el valor por defecto de iOS); el objetivo de 155 palabras por minuto se afinará oyéndola en el iPhone.
   - La opción "sonido del golpe en el gancho" (docs/04, apagada por defecto) aún no está: llega con la etapa 9 si hace falta.
+- Problemas y cómo se resolvieron (3 vueltas de CI, runs 24 a 28):
+  - `AnalysisCards` usaba `AVCoreAnimationBeginTimeAtZero` sin importar AVFoundation.
+  - `MetricUnit` no tiene `flag` (es `yesNo`, y faltaba `trunkFraction`); el estado de una medida es good/low/high/informative/unavailable. El error en cadena de la tabla de medidas (List con Binding) venía de ese switch mal escrito.
+  - `states(updateInterval:)` de AVAssetExportSession recibe segundos (TimeInterval), no Duration.
+  - Swift 6: `archivoUIFont` y sus constantes eran del MainActor y los gráficos del vídeo se montan en un hilo de trabajo (ahora `nonisolated`; crear un UIFont es seguro en cualquier hilo). Y la tarea del avance de exportación no puede capturar la sesión (no es Sendable): captura su secuencia de estados.
+  - Una función anidada no puede capturar un parámetro `inout`: el overlay del swing dibuja sobre una copia del `GraphicsContext`.
+  - El job del IPA del run 28 se canceló por el runner; se relanzó con `gh run rerun --failed` y salió en verde.
+- Quedan avisos de deprecación (no rompen): `AVMutableVideoComposition` y compañía piden migrar a `.Configuration` en iOS 26, y `Text + Text` pide interpolación. Anotados para la etapa 10.
 - Pendiente:
   - Probar todo en el iPhone (lista de abajo): la pose de Vision con vídeo real, los tiempos y la memoria del montaje están sin medir.
   - La cámara lenta parte del clip tal cual: con un clip de 240 fps reales la escala × 4 sale fluida; con uno de 30 fps se verá a saltos (se anotará al probar).

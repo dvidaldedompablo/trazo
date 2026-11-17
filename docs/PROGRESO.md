@@ -382,3 +382,28 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
 - `docs/10_BANCO_DE_PRUEBAS_Y_LLM.md` en el mapa de documentos, sin las rutas locales de los clips de reserva (el repo es público). `lab/.env` en `.gitignore`.
 - Clips del banco renombrados por su huella (dentro de `feedback/`, que no se sube): `story1-puerta-de-hierro.mp4`, `story2-simulador.mp4` y `driver-campo.mp4`; lo que se sacó de ellos el 17-11 en `feedback/derivados/<nombre>/` y las capturas del iPhone en `feedback/capturas/`. Ningún archivo del repo usaba las rutas antiguas.
 - Siguiente: Fase 1 (banco de pruebas) en una sesión nueva.
+
+### Fase 1, pasos 1 a 3: herramientas del banco (18-11-2026)
+- Entorno comprobado: Python 3.11.9, ffmpeg 9.0.2 y Docker 29.2.1 (motor Linux). `lab\.venv` con OpenCV, NumPy y Requests (`lab/requirements.txt`).
+- `lab/etiquetar.py`: etiquetado a mano con OpenCV. Fotogramas sacados con ffmpeg ya girados y con el instante real de cada uno (ffprobe; los vídeos son de frecuencia variable). Teclas de docs/10 (A/D, W/S, I, T, 1-5 y clic, G) y además: picos (P/O para ir, Y/N para `es_palo`), música, varios swings, borrar marca, salto a la propuesta del modelo (J) y línea de tiempo con clic. Reabre y corrige el JSON. Al guardar cuenta qué propuestas del modelo has cambiado.
+- `GolfLab` (ejecutable aparte en `Packages/GolfCore/Sources/GolfLab`, sin tocar la lógica): pasa un audio por `ImpactDetector` y `ClipPlanner` (modo Swing) y escribe JSON. La app no lo enlaza (el esquema de XcodeGen solo compila `Trazo`).
+- `lab/picos.py`: audio como la app (mono, 48 kHz, float32; igual byte a byte que el del 17-11), `GolfLab` en Docker (`swift:6.3`) y `picos` en `feedback/etiquetas/<clip>.json`. Cada pico lleva además `fuerza` (frente al más fuerte) y `propuesto` (el corte automático lo propone). Resultado:
+
+  | Clip | Picos | Propuestos por el corte | Golpes reales |
+  | --- | --- | --- | --- |
+  | story1-puerta-de-hierro | 8 | 2 (3,234 s y 4,338 s) | 1 |
+  | story2-simulador | 15 (música) | 0: "no parece una tanda de golpes" | 1 |
+  | driver-campo | 3 | 1 (7,169 s) | 1 |
+
+  Aviso (regla 7 de docs/10): son los 3 clips con los que se ajustó la lógica actual; la medida saldrá mejor de lo que es. La tabla de verdad llega con `scripts/evaluar.py`, después de las etiquetas del usuario.
+- `lab/preetiquetar.py` (modelo A): hoja gruesa de 12 fotogramas y hojas densas de 12 (una por pico, de 0,6 s antes a 0,2 s después, y otra en el tramo del swing). Respuesta en JSON con esquema fijo (`hay_swing`, fase por fotograma, `zona_palo` y `confianza`), validada con código. Caché en disco (`feedback/cache_modelo/`), registro de tokens y coste por clip, y `--sin-enviar` para preparar las hojas sin llamar. Probado con una respuesta inventada: valida, descarta lo imposible, no toca las etiquetas del usuario y la segunda pasada sale entera de la caché.
+- Decisiones:
+  - Proveedor: el usuario pidió "uno gratuito y el mejor". Gemini con clave gratuita de Google AI Studio. A = `gemini-3.8-flash` (preetiqueta) y B = `gemini-4-hydrogen` (el mejor del plan gratuito; se evalúa en la Fase 2). Los dos se cambian en `lab/.env`. En la UE, las condiciones de Google aplican al plan gratuito las de datos del de pago: no usa lo enviado para mejorar sus productos.
+  - API Interactions de Gemini (la recomendada desde 2026; `generateContent` queda como antigua). `store: false`.
+  - Varias hojas densas por llamada (hasta 6): con el plan gratuito de los Flash (unas 20 peticiones al día) el preetiquetado de los 3 clips son unas 9 llamadas.
+  - La fase "bajada" de las etiquetas es la `transicion` del modelo (posición 5 de la app).
+  - Campos nuevos con el prefijo de la regla 3: `modelo_picos` (respuesta del modelo para cada pico) y `modelo_info` (modelo, semilla, tokens, coste).
+- Problemas:
+  - Cambio de API (apuntado según CLAUDE.md): la temperatura ya no existe en Gemini 3.6 Flash y posteriores (la API la ignora y la API Interactions no la tiene). docs/10 pide temperatura 0. Se fija la semilla y el nivel de razonamiento, y la caché garantiza que la misma petición no se repite. Pendiente de que el usuario acepte el cambio de la regla 2 de docs/10.
+  - `feedback/reserva/` no existe todavía en el PC: los clips de reserva no están copiados.
+- Pendiente: el usuario crea la clave y la pone en `lab/.env`; correr `preetiquetar.py`; PARADA 1 (el usuario etiqueta los 3 clips con `etiquetar.py`).

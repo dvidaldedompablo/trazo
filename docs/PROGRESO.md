@@ -328,6 +328,23 @@ El usuario pidió adelantar el análisis de swing ("adjuntar el vídeo y que me 
   - `AVAssetExportSession` moderno exporta con `export(to:as:)` y cuenta su avance con `states(updateInterval:)`, un `AsyncSequence`.
   - Un `@Model` de SwiftData puede guardar un struct entero como JSON en un `Data` y exponerlo con una propiedad calculada.
 
+### Análisis de swing: "No se ve a nadie" con un vídeo válido (17-11-2026)
+- Síntoma: con una story de Instagram (grabación de pantalla 1170 x 1920, música, pegatinas) salía "No se ve a nadie" aunque el jugador se veía entero.
+- Diagnóstico (pose con MediaPipe en el PC como sustituto de Vision, y el código real de GolfCore; los vídeos están en `feedback/`, fuera del repo):
+  - No eran la orientación, el muestreo (ya se usaban los instantes reales de cada fotograma), la exigencia de persona (basta un tercio de los fotogramas), los umbrales de confianza ni las pegatinas.
+  - Sí: cualquier fallo de las posiciones acababa en "No se ve a nadie". Y fallaban porque el impacto era un pico de la música (el corte automático lo toma del sonido). Con algunos instantes, `PhaseDetector` además se colgaba (rango imposible en la mitad de subida).
+- Arreglo:
+  - `SwingImpactChooser` contrasta cada candidato del sonido con las manos y se queda con el más fuerte que da un swing creíble: bajada (top → impacto) de 0,1 a 0,6 s y, en el impacto, las manos han deshecho al menos el 60 % de la subida (en vertical). Si ninguno encaja, el impacto sale del movimiento de las manos.
+  - Si el sonido tal cual no encaja, se prueba el punto más bajo de las manos a ±0,1 s: en una story el audio iba 0,09 s retrasado. La app lo dice en las notas y en el registro.
+  - Mensajes separados: "No se ve a nadie" solo si no hay persona; "Te veo, pero no encuentro un swing completo" si falta el swing. El palo no se comprueba en este paso.
+  - Modo diagnóstico: registro por fotograma (instante, búfer, orientación, personas, confianza de cada articulación, qué comprobación falla), esqueleto sobre el fotograma en Revisa las posiciones y visor "Ver la pose detectada" con "Compartir el registro".
+- Una primera versión del criterio (manos a menos de 0,15 de la estatura de la preparación) se descartó al probar dos vídeos más: rechazaba el golpe real de un driver a 30 fps (0,16) y aceptaba un ruido cuando el jugador bajaba los brazos tras el final.
+- Resultado con los tres vídeos (impacto real comprobado mirando los fotogramas):
+  - Story 1: todos los clips con el swing dan impacto 3,23 s y top 3,00 s (antes: "No se ve a nadie", posiciones sin sentido o cuelgue). Los clips sin swing dicen "no encuentro un swing completo".
+  - Story 2 (simulador, 384 x 832, solo música en el audio): impacto 2,47 s y top 2,24 s, con el sonido de 2,56 s corregido por desfase (antes: impacto 8,97 s, ritmo 0,21).
+  - Driver en el campo (1024 x 576 girado −90°, 30 fps): impacto 7,17 s y top 6,87 s, igual que antes.
+- Pendiente: confirmar en el iPhone que Vision ve lo mismo que MediaPipe (el registro lo dice). En la story 2 el "Final" cae tarde (5,14 s) porque la cámara se va del jugador; se corrige a mano. El corte automático sigue proponiendo clips en picos de música (no se han tocado sus umbrales).
+
 <!-- Plantilla por etapa:
 ### Etapa N: título (fecha)
 - Hecho:

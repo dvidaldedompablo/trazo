@@ -215,6 +215,40 @@ struct SwingImpactChooserTests {
         #expect(abs(choice.phases[.impact].time - DemoSwing.impactTime) < 0.1)
     }
 
+    @Test("Un ruido cuando el jugador ya ha bajado los brazos tras el final no cuenta como impacto")
+    func ignoresNoiseAfterRelaxing() throws {
+        // Caso real (driver, 30 fps): tras el final las manos vuelven a la altura de la preparación.
+        // Estar cerca de la preparación no basta: la bajada duraría segundos.
+        let last = frames.last!.time
+        let relaxed = frames + (1...120).map { PoseFrame(time: last + Double($0) / DemoSwing.sampleRate, joints: frames[0].joints) }
+        let candidates = [
+            Impact(time: DemoSwing.impactTime, strength: 5, prominence: 10),
+            Impact(time: last + 0.8, strength: 50, prominence: 10),
+        ]
+        let choice = try SwingImpactChooser.choose(frames: PoseSeries.process(relaxed), soundCandidates: candidates).get()
+        #expect(choice.soundTime == DemoSwing.impactTime)
+    }
+
+    @Test("Con el sonido desfasado de la imagen, el impacto se ajusta a las manos y se dice cuánto")
+    func correctsLateSound() throws {
+        // Caso real (story de Instagram): el "clac" 0,09 s después de que las manos llegaran abajo.
+        // Final tres veces más rápido que en la demo: a los 0,08 s las manos ya han subido mucho.
+        let fast = DemoSwing.frames().map { f in
+            f.time > DemoSwing.impactTime
+                ? PoseFrame(time: DemoSwing.impactTime + (f.time - DemoSwing.impactTime) / 3, joints: f.joints) : f
+        }
+        let frames = PoseSeries.process(fast)
+        let late = DemoSwing.impactTime + 0.08
+        #expect(PhaseDetector.detect(frames: frames, impactTime: late).flatMap {
+            SwingImpactChooser.returnFraction($0, hands: PhaseDetector.completeHands(frames)!,
+                                              stature: PhaseDetector.estimateStature(frames, handedness: .right))
+        } == nil, "el sonido tal cual no debe encajar, si no el test no prueba el ajuste")
+        let choice = try SwingImpactChooser.choose(frames: frames, soundCandidates: [Impact(time: late, strength: 10, prominence: 10)]).get()
+        #expect(choice.soundTime == late)
+        #expect(abs(choice.phases[.impact].time - DemoSwing.impactTime) < 0.03)
+        #expect(abs(choice.syncOffset + 0.08) < 0.03)
+    }
+
     @Test("Un jugador quieto (sin swing) se dice como 'sin swing', no como 'no se ve a nadie'")
     func stillPlayerIsNoSwing() {
         let still = frames.map { PoseFrame(time: $0.time, joints: frames[0].joints) }

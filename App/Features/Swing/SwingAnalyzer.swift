@@ -207,6 +207,7 @@ enum SwingAnalyzer {
         }
         let phases = choice.phases
         finishLog("Comprobación del swing: pasa. Impacto " + (choice.soundTime.map { String(format: "%.2f s por el sonido", $0) } ?? "por el movimiento de las manos")
+                  + (choice.syncOffset != 0 ? String(format: ", ajustado a %.2f s por las manos (desfase %+.2f s)", phases[.impact].time, choice.syncOffset) : "")
                   + (knownImpact.map { String(format: " (el corte automático decía %.2f s)", $0) } ?? ""))
         finishLog("Posiciones: " + phases.positions.map { String(format: "%@ %.2f s%@", $0.position.title, $0.time, $0.isDoubtful ? " (dudosa)" : "") }.joined(separator: ", "))
         finishLog("El palo no se comprueba aquí: se marca después, en Revisa las posiciones.")
@@ -215,13 +216,18 @@ enum SwingAnalyzer {
         } else if let knownImpact, let soundTime = choice.soundTime, abs(soundTime - knownImpact) > 0.1 {
             notes.append(String(format: "El sonido más fuerte (%.2f s) no era el palo: el impacto es el de %.2f s.", knownImpact, soundTime))
         }
+        if abs(choice.syncOffset) > 0.02 {
+            notes.append(String(format: "El sonido va %.2f s %@ de la imagen: el impacto se ha ajustado al movimiento de las manos.",
+                                abs(choice.syncOffset), choice.syncOffset < 0 ? "por detrás" : "por delante"))
+        }
         lap("Posiciones")
 
         live.progress = 1
         progress.yield(live)
         var analysis = SwingAnalysis(videoWidth: geometry.width, videoHeight: geometry.height,
                                      frameRate: fps, analysisFrameRate: analysisFps,
-                                     impactTime: choice.soundTime ?? phases[.impact].time, impactFromSound: choice.soundTime != nil,
+                                     impactTime: choice.syncOffset == 0 ? (choice.soundTime ?? phases[.impact].time) : phases[.impact].time,
+                                     impactFromSound: choice.soundTime != nil,
                                      poses: smoothed, phases: phases, handedness: handedness,
                                      heightCentimeters: heightCentimeters,
                                      notes: notes, timings: timings)

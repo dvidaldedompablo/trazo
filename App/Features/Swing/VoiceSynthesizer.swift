@@ -56,10 +56,32 @@ enum VoiceSynthesizer {
         return bestSpanishVoice()
     }
 
+    /// Voces que tiene sentido ofrecer para narrar. Fuera las de broma (Bubbles, Zarvox…) y las
+    /// Eloquence (Eddy, Flo, Grandma…): son sintéticas a propósito y es lo que suena a robot.
+    static func isNarrationVoice(_ voice: AVSpeechSynthesisVoice) -> Bool {
+        !voice.voiceTraits.contains(.isNoveltyVoice) && !voice.identifier.contains("eloquence")
+    }
+
+    /// Las voces en español para narrar: es-ES primero y, dentro, de más a menos calidad.
+    static func spanishVoices() -> [AVSpeechSynthesisVoice] {
+        AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix("es") && isNarrationVoice($0) && !$0.voiceTraits.contains(.isPersonalVoice) }
+            .sorted { a, b in
+                if (a.language == "es-ES") != (b.language == "es-ES") { return a.language == "es-ES" }
+                if a.quality != b.quality { return a.quality.rawValue > b.quality.rawValue }
+                return a.name < b.name
+            }
+    }
+
+    /// Las voces personales del usuario (las crea él en Ajustes de iOS leyendo frases).
+    /// Solo aparecen si ha dado permiso a la app.
+    static func personalVoices() -> [AVSpeechSynthesisVoice] {
+        AVSpeechSynthesisVoice.speechVoices().filter { $0.voiceTraits.contains(.isPersonalVoice) }
+    }
+
     /// Español de España primero; a igual región, la de más calidad (premium > mejorada > normal).
     static func bestSpanishVoice() -> AVSpeechSynthesisVoice? {
-        let spanish = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix("es") }
-        return spanish.max { a, b in
+        spanishVoices().max { a, b in
             let regionA = a.language == "es-ES" ? 1 : 0
             let regionB = b.language == "es-ES" ? 1 : 0
             if regionA != regionB { return regionA < regionB }

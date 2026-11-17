@@ -1,0 +1,4 @@
+# Laboratorio del PC (docs/10). Versiones probadas el 18-11-2026 con Python 3.11 en Windows.
+opencv-python==5.1.0.95
+numpy==2.4.6
+requests==2.34.2

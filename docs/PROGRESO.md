@@ -343,6 +343,7 @@ El usuario pidió adelantar el análisis de swing ("adjuntar el vídeo y que me 
   - Story 1: todos los clips con el swing dan impacto 3,23 s y top 3,00 s (antes: "No se ve a nadie", posiciones sin sentido o cuelgue). Los clips sin swing dicen "no encuentro un swing completo".
   - Story 2 (simulador, 384 x 832, solo música en el audio): impacto 2,47 s y top 2,24 s, con el sonido de 2,56 s corregido por desfase (antes: impacto 8,97 s, ritmo 0,21).
   - Driver en el campo (1024 x 576 girado −90°, 30 fps): impacto 7,17 s y top 6,87 s, igual que antes.
+- Voz del análisis (mismo día, el usuario: "no hay ninguna que suene humana"): el selector ya no enseña las voces de broma ni las Eloquence; avisa arriba si no hay ninguna voz Mejorada o Premium en español, con los pasos para descargarla; se refresca solo al cambiar las voces; y ofrece la Voz personal de iOS con su permiso. Opción pendiente de decisión del usuario: un modelo neuronal en el iPhone (Piper o Kokoro), que es una dependencia de terceros.
 - Pendiente: confirmar en el iPhone que Vision ve lo mismo que MediaPipe (el registro lo dice). En la story 2 el "Final" cae tarde (5,14 s) porque la cámara se va del jugador; se corrige a mano. El corte automático sigue proponiendo clips en picos de música (no se han tocado sus umbrales).
 
 <!-- Plantilla por etapa:

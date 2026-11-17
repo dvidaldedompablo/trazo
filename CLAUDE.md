@@ -9,7 +9,14 @@ Tres apartados en la pantalla de inicio:
 2. **Análisis de swing**: graba el swing y genera un vídeo explicado con voz, subtítulos, líneas de telestrador, medidas, ritmo, nota sobre 100 e informe.
 3. **Ayuda**: guía de uso dentro de la app.
 
-Fuera del alcance, siempre: App Store, servidores, cuentas de usuario, pagos, analítica, publicidad, llamadas de red. Todo se procesa en el iPhone. Única excepción posible: la integración en la nube de la etapa 4b, y solo si el usuario la aprueba por escrito.
+Fuera del alcance, siempre: App Store, servidores propios, cuentas de usuario, pagos, analítica, publicidad. Todo se procesa en el iPhone.
+
+Llamadas de red: fuera del alcance, con una sola excepción escrita. Se permite el análisis de un clip con un modelo externo con visión, solo si se cumplen las tres condiciones:
+- la clave del servicio la escribe el usuario en Ajustes y se guarda en el llavero (Keychain), nunca en el código ni en el repositorio;
+- la app avisa antes de enviar cada clip y el usuario lo acepta;
+- hay un plan B local para cuando no hay red o falla el servicio.
+
+La excepción no se integra en la app hasta que el usuario apruebe la Fase 4 de `docs/10_BANCO_DE_PRUEBAS_Y_LLM.md`. El laboratorio de Python del PC (`lab/`) sí puede llamar al modelo. Cualquier otra llamada de red sigue fuera.
 
 ## El tracer y la guía de javiggil
 El tracer sigue la guía "El trazo de tu bola de golf, como en la tele" de javiggil, adaptada a una app sin servidor. Sus seis claves están dentro; `docs/09_GUIA_JAVIGGIL.md` dice qué se tomó, qué se cambió y por qué. No reintroduzcas subida de vídeos, servidor ni cobro. SAM 2.1, el modelo de la guía, solo entra por la etapa 4b (prueba de laboratorio en el PC) y no se integra en la app sin el visto bueno del usuario.
@@ -58,7 +65,8 @@ El tracer sigue la guía "El trazo de tu bola de golf, como en la tele" de javig
 4. Push y espera al CI. No des una etapa por terminada con el CI en rojo.
 5. Revisa las capturas del CI cuando la etapa toque pantallas. Haz una lista de diferencias con la maqueta y corrígelas.
 6. Actualiza `docs/PROGRESO.md` (qué se hizo, decisiones, problemas, qué falta).
-7. Termina con: resumen, dónde está el `.ipa` nuevo, lista de pruebas para el iPhone y limitaciones conocidas.
+7. **Ningún umbral ni constante cambia sin medir.** Antes de tocar una constante, una regla de `GolfCore` o un valor de `App/`, corre `scripts/evaluar.py` y pega en `docs/PROGRESO.md` la tabla de antes y la de después. Sin tabla, no se cambia.
+8. Termina con: resumen, dónde está el `.ipa` nuevo, lista de pruebas para el iPhone y limitaciones conocidas.
 
 ## Pruebas
 - `GolfCore` tiene tests unitarios con datos sintéticos; deben pasar en el CI.
@@ -68,8 +76,10 @@ El tracer sigue la guía "El trazo de tu bola de golf, como en la tele" de javig
 ## Seguridad y privacidad
 - Nunca subas secretos, contraseñas, el Apple ID, ni vídeos personales al repo (es público).
 - `builds/`, `ci-artifacts/` y `feedback/` están en `.gitignore`.
-- Los vídeos se guardan en el contenedor de la app y, si el usuario lo pide, en Fotos. Nada sale del teléfono.
-- Si algún día se aprueba la integración en la nube de la etapa 4b: la clave del servicio la escribe el usuario en Ajustes y se guarda en el llavero (Keychain). Nunca en el código ni en el repositorio. La app avisa antes de enviar un clip.
+- `lab/.env` (claves del laboratorio) también está en `.gitignore`. Antes de cada commit, comprueba con `git check-ignore -v feedback lab/.env` que los dos siguen ignorados.
+- Las etiquetas de los vídeos (`feedback/etiquetas/`) y los clips de reserva (`feedback/reserva/`) son privados y no se suben.
+- Los vídeos se guardan en el contenedor de la app y, si el usuario lo pide, en Fotos. No salen del teléfono, salvo con la excepción del modelo externo (ver "Qué es"): solo el clip que el usuario acepta enviar, tras el aviso.
+- La clave del modelo externo la escribe el usuario en Ajustes y se guarda en el llavero (Keychain). Nunca en el código ni en el repositorio.
 
 ## Mapa de documentos
 - `docs/00_PLAN_Y_PROMPTS.md`: etapas, mensajes del usuario y criterios de terminado.
@@ -82,4 +92,5 @@ El tracer sigue la guía "El trazo de tu bola de golf, como en la tele" de javig
 - `docs/07_PRUEBAS.md`: pruebas en el iPhone y criterios de aceptación.
 - `docs/08_REFERENCIA_VIDEO.md`: desglose del vídeo de referencia (estructura, imagen y audio).
 - `docs/09_GUIA_JAVIGGIL.md`: qué se ha tomado de la guía de javiggil, dónde está y qué se dejó fuera.
+- `docs/10_BANCO_DE_PRUEBAS_Y_LLM.md`: banco de pruebas con etiquetas del usuario y análisis con un modelo externo, por fases y con paradas.
 - `docs/PROGRESO.md`: diario del proyecto.

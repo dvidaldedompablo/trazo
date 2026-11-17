@@ -373,3 +373,12 @@ Un golpe cuenta como bien si la app no pide tocar la bola, no sale "Perdí la bo
 ## Etapa 4b: SAM 2.1 en prueba de laboratorio
 Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
 (no hace falta por ahora)
+
+## Banco de pruebas y modelo externo (docs/10)
+
+### Fase 0: permiso en el proyecto (17-11-2026)
+- `CLAUDE.md`: las llamadas de red tienen una sola excepción escrita (análisis de un clip con un modelo externo con visión: clave en el llavero escrita por el usuario, aviso antes de enviar cada clip, plan B local). No entra en la app hasta que el usuario apruebe la Fase 4; el laboratorio del PC sí puede llamar al modelo. "Seguridad y privacidad" ajustada a la excepción.
+- Nueva regla de trabajo: ningún umbral ni constante cambia sin la tabla de antes y después de `scripts/evaluar.py`.
+- `docs/10_BANCO_DE_PRUEBAS_Y_LLM.md` en el mapa de documentos, sin las rutas locales de los clips de reserva (el repo es público). `lab/.env` en `.gitignore`.
+- Clips del banco renombrados por su huella (dentro de `feedback/`, que no se sube): `story1-puerta-de-hierro.mp4`, `story2-simulador.mp4` y `driver-campo.mp4`; lo que se sacó de ellos el 17-11 en `feedback/derivados/<nombre>/` y las capturas del iPhone en `feedback/capturas/`. Ningún archivo del repo usaba las rutas antiguas.
+- Siguiente: Fase 1 (banco de pruebas) en una sesión nueva.

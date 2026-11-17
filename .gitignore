@@ -12,6 +12,8 @@ lab/**/*.mp4
 lab/**/*.mov
 lab/**/frames/
 lab/**/__pycache__/
+# Claves del laboratorio (modelo externo): nunca al repo
+lab/.env
 
 # Xcode (se genera en el CI)
 *.xcodeproj/

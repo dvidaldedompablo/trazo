@@ -26,6 +26,8 @@ final class SwingReviewModel {
     var message: String?
     /// Mientras se sigue la cabeza del palo tras el toque.
     var isTrackingClub = false
+    /// Lo que vio el detector si el análisis falla (modo diagnóstico: esqueleto y registro).
+    var failureDebug: PoseDebug?
 
     @ObservationIgnored var clip: Clip?
     @ObservationIgnored var result: SwingResult?
@@ -81,6 +83,7 @@ final class SwingReviewModel {
             await loadImages()
         } catch {
             continuation.finish()
+            failureDebug = (error as? SwingError)?.debug
             phase = .failed(error.localizedDescription)
         }
         listener.cancel()
@@ -244,6 +247,7 @@ struct SwingReviewView: View {
     @State private var showsResult = false
     @State private var showsMetricsTable = false
     @State private var draggedHead: Point2D?
+    @State private var showsPoseDebug = false
 
     init(clipID: UUID, demoImage: UIImage? = nil) {
         let model = SwingReviewModel(clipID: clipID)
@@ -278,7 +282,12 @@ struct SwingReviewView: View {
         }
         .sheet(isPresented: $showsMetricsTable) {
             if let analysis = model.analysis {
-                SwingMetricsTable(measurements: analysis.measurements())
+                SwingMetricsTable(measurements: analysis.measurements(), debugLog: analysis.debugLog)
+            }
+        }
+        .fullScreenCover(isPresented: $showsPoseDebug) {
+            if let debug = model.failureDebug, let url = model.clip?.fileURL {
+                PoseDebugView(debug: debug, url: url)
             }
         }
     }
@@ -333,6 +342,17 @@ struct SwingReviewView: View {
             Label(reason, systemImage: "exclamationmark.triangle")
                 .typeStyle(.sub)
                 .foregroundStyle(Color.pino)
+            if diagnostics, let debug = model.failureDebug {
+                // Modo diagnóstico: qué vio Vision en cada fotograma, con el esqueleto encima.
+                Button { showsPoseDebug = true } label: { Label("Ver la pose detectada", systemImage: "figure.stand") }
+                    .buttonStyle(.secundario)
+                ShareLink(item: debug.text, preview: SharePreview("Registro del análisis")) {
+                    Label("Compartir el registro", systemImage: "square.and.arrow.up")
+                        .typeStyle(.boton)
+                        .foregroundStyle(Color.pino)
+                        .frame(maxWidth: .infinity, minHeight: Size.buttonHeight)
+                }
+            }
             Button { dismiss() } label: { Text("Volver") }
                 .buttonStyle(.secundario)
         }
@@ -380,6 +400,10 @@ struct SwingReviewView: View {
                 SwingOverlayView(analysis: analysis, position: model.selected,
                                  frameIndex: analysis.phases[model.selected].frameIndex,
                                  draggedLineHead: draggedHead)
+                if diagnostics {
+                    SkeletonView(pose: analysis.poses[analysis.phases[model.selected].frameIndex],
+                                 videoSize: CGSize(width: analysis.videoWidth, height: analysis.videoHeight), fill: true)
+                }
                 if model.selected == .address && analysis.clubHeadAtAddress == nil {
                     tapPill("Toca la cabeza del palo")
                 } else if model.isTrackingClub {
@@ -531,6 +555,7 @@ struct SwingReviewView: View {
 /// Tabla de medidas del modo diagnóstico (docs/00, etapa 6, punto 6).
 struct SwingMetricsTable: View {
     let measurements: SwingMeasurements
+    var debugLog: String?
 
     var body: some View {
         NavigationStack {
@@ -550,6 +575,16 @@ struct SwingMetricsTable: View {
             }
             .navigationTitle("Medidas")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if let debugLog {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        ShareLink(item: debugLog, preview: SharePreview("Registro del análisis")) {
+                            Image(systemName: "doc.text")
+                        }
+                        .accessibilityLabel("Compartir el registro del análisis")
+                    }
+                }
+            }
         }
         .presentationDetents([.medium, .large])
     }

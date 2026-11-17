@@ -142,7 +142,10 @@ public enum PhaseDetector {
         // 3. Mitad de subida: brazo de delante paralelo al suelo entre 2 y el top.
         let armLength = leadArmLength(frames[addressPosition.frameIndex], handedness: handedness)
         let midBackswingPosition: DetectedPosition
-        if let mid = parallelArmIndex(frames, in: (takeaway + 1)..<top, handedness: handedness, armLength: armLength) {
+        // Con una subida muy corta el takeaway puede caer en el mismo top: el tramo queda vacío
+        // (antes se colgaba al crear un rango con el inicio mayor que el final).
+        if takeaway + 1 < top,
+           let mid = parallelArmIndex(frames, in: (takeaway + 1)..<top, handedness: handedness, armLength: armLength) {
             midBackswingPosition = position(.midBackswing, mid, times)
         } else {
             let mid = indexAtPathFraction(path, from: b, fraction: SwingRules.midBackswingFallbackFraction)

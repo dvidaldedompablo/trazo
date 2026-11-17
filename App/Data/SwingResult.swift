@@ -30,6 +30,8 @@ struct SwingAnalysis: Codable, Sendable {
     var reviewed = false
     var notes: [String] = []
     var timings: [StepTiming] = []
+    /// Registro por fotograma del análisis (modo diagnóstico: se puede compartir).
+    var debugLog: String?
 
     /// La entrada de `SwingMetrics` con todo lo revisado.
     func metricsInput() -> SwingMetricsInput {

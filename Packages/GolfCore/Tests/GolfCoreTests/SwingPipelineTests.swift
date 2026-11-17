@@ -181,3 +181,43 @@ struct AnalysisTimelineTests {
         #expect(kinds == [.hook, .slowMotion, .takeaway, .midBackswing, .top, .score, .report])
     }
 }
+
+/// Caso real del 17-11-2026: una story con música. El sonido más fuerte del clip no era el palo
+/// y el análisis fallaba con "No se ve a nadie" (y con algunos instantes, se colgaba).
+struct SwingImpactChooserTests {
+    private let frames = PoseSeries.process(DemoSwing.frames())
+
+    @Test("PhaseDetector no se cuelga con ningún instante de impacto, aunque esté mal")
+    func detectorNeverCrashes() {
+        // Antes: con el takeaway en el mismo top, `(takeaway + 1)..<top` era un rango imposible.
+        for step in 0...66 {
+            _ = PhaseDetector.detect(frames: frames, impactTime: Double(step) * 0.05)
+        }
+    }
+
+    @Test("Con un pico de música más fuerte en el final, elige el impacto del palo")
+    func ignoresLouderMusicPeak() throws {
+        let candidates = [
+            Impact(time: 0.30, strength: 20, prominence: 10), // música durante la preparación
+            Impact(time: DemoSwing.impactTime, strength: 5, prominence: 10), // el palo
+            Impact(time: 2.60, strength: 40, prominence: 10), // música en el final
+        ]
+        let choice = try SwingImpactChooser.choose(frames: frames, soundCandidates: candidates).get()
+        #expect(choice.soundTime == DemoSwing.impactTime)
+        #expect(abs(choice.phases[.impact].time - DemoSwing.impactTime) < 0.02)
+    }
+
+    @Test("Si ningún sonido encaja, el impacto sale del movimiento de las manos")
+    func fallsBackToMotion() throws {
+        let candidates = [Impact(time: 2.9, strength: 30, prominence: 10)]
+        let choice = try SwingImpactChooser.choose(frames: frames, soundCandidates: candidates).get()
+        #expect(choice.soundTime == nil)
+        #expect(abs(choice.phases[.impact].time - DemoSwing.impactTime) < 0.1)
+    }
+
+    @Test("Un jugador quieto (sin swing) se dice como 'sin swing', no como 'no se ve a nadie'")
+    func stillPlayerIsNoSwing() {
+        let still = frames.map { PoseFrame(time: $0.time, joints: frames[0].joints) }
+        #expect(SwingImpactChooser.choose(frames: still, soundCandidates: []) == .failure(.noSwing))
+    }
+}

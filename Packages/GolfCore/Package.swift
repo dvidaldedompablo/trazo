@@ -12,5 +12,8 @@ let package = Package(
     targets: [
         .target(name: "GolfCore"),
         .testTarget(name: "GolfCoreTests", dependencies: ["GolfCore"]),
+        // Herramienta del laboratorio del PC (docs/10): llama a la lógica real y escribe JSON.
+        // La app no la enlaza; solo se usa con Docker desde lab/.
+        .executableTarget(name: "GolfLab", dependencies: ["GolfCore"]),
     ]
 )

@@ -21,7 +21,9 @@ struct ClipPickerView: View {
     @State private var keepFull = false
     @State private var check: CheckState = .idle
     @State private var asksToSend = false
-    @State private var hasKey = false
+    @State private var hasKey: Bool
+    /// El usuario dijo "Cancelar" en el aviso: se enseña la lista por sonido (plan B).
+    @State private var declined = false
 
     enum CheckState: Equatable {
         case idle
@@ -35,6 +37,9 @@ struct ClipPickerView: View {
          onFinish: @escaping (_ chosen: [ClipWindow], _ keepFullRecording: Bool) -> Void) {
         self.pending = pending
         self.onFinish = onFinish
+        // Se lee ya al abrir: con clave, la lista por sonido no llega a enseñarse (el usuario la quiere
+        // siempre comprobada con Gemini, 22-11-2026).
+        _hasKey = State(initialValue: demoCheck == nil && KeychainStore.geminiKey != nil)
         if let demoCheck {
             _windows = State(initialValue: demoCheck.checked.windows)
             _thumbnails = State(initialValue: demoCheck.thumbnails)
@@ -71,7 +76,16 @@ struct ClipPickerView: View {
                 if canCheck {
                     checkPanel
                 }
-                if showsClips {
+                if waitingForGemini {
+                    // Mientras se espera el permiso o la respuesta, solo se puede descartar.
+                    Button {
+                        onFinish([], false)
+                    } label: {
+                        Text("Descartar")
+                    }
+                    .buttonStyle(.secundario)
+                    .padding(.top, Spacing.s)
+                } else if showsClips {
                     ForEach(windows.indices, id: \.self) { index in
                         ClipRow(number: index + 1, window: windows[index], thumbnail: thumbnails[safe: index] ?? nil,
                                 mode: pending.mode, outcome: outcomes?[safe: index], isSelected: selection[index]) {
@@ -91,11 +105,17 @@ struct ClipPickerView: View {
             .padding(.bottom, Spacing.l)
         }
         .background(Color.bola)
-        .onAppear { hasKey = KeychainStore.geminiKey != nil }
+        .task {
+            // Con clave, el aviso sale solo al abrir la hoja: un toque en "Enviar" y se comprueba.
+            // Un instante después de abrir: presentar el aviso a la vez que la hoja puede fallar.
+            guard waitingForGemini, check == .idle else { return }
+            try? await Task.sleep(for: .milliseconds(500))
+            asksToSend = true
+        }
         // El aviso de CLAUDE.md: antes de enviar nada, el usuario lo acepta.
         .alert("¿Enviar a Google?", isPresented: $asksToSend) {
             Button("Enviar") { startCheck() }
-            Button("Cancelar", role: .cancel) {}
+            Button("Cancelar", role: .cancel) { declined = true }
         } message: {
             let n = ShotChecker.soundCount(pending)
             Text("Se envían \(n == 1 ? "1 hoja" : "\(n) hojas") con fotogramas de este vídeo a Gemini (Google), con tu clave, para ver qué sonidos son golpes. No se envía el vídeo entero ni el sonido.")
@@ -106,15 +126,26 @@ struct ClipPickerView: View {
 
     /// Hay golpes que proponer: los del corte automático (si parece una tanda de golpes) o los que
     /// ha confirmado Gemini aunque el corte automático no los propusiera.
-    private var showsClips: Bool { !windows.isEmpty && (pending.isShotSeries || outcomes != nil) }
+    private var showsClips: Bool { !windows.isEmpty && (pending.isShotSeries || outcomes != nil) && !waitingForGemini }
 
-    /// Se puede comprobar con Gemini: hay sonido y algún sonido fuerte, y no se ha comprobado ya.
+    /// Se puede comprobar con Gemini: hay sonido y algún sonido fuerte.
     private var canCheck: Bool { pending.info.hasAudio && !pending.impacts.isEmpty }
+
+    /// Con clave, la lista no se enseña hasta que Gemini conteste (o el usuario cancele, o falle).
+    private var waitingForGemini: Bool {
+        check == .running || (hasKey && canCheck && outcomes == nil && check == .idle && !declined)
+    }
 
     private var summary: String {
         let duration = SpanishFormat.number(pending.info.duration, decimals: 0)
         if !pending.info.hasAudio {
             return "Este vídeo no tiene sonido: no puedo buscar los golpes. Puedes guardarlo entero (\(duration) s)."
+        }
+        if check == .running {
+            return "Gemini está mirando los fotogramas de cada sonido fuerte para decirte cuáles son golpes."
+        }
+        if waitingForGemini {
+            return "Gemini va a mirar los fotogramas de cada sonido fuerte para decirte cuáles son golpes."
         }
         if outcomes != nil {
             switch windows.count {
@@ -135,9 +166,14 @@ struct ClipPickerView: View {
     }
 
     private var waveformPanel: some View {
-        // Los golpes propuestos, en rojo en la onda. Si no es una tanda de golpes, ninguno.
+        // Los golpes propuestos, en rojo en la onda. Si no es una tanda de golpes, ninguno; y tampoco
+        // los que Gemini dice que no son golpes (o que son el mismo swing que otro).
+        let shown = windows.indices.filter { index in
+            guard let outcome = outcomes?[safe: index] else { return true }
+            return outcome == .confirmed || outcome == .unknown
+        }
         let highlighted = showsClips
-            ? Set(windows.map { Waveform.barIndex(for: $0.impactTime, duration: pending.info.duration, count: pending.bars.count) })
+            ? Set(shown.map { Waveform.barIndex(for: windows[$0].impactTime, duration: pending.info.duration, count: pending.bars.count) })
             : []
         return WaveformView(bars: pending.bars, highlighted: highlighted, duration: pending.info.duration)
             .frame(height: 86)

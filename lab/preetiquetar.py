@@ -32,7 +32,8 @@ import numpy as np
 import requests
 
 from comun import (CACHE_MODELO, DERIVADOS, FASES_PALO, RAIZ, InfoVideo, cargar_etiquetas, clips_del_banco,
-                   decodificar, guardar_etiquetas, leer_env, leer_fotogramas, leer_info, resolver_clip)
+                   comprobar_gratuito, decodificar, guardar_etiquetas, leer_env, leer_fotogramas, leer_info,
+                   resolver_clip)
 
 # API Interactions de Gemini (la recomendada por Google desde 2026; generateContent queda como antigua).
 URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
@@ -129,14 +130,16 @@ class Config:
         if enviar and not clave:
             raise SystemExit("Falta GEMINI_API_KEY en lab\\.env (copia lab\\.env.example y pon tu clave).")
         # Sin .env valen los de lab/.env.example (así --sin-enviar funciona sin clave).
-        modelo_a, modelo_b = env.get("MODELO_A", "gemini-3.8-flash"), env.get("MODELO_B", "gemini-4-hydrogen")
+        modelo_a, modelo_b = env.get("MODELO_A", "gemini-3.6-flash"), env.get("MODELO_B", "gemini-4-hydrogen")
         if modelo_a == modelo_b:
             # Regla 3 de docs/10: si preetiqueta el mismo que se evalúa, la medida sale inflada.
             raise SystemExit("MODELO_A y MODELO_B tienen que ser distintos (docs/10, regla 3).")
+        for modelo in (modelo_a, modelo_b):
+            comprobar_gratuito(modelo, env.get("PLAN_GRATUITO", "1"))
         return Config(clave=clave, modelo=modelo_a,
                       precio_entrada=float(env.get("PRECIO_A_ENTRADA", "0") or 0),
                       precio_salida=float(env.get("PRECIO_A_SALIDA", "0") or 0),
-                      gratuito=env.get("PLAN_GRATUITO", "1") != "0",
+                      gratuito=True,
                       razonamiento=env.get("NIVEL_RAZONAMIENTO", ""),
                       semilla=int(env.get("SEMILLA", "7") or 7),
                       pausa=float(env.get("SEGUNDOS_ENTRE_LLAMADAS", "13") or 13),
@@ -297,7 +300,17 @@ class Cliente:
             codigo, mensaje = error.get("code", ""), error.get("message", r.text[:400])
             if r.status_code == 429 and codigo == "quota_exceeded":
                 raise CuotaAgotada(mensaje)
-            if r.status_code in (429, 500, 503, 504):
+            if r.status_code == 503:
+                # Modelo saturado en Google (pasa con los recién salidos). Dos esperas cortas y se para:
+                # mejor probar más tarde u otro modelo gratuito que esperar un cuarto de hora.
+                if intento >= 2:
+                    raise SystemExit(f"{self.cfg.modelo} está saturado en Google ({mensaje}). "
+                                     "Prueba más tarde u otro modelo gratuito en MODELO_A.")
+                espera = int(r.headers.get("Retry-After", "30") or 30)
+                print(f"    {self.cfg.modelo} saturado; espero {espera} s y lo intento otra vez.")
+                time.sleep(espera)
+                continue
+            if r.status_code in (429, 500, 504):
                 espera = 30 * 2 ** intento
                 print(f"    La API responde {r.status_code} {codigo}; espero {espera} s y lo intento otra vez.")
                 time.sleep(espera)

@@ -229,6 +229,23 @@ def leer_env() -> dict[str, str]:
     return valores
 
 
+# El usuario no quiere ningún gasto: solo modelos con plan gratuito en la página de precios de Google
+# (consultada el 18-11-2026). Si Google cambia la lista, se revisa aquí antes de usar otro modelo.
+MODELOS_GRATUITOS = {
+    "gemini-4-hydrogen", "gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite",
+}
+
+
+def comprobar_gratuito(modelo: str, plan_gratuito: str) -> None:
+    """Para antes de llamar si el modelo o el plan podrían costar dinero."""
+    if plan_gratuito == "0":
+        raise SystemExit("PLAN_GRATUITO=0: este laboratorio solo usa el plan gratuito (sin gasto).")
+    if modelo not in MODELOS_GRATUITOS:
+        raise SystemExit(f"{modelo} no está en la lista de modelos gratuitos ({', '.join(sorted(MODELOS_GRATUITOS))}). "
+                         "No se usa para no gastar nada.")
+
+
 # Las que se pueden poner también como variables del sistema (ver lab/.env.example).
 CLAVES_ENV = ["GEMINI_API_KEY", "MODELO_A", "MODELO_B", "PRECIO_A_ENTRADA", "PRECIO_A_SALIDA",
               "PRECIO_B_ENTRADA", "PRECIO_B_SALIDA", "PLAN_GRATUITO", "NIVEL_RAZONAMIENTO", "SEMILLA",

@@ -386,26 +386,50 @@ def validar_fotogramas(lista, numero_a_indice: dict[int, int], info: InfoVideo, 
 
 # ---------------------------------------------------------------- de las respuestas a modelo_*
 
-def mejor(candidatos: list[dict], preferir_tarde: bool) -> dict | None:
-    """El de más confianza; si empatan, el más tarde (top) o el más temprano (impacto)."""
+# Qué fotograma representa mejor cada fase cuando el modelo marca varios seguidos con ella:
+# la posición de la app es el final del tramo (preparación justo antes de arrancar, takeaway con el
+# palo paralelo) o su mitad (brazo paralelo en la subida, el top, brazo paralelo al bajar).
+POSICION_EN_EL_TRAMO = {"preparacion": "ultimo", "takeaway": "ultimo", "mitad_subida": "medio",
+                        "top": "medio", "transicion": "medio"}
+MARGEN_CONFIANZA = 0.1      # los que están a menos de esto del más seguro cuentan como empatados
+ANTES_DEL_IMPACTO_S = 3.0   # una fase del swing más lejos del impacto que esto es de otro momento
+DESPUES_DEL_IMPACTO_S = 0.5
+
+
+def elegir(candidatos: list[dict], posicion: str) -> dict | None:
+    """Entre los más seguros, el primero, el del medio o el último en el tiempo."""
     if not candidatos:
         return None
-    return max(candidatos, key=lambda f: (f["confianza"], f["t"] if preferir_tarde else -f["t"]))
+    tope = max(f["confianza"] for f in candidatos)
+    seguros = sorted((f for f in candidatos if f["confianza"] >= tope - MARGEN_CONFIANZA), key=lambda f: f["t"])
+    return {"primero": seguros[0], "medio": seguros[len(seguros) // 2], "ultimo": seguros[-1]}[posicion]
 
 
 def resumir(por_fotograma: dict[int, dict], hay_swing: bool, picos: list[dict]) -> dict:
     fases = sorted(por_fotograma.values(), key=lambda f: f["t"])
+    impacto = elegir([f for f in fases if f["fase"] == "impacto"], "primero") if hay_swing else None
+    # Con impacto, solo cuenta lo que está alrededor: una hoja de un pico de música lejano no debe ganar.
+    if impacto:
+        cerca = [f for f in fases if impacto["t"] - ANTES_DEL_IMPACTO_S <= f["t"] <= impacto["t"] + DESPUES_DEL_IMPACTO_S]
+    else:
+        cerca = fases
+    top = elegir([f for f in cerca if f["fase"] == "top"], "medio") if hay_swing else None
     swings = []
-    if hay_swing:
-        top = mejor([f for f in fases if f["fase"] == "top"], preferir_tarde=True)
-        impacto = mejor([f for f in fases if f["fase"] == "impacto"], preferir_tarde=False)
-        if top or impacto:
-            swings.append({"top": top["t"] if top else None, "impacto": impacto["t"] if impacto else None,
-                           "confianza": min(f["confianza"] for f in (top, impacto) if f)})
+    if top or impacto:
+        swings.append({"top": top["t"] if top else None, "impacto": impacto["t"] if impacto else None,
+                       "confianza": min(f["confianza"] for f in (top, impacto) if f)})
+    arranque = min((f["t"] for f in cerca if f["fase"] in FASES_DE_SWING), default=None)
     palo = []
     for fase in FASES_PALO:
-        candidatos = [f for f in fases if f["fase"] == FASE_MODELO_DE[fase]]
-        elegido = mejor([f for f in candidatos if f["caja"]], preferir_tarde=False) or mejor(candidatos, False)
+        fase_modelo = FASE_MODELO_DE[fase]
+        candidatos = [f for f in cerca if f["fase"] == fase_modelo]
+        if fase == "preparacion" and arranque is not None:
+            candidatos = [f for f in candidatos if f["t"] < arranque] or candidatos
+        posicion = POSICION_EN_EL_TRAMO[fase_modelo]
+        if fase == "top" and top and top["caja"]:
+            elegido = top  # el mismo fotograma que el top del swing
+        else:
+            elegido = elegir([f for f in candidatos if f["caja"]], posicion) or elegir(candidatos, posicion)
         if elegido is None:
             palo.append({"fase": fase, "t": None, "x": None, "y": None, "caja": None, "confianza": None})
             continue

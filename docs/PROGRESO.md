@@ -407,3 +407,20 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   - Cambio de API (apuntado según CLAUDE.md): la temperatura ya no existe en Gemini 3.6 Flash y posteriores (la API la ignora y la API Interactions no la tiene). docs/10 pide temperatura 0. Se fija la semilla y el nivel de razonamiento, y la caché garantiza que la misma petición no se repite. Pendiente de que el usuario acepte el cambio de la regla 2 de docs/10.
   - `feedback/reserva/` no existe todavía en el PC: los clips de reserva no están copiados.
 - Pendiente: el usuario crea la clave y la pone en `lab/.env`; correr `preetiquetar.py`; PARADA 1 (el usuario etiqueta los 3 clips con `etiquetar.py`).
+
+### Fase 1, paso 3 y PARADA 1: preetiquetado hecho (21-11-2026)
+- El usuario dio la clave (va solo en `lab/.env`, ignorado; comprobado que no está en ningún archivo seguido ni en el historial) y pidió **ningún gasto**: los scripts ahora se niegan a llamar a un modelo sin plan gratuito (lista en `lab/comun.py`) o con `PLAN_GRATUITO=0`.
+- `gemini-3.8-flash` devolvía 503 ("demanda alta") y `gemini-4-hydrogen` no contestaba en 60 s. El modelo A pasa a `gemini-3.6-flash` (gratuito). El B sigue siendo `gemini-4-hydrogen`: se probará en la Fase 2.
+- Con 503, dos esperas cortas (lo que diga `Retry-After`) y se para; antes esperaba hasta un cuarto de hora.
+- Resultado (9 llamadas, ninguna repetida, coste real 0):
+
+  | Clip | Llamadas | Tokens entrada | Salida | Razonamiento | Coste si fuera de pago | Segundos |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | driver-campo | 2 | 6.560 | 3.188 | 4.282 | 0,033 $ | 61 |
+  | story1-puerta-de-hierro | 3 | 12.537 | 5.533 | 6.687 | 0,055 $ | 114 |
+  | story2-simulador | 4 | 21.227 | 9.805 | 9.902 | 0,090 $ | 234 |
+
+  Ningún aviso de validación. En los 3 clips el modelo dice que hay swing y elige como impacto el pico que propone el corte automático (en la story 2, el de 2,563 s); el resto de picos, "no".
+- Mejora sin llamadas nuevas (todo sale de la caché): entre fotogramas empatados se elige el que representa la posición de la app (el último de la preparación y del takeaway; el del medio en mitad de subida, top y bajada), solo cerca del impacto, y el top del palo es el mismo fotograma que el top del swing.
+- Revisado a ojo (cajas dibujadas sobre los 15 fotogramas): las fases parecen razonables; **las cajas de la cabeza del palo casi nunca aciertan** (unas 3 de 15 cerca; en el driver, ninguna). Para la Fase 2: probar el palo con un fotograma por imagen en vez de hojas en mosaico, y SAM 2.1 con el toque del usuario.
+- PARADA 1: el usuario etiqueta los 3 clips con `lab/etiquetar.py` y apunta cuántas propuestas del modelo ha corregido (la herramienta lo cuenta al guardar).

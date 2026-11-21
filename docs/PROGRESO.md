@@ -519,3 +519,25 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   - `UIGraphicsImageRenderer` dibuja una imagen fuera de la pantalla; se puede usar fuera del hilo principal.
   - `.alert(_:isPresented:actions:message:)` es el aviso del sistema con botones; el rol `.cancel` pone el botón de cancelar.
   - Un `@State` se puede rellenar en el `init` con `_nombre = State(initialValue:)`; así la captura del CI abre la hoja ya comprobada.
+
+### Verificador: siempre con Gemini y un clip por golpe (22-11-2026)
+- Primera prueba del usuario en el iPhone: con la story 1 salían los 8 sonidos y la tarjeta pedía la clave. Faltaba guardarla en Ajustes; después ya salía "Comprobar los golpes".
+- El usuario pidió: "no quiero que pase esto jamás, quiero que siempre lo haga con Gemini".
+  - Primero, sin tocar la regla: el aviso sale solo al abrir la hoja y la lista por sonido no se enseña hasta que Gemini contesta (commit e1815e6).
+  - Después dio su **permiso expreso** para cambiar la regla de CLAUDE.md. Ahora hay un interruptor "Comprobar siempre, sin preguntar" en Ajustes, activado por defecto: con él la comprobación empieza sola, sin aviso. Se puede quitar, y entonces vuelve el aviso.
+- También pidió "un clip que junte todo por golpe": con un golpe, el vídeo entero; con dos, el vídeo dividido en dos.
+  - `ClipPlanner.splitWindows`: cada golpe confirmado se queda desde la mitad del hueco con el anterior (o el principio) hasta la mitad del hueco con el siguiente (o el final). Nunca menos que el clip de siempre y nunca más de 15 s a cada lado (`maximumSplitSeconds`, nuevo).
+  - `ShotCheck.proposal`: la lista son los golpes (confirmados, más los que Gemini no contestó si el corte automático los proponía). Los descartados ya no salen como filas; la frase dice cuántos no eran golpes (`discardedCount`).
+  - Tests nuevos y cambiados en `ShotCheckTests` y `ClipPlannerTests`: 23 en total, pasan en Docker.
+  - En la onda ya no salen en rojo los sonidos que Gemini descarta.
+- Regla 7: tabla antes y después del cambio. Antes es la misma tabla de la línea base, con la columna del verificador.
+
+  | Cifra | Lógica actual | Modelo A | Verificador de la app |
+  | --- | --- | --- | --- |
+  | Golpes bien contados (de 3) | 1 | 3 | 3 |
+  | Picos falsos propuestos | 1 | 0 | 0 |
+  | Error del impacto en fotogramas (driver / story1 / story2) | +0 / -3 / -2 | +0 / +0 / +3 | — |
+  | Error del top en fotogramas (driver / story1 / story2) | +0 / -2 / +2 | +0 / -2 / +1 | — |
+  | Palo encontrado (≤ 5 % del alto) | 0 de 6 (+3 que toca el usuario) | 1 de 9 | — |
+
+  Después: idéntica en todas las cifras. El cambio no toca qué golpes se eligen, solo lo que abarca cada clip. Los clips del verificador pasan de 4,5 s alrededor del impacto (driver 4,67–9,17 s; story1 0,73–5,23 s; story2 0,06–4,56 s) al vídeo entero (0–10,87 s; 0–9,05 s; 0–10,26 s). Recalculado desde la caché, con 0 llamadas. Aviso de la regla 7: son los 3 clips con los que se ajustó la lógica actual, y las etiquetas son de Claude web.

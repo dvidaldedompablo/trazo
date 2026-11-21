@@ -21,10 +21,12 @@
 | 8 | Generar un análisis completo y uno corto | Estructura de docs/08; completo entre 60 y 90 s; corto entre 30 y 40 s |
 | 9 | Mirar la fecha de caducidad en Ayuda | Coincide con el día de instalación más 7 días |
 | Fase 4 (docs/10) | Ajustes → Comprobar golpes con Gemini: pegar la clave y Guardar; salir y volver a entrar | Sale "Clave guardada en el llavero"; la clave no se ve en ninguna parte |
-| Fase 4 | Importar la story con música (story2) en modo Swing | Al abrirse Elige los golpes sale solo "¿Enviar a Google?" y no se ve la lista por sonido; tras "Enviar" y unos 30 a 60 s, Gemini ve 1 golpe (a los 2,6 s) y queda marcado |
-| Fase 4 | Lo mismo con la story1 (el corte automático marca 2 de sus 8 sonidos; uno es de la música) | El de 3,2 s "es un golpe" y queda marcado; el de 4,3 s "no es un golpe", sin marcar |
+| Fase 4 | Importar la story con música (story2) en modo Swing (con "Comprobar siempre" activado) | Al abrirse Elige los golpes empieza a comprobar sin preguntar y no se ve la lista por sonido; en unos 30 a 60 s sale 1 golpe (a los 0:02) marcado, con un clip del vídeo entero (unos 10 s), y la frase dice cuántos sonidos no eran golpes |
+| Fase 4 | Lo mismo con la story1 (8 sonidos; solo hay un swing) | Sale 1 golpe (a los 0:03), con un clip del vídeo entero (unos 9 s); "7 sonidos no eran golpes" |
+| Fase 4 | Una grabación con dos golpes | Salen 2 golpes y el vídeo se divide en dos clips por la mitad del hueco entre ellos |
+| Fase 4 | Quitar "Comprobar siempre" en Ajustes e importar | Sale el aviso "¿Enviar a Google?" antes de enviar |
 | Fase 4 | Modo avión, importar y "Enviar" | "No hay conexión a internet. Te propongo los golpes como siempre…" y aparece la lista por sonido |
-| Fase 4 | Importar y pulsar "Cancelar" en el aviso | Aparece la lista por sonido con "Comprobar los golpes" por si cambias de idea |
+| Fase 4 | Sin "Comprobar siempre": importar y pulsar "Cancelar" en el aviso | Aparece la lista por sonido con "Comprobar los golpes" por si cambias de idea |
 | Fase 4 | Borrar la clave en Ajustes y volver a Elige los golpes | La tarjeta pide la clave en Ajustes y no hay botón de enviar |
 
 ## Prueba de 5 golpes (tracer)

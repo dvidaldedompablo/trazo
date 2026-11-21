@@ -10,6 +10,7 @@ struct SettingsScreen: View {
     @AppStorage(SettingsKey.heightCentimeters) private var heightCentimeters = 175.0
     @AppStorage(SettingsKey.shortAnalysisVideo) private var shortVideo = false
     @AppStorage(SettingsKey.analysisSubtitles) private var subtitles = true
+    @AppStorage(SettingsKey.geminiAlwaysCheck) private var geminiAlways = true
     @State private var taps: [Date] = []
     @State private var message: String?
     /// La clave de Gemini mientras se escribe; al guardarla va al llavero y aquí se vacía.
@@ -125,6 +126,10 @@ struct SettingsScreen: View {
                     .typeStyle(.etiqueta)
                     .foregroundStyle(Color.texto2)
                 }
+                Toggle(isOn: $geminiAlways) {
+                    Text("Comprobar siempre, sin preguntar").typeStyle(.etiqueta).foregroundStyle(Color.pino)
+                }
+                .tint(Color.pino)
             } else {
                 SecureField("Pega aquí tu clave de Gemini", text: $keyDraft)
                     .textContentType(.password)
@@ -148,7 +153,7 @@ struct SettingsScreen: View {
                 .buttonStyle(.principal)
                 .disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            Text("Al elegir los golpes de una grabación, Gemini puede mirar los fotogramas de cada sonido fuerte y decir cuáles son golpes. Antes de enviar nada te pido permiso, y solo van hojas de fotogramas: ni el vídeo ni el sonido. Con la clave gratuita de Google AI Studio (aistudio.google.com) no pagas nada; da para unas 20 comprobaciones al día. Sin red o si falla, los golpes salen solo por el sonido, como siempre.")
+            Text("Al elegir los golpes de una grabación, Gemini mira los fotogramas de cada sonido fuerte, dice cuáles son golpes y el vídeo se reparte en un clip por golpe. Con \"Comprobar siempre\" las hojas se envían sin preguntarte cada vez; si lo quitas, te pido permiso antes. Solo van hojas de fotogramas: ni el vídeo ni el sonido. Con la clave gratuita de Google AI Studio (aistudio.google.com) no pagas nada; da para unas 20 comprobaciones al día. Sin red o si falla, los golpes salen solo por el sonido, como siempre.")
                 .typeStyle(.nota)
                 .foregroundStyle(Color.texto3)
         }

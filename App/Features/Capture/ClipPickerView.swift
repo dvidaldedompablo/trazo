@@ -21,6 +21,8 @@ struct ClipPickerView: View {
     @State private var keepFull = false
     @State private var check: CheckState = .idle
     @State private var asksToSend = false
+    /// "Comprobar siempre, sin preguntar" (Ajustes): el permiso para siempre que dio el usuario.
+    @AppStorage(SettingsKey.geminiAlwaysCheck) private var alwaysCheck = true
     @State private var hasKey: Bool
     /// El usuario dijo "Cancelar" en el aviso: se enseña la lista por sonido (plan B).
     @State private var declined = false
@@ -109,8 +111,12 @@ struct ClipPickerView: View {
             // Con clave, el aviso sale solo al abrir la hoja: un toque en "Enviar" y se comprueba.
             // Un instante después de abrir: presentar el aviso a la vez que la hoja puede fallar.
             guard waitingForGemini, check == .idle else { return }
-            try? await Task.sleep(for: .milliseconds(500))
-            asksToSend = true
+            if alwaysCheck {
+                startCheck()
+            } else {
+                try? await Task.sleep(for: .milliseconds(500))
+                asksToSend = true
+            }
         }
         // El aviso de CLAUDE.md: antes de enviar nada, el usuario lo acepta.
         .alert("¿Enviar a Google?", isPresented: $asksToSend) {
@@ -219,7 +225,9 @@ struct ClipPickerView: View {
                     .typeStyle(.nota)
                     .foregroundStyle(Color.texto2)
                 if hasKey {
-                    Button { asksToSend = true } label: { Text("Volver a intentarlo") }
+                    Button {
+                        if alwaysCheck { startCheck() } else { asksToSend = true }
+                    } label: { Text("Volver a intentarlo") }
                         .buttonStyle(.secundario)
                 }
             }
@@ -252,11 +260,13 @@ struct ClipPickerView: View {
 
     static func checkSummary(_ result: ShotChecker.Result) -> String {
         let confirmed = result.checked.confirmedCount
+        let discarded = result.checked.discardedCount
         let sounds = result.sounds == 1 ? "1 sonido" : "\(result.sounds) sonidos"
+        let rest = discarded == 0 ? "" : (discarded == 1 ? " 1 sonido no era un golpe." : " \(discarded) sonidos no eran golpes.")
         switch confirmed {
         case 0: return "Gemini ha mirado \(sounds) y no ve ningún golpe."
-        case 1: return "Gemini ha mirado \(sounds) y ve 1 golpe."
-        default: return "Gemini ha mirado \(sounds) y ve \(confirmed) golpes."
+        case 1: return "Gemini ha mirado \(sounds) y ve 1 golpe: el clip lleva el vídeo que le toca." + rest
+        default: return "Gemini ha mirado \(sounds) y ve \(confirmed) golpes: el vídeo se reparte en un clip por golpe." + rest
         }
     }
 

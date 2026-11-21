@@ -34,6 +34,28 @@ struct ClipPlannerTests {
         #expect(windows.map(\.isSuggested) == [false, true, false])
     }
 
+    @Test("Reparto por golpe: un golpe, el vídeo entero; con tope de 15 s a cada lado")
+    func splitOneShot() throws {
+        let story = try #require(ClipPlanner.splitWindows(for: [impact(3.2)], recordingDuration: 9, mode: .swing).first)
+        #expect(story.start == 0 && story.end == 9)
+        #expect(story.isSuggested && !story.isTooShort)
+        let long = try #require(ClipPlanner.splitWindows(for: [impact(60)], recordingDuration: 180, mode: .swing).first)
+        #expect(long.start == 45 && long.end == 75)
+    }
+
+    @Test("Reparto por golpe: dos golpes se dividen por la mitad, pero nunca menos que el clip de siempre")
+    func splitTwoShots() {
+        let apart = ClipPlanner.splitWindows(for: [impact(12), impact(4)], recordingDuration: 20, mode: .swing)
+        #expect(apart.map(\.impactTime) == [4, 12])
+        #expect(apart.map(\.start) == [0, 8])
+        #expect(apart.map(\.end) == [8, 20])
+        // A 3 s: la mitad (1,5 s) es menos que 2,5 s antes y 2 s después; los clips se solapan.
+        let close = ClipPlanner.splitWindows(for: [impact(10), impact(13)], recordingDuration: 30, mode: .swing)
+        #expect(close[0].end == 12)
+        #expect(close[1].start == 10.5)
+        #expect(ClipPlanner.splitWindows(for: [], recordingDuration: 10, mode: .swing).isEmpty)
+    }
+
     @Test("Se proponen los golpes que suenan al menos el 18 % del más fuerte")
     func suggestions() {
         let windows = ClipPlanner.windows(for: [impact(5, 100), impact(15, 18), impact(25, 17.9)], recordingDuration: 40, mode: .tracer)

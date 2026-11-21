@@ -29,8 +29,12 @@ enum SettingsKey {
     static let shortAnalysisVideo = "analysis.shortVideo"
     /// Subtítulos en el vídeo del análisis (activados por defecto).
     static let analysisSubtitles = "analysis.subtitles"
+    /// Comprobar los golpes con Gemini siempre, sin el aviso de cada vez (si hay clave). Activado por
+    /// defecto: el usuario lo pidió así y dio su permiso expreso el 22-11-2026 (CLAUDE.md). Lo puede quitar.
+    static let geminiAlwaysCheck = "gemini.alwaysCheck"
 
     static let all = [tracerColor, tracerCustomColor, tracerShowsDistance, tracerFastShutter,
                       captureFrameRate, captureCountdown, captureAutoCut, diagnostics,
-                      handedness, heightCentimeters, analysisVoice, shortAnalysisVideo, analysisSubtitles]
+                      handedness, heightCentimeters, analysisVoice, shortAnalysisVideo, analysisSubtitles,
+                      geminiAlwaysCheck]
 }

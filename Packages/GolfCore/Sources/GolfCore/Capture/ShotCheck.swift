@@ -265,25 +265,30 @@ public enum ShotCheck {
 
     /// Los clips que se proponen tras la comprobación.
     public struct CheckedProposal: Sendable, Equatable {
+        /// Un clip por golpe, repartiéndose el vídeo (`ClipPlanner.splitWindows`).
         public var windows: [ClipWindow]
-        /// Lo que dijo el modelo de cada clip.
+        /// Lo que dijo el modelo de cada clip: `confirmed` o, si no contestó o dudó, `unknown`.
         public var outcomes: [Outcome]
         /// Marcado para guardar al abrir la lista.
         public var selected: [Bool]
+        /// Sonidos que el modelo dice que no son golpes, o que son el mismo swing que otro. No salen
+        /// en la lista: quedan dentro del clip del golpe que les toque.
+        public var discardedCount: Int
         public var confirmedCount: Int { outcomes.filter { $0 == .confirmed }.count }
     }
 
-    /// Junta la propuesta del corte automático con lo que dijo el modelo:
-    /// - un sonido confirmado se propone (si no es demasiado corto), aunque el corte automático no
-    ///   lo propusiera o dijera que no parecía una tanda de golpes;
-    /// - uno descartado sigue en la lista, sin marcar, por si el usuario no está de acuerdo;
-    /// - uno sin respuesta se queda como lo dejó el corte automático.
-    /// Dos confirmados a menos de `ClipPlanner.minimumShotSpacing` son el mismo swing: se queda el de
-    /// más confianza (y, si empatan, el que más suena).
+    /// Junta la propuesta del corte automático con lo que dijo el modelo. Los golpes son:
+    /// - los sonidos confirmados, aunque el corte automático no los propusiera o dijera que no
+    ///   parecía una tanda de golpes;
+    /// - los que el modelo no contestó (o dudó) y el corte automático proponía.
+    /// Los descartados no salen en la lista. Dos confirmados a menos de `ClipPlanner.minimumShotSpacing`
+    /// son el mismo swing: se queda el de más confianza (y, si empatan, el que más suena).
+    /// Cada golpe se lleva su trozo del vídeo (el usuario lo pidió el 22-11-2026: con un golpe, el
+    /// vídeo entero; con dos, dividido en dos).
     public static func proposal(impacts: [Impact], verdicts: [Verdict], recordingDuration: Double,
                                 mode: CaptureMode) -> CheckedProposal {
         let original = ClipPlanner.propose(for: impacts, recordingDuration: recordingDuration, mode: mode)
-        let originalTimes = Set(original.windows.map(\.impactTime))
+        let suggested = Set(original.windows.filter { original.isShotSeries && $0.isSuggested }.map(\.impactTime))
         let confidence = Dictionary(verdicts.map { ($0.soundTime, $0.confidence) }, uniquingKeysWith: max)
 
         var confirmed = impacts.filter { outcome(for: $0.time, in: verdicts) == .confirmed }
@@ -293,23 +298,18 @@ public enum ShotCheck {
             kept.append(impact)
         }
         let keptTimes = Set(kept.map(\.time))
-        let shown = impacts.filter { keptTimes.contains($0.time) || originalTimes.contains($0.time) }
-
-        // Las ventanas se calculan con todos los impactos para que "propuesto" siga comparando con el más fuerte.
-        let all = ClipPlanner.windows(for: impacts, recordingDuration: recordingDuration, mode: mode)
-        let windows = all.filter { window in shown.contains { $0.time == window.impactTime } }
-        var outcomes: [Outcome] = []
-        var selected: [Bool] = []
-        for window in windows {
-            let said = outcome(for: window.impactTime, in: verdicts)
-            let result: Outcome = keptTimes.contains(window.impactTime) ? .confirmed : (said == .confirmed ? .sameSwing : said)
-            outcomes.append(result)
-            switch result {
-            case .confirmed: selected.append(!window.isTooShort)
-            case .rejected, .sameSwing: selected.append(false)
-            case .unknown: selected.append(original.isShotSeries && window.isSuggested)
-            }
+        // Sin respuesta y propuesto por el corte automático: se queda, salvo que caiga en el mismo
+        // swing que un confirmado.
+        let unknown = impacts.filter { impact in
+            outcome(for: impact.time, in: verdicts) == .unknown && suggested.contains(impact.time)
+                && !kept.contains { abs($0.time - impact.time) < ClipPlanner.minimumShotSpacing }
         }
-        return CheckedProposal(windows: windows, outcomes: outcomes, selected: selected)
+        let golpes = kept + unknown
+        let windows = ClipPlanner.splitWindows(for: golpes, recordingDuration: recordingDuration, mode: mode)
+        let outcomes: [Outcome] = windows.map { keptTimes.contains($0.impactTime) ? .confirmed : .unknown }
+        let selected = windows.map { !$0.isTooShort }
+        let checked = Set(verdicts.map(\.soundTime))
+        let discarded = impacts.filter { checked.contains($0.time) && !golpes.contains($0) }.count
+        return CheckedProposal(windows: windows, outcomes: outcomes, selected: selected, discardedCount: discarded)
     }
 }

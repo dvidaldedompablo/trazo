@@ -106,6 +106,33 @@ public enum ClipPlanner {
         }
     }
 
+    /// Tope del reparto por golpe: como mucho estos segundos antes y después del impacto. Con un
+    /// vídeo corto (una story de 10 s) el clip es el vídeo entero; en una sesión larga del campo de
+    /// prácticas, el clip no pasa de 30 s.
+    public static let maximumSplitSeconds = 15.0
+
+    /// Un clip por golpe que se reparte el vídeo (lo pidió el usuario el 22-11-2026: "un clip que junte
+    /// todo por golpe"). Cada golpe se queda desde la mitad del hueco con el anterior (o el principio
+    /// de la grabación) hasta la mitad del hueco con el siguiente (o el final), con dos límites:
+    /// - nunca menos que el clip de siempre (`secondsBeforeImpact` y `secondsAfterImpact`): con dos
+    ///   golpes muy seguidos los clips se solapan antes que cortar uno;
+    /// - nunca más de `maximumSplitSeconds` a cada lado.
+    /// Se usa con golpes ya confirmados (el verificador): todos se proponen si no son demasiado cortos.
+    public static func splitWindows(for impacts: [Impact], recordingDuration: Double, mode: CaptureMode) -> [ClipWindow] {
+        let sorted = impacts.sorted { $0.time < $1.time }
+        return sorted.indices.map { k in
+            let t = sorted[k].time
+            let previous = k > 0 ? (sorted[k - 1].time + t) / 2 : 0
+            let next = k + 1 < sorted.count ? (t + sorted[k + 1].time) / 2 : recordingDuration
+            let start = max(0, max(t - maximumSplitSeconds, min(previous, t - mode.secondsBeforeImpact)))
+            let end = min(recordingDuration, min(t + maximumSplitSeconds, max(next, t + mode.secondsAfterImpact)))
+            let tooShort = t - start < minimumMargin - 1e-9 || end - t < minimumMargin - 1e-9
+                || end - start < minimumDurationFraction * mode.clipDuration - 1e-9
+            return ClipWindow(start: start, end: end, impactTime: t, strength: sorted[k].strength,
+                              isSuggested: !tooShort, isTooShort: tooShort)
+        }
+    }
+
     /// ¿Parece una tanda de golpes de golf? Entre golpe y golpe pasan varios segundos: hay que
     /// colocar la bola, prepararse y hacer el swing. Si más de la mitad de los golpes que se van a
     /// proponer están a menos de 2 s del anterior, son otra cosa (las consonantes de una voz, aplausos,

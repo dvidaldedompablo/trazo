@@ -13,7 +13,7 @@ Fuera del alcance, siempre: App Store, servidores propios, cuentas de usuario, p
 
 Llamadas de red: fuera del alcance, con una sola excepción escrita. Se permite el análisis de un clip con un modelo externo con visión, solo si se cumplen las tres condiciones:
 - la clave del servicio la escribe el usuario en Ajustes y se guarda en el llavero (Keychain), nunca en el código ni en el repositorio;
-- la app avisa antes de enviar cada clip y el usuario lo acepta;
+- la app avisa antes de enviar cada clip y el usuario lo acepta, o el usuario lo deja aceptado para siempre con el interruptor "Comprobar siempre, sin preguntar" de Ajustes, que puede quitar cuando quiera (decisión y permiso expreso del usuario, 22-11-2026: "quiero que siempre lo haga con Gemini");
 - hay un plan B local para cuando no hay red o falla el servicio.
 
 La excepción no se integra en la app hasta que el usuario apruebe la Fase 4 de `docs/10_BANCO_DE_PRUEBAS_Y_LLM.md`. El laboratorio de Python del PC (`lab/`) sí puede llamar al modelo. Cualquier otra llamada de red sigue fuera.
@@ -78,7 +78,7 @@ El tracer sigue la guía "El trazo de tu bola de golf, como en la tele" de javig
 - `builds/`, `ci-artifacts/` y `feedback/` están en `.gitignore`.
 - `lab/.env` (claves del laboratorio) también está en `.gitignore`. Antes de cada commit, comprueba con `git check-ignore -v feedback lab/.env` que los dos siguen ignorados.
 - Las etiquetas de los vídeos (`feedback/etiquetas/`) y los clips de reserva (`feedback/reserva/`) son privados y no se suben.
-- Los vídeos se guardan en el contenedor de la app y, si el usuario lo pide, en Fotos. No salen del teléfono, salvo con la excepción del modelo externo (ver "Qué es"): solo el clip que el usuario acepta enviar, tras el aviso.
+- Los vídeos se guardan en el contenedor de la app y, si el usuario lo pide, en Fotos. No salen del teléfono, salvo con la excepción del modelo externo (ver "Qué es"): solo lo que el usuario acepta enviar, tras el aviso o con "Comprobar siempre, sin preguntar" activado en Ajustes (hojas de fotogramas, nunca el vídeo ni el sonido).
 - La clave del modelo externo la escribe el usuario en Ajustes y se guarda en el llavero (Keychain). Nunca en el código ni en el repositorio.
 
 ## Mapa de documentos

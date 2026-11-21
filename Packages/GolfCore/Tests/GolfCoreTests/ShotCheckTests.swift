@@ -61,7 +61,7 @@ struct ShotCheckTests {
         #expect(ShotCheck.parse("esto no es JSON", for: request).verdicts.isEmpty)
     }
 
-    @Test("Con música: el corte automático no propone nada y el modelo encuentra el golpe")
+    @Test("Con música: el corte automático no propone nada y el modelo encuentra el golpe; un golpe, el vídeo entero")
     func musicVideo() {
         // Muchos sonidos seguidos (la música): el control de sensatez dice que no es una tanda de golpes.
         let impacts = stride(from: 0.2, to: 10, by: 0.7).map { impact($0, 80) } + [impact(5.25, 70)]
@@ -70,35 +70,53 @@ struct ShotCheckTests {
                                                        confidence: 0.95) }
         let checked = ShotCheck.proposal(impacts: impacts, verdicts: verdicts, recordingDuration: 10, mode: .swing)
         #expect(checked.windows.map(\.impactTime) == [5.25])
+        #expect(checked.windows[0].start == 0 && checked.windows[0].end == 10)
         #expect(checked.outcomes == [.confirmed])
         #expect(checked.selected == [true])
         #expect(checked.confirmedCount == 1)
+        #expect(checked.discardedCount == impacts.count - 1)
     }
 
-    @Test("Un golpe de la música propuesto por el corte automático queda en la lista, sin marcar")
-    func rejectedStaysListed() {
+    @Test("Un golpe de la música que proponía el corte automático no sale en la lista")
+    func rejectedLeavesTheList() {
         let impacts = [impact(3.2, 100), impact(6.4, 30)]
         let original = ClipPlanner.propose(for: impacts, recordingDuration: 10, mode: .swing)
         #expect(original.windows.map(\.isSuggested) == [true, true])
         let verdicts = [ShotCheck.Verdict(soundTime: 3.2, hasSwing: .yes, soundIsImpact: .yes, confidence: 0.95),
                         ShotCheck.Verdict(soundTime: 6.4, hasSwing: .no, soundIsImpact: .no, confidence: 0.95)]
         let checked = ShotCheck.proposal(impacts: impacts, verdicts: verdicts, recordingDuration: 10, mode: .swing)
-        #expect(checked.windows.map(\.impactTime) == [3.2, 6.4])
-        #expect(checked.outcomes == [.confirmed, .rejected])
-        #expect(checked.selected == [true, false])
+        #expect(checked.windows.map(\.impactTime) == [3.2])
+        #expect(checked.windows[0].start == 0 && checked.windows[0].end == 10)
+        #expect(checked.discardedCount == 1)
     }
 
-    @Test("Sin respuesta, con duda o con poca confianza: se queda como lo dejó el corte automático")
+    @Test("Dos golpes confirmados: el vídeo se divide en dos por la mitad del hueco")
+    func twoShotsSplit() {
+        let impacts = [impact(4, 100), impact(12, 90), impact(8, 40)]
+        let verdicts = [ShotCheck.Verdict(soundTime: 4, hasSwing: .yes, soundIsImpact: .yes, confidence: 0.95),
+                        ShotCheck.Verdict(soundTime: 12, hasSwing: .yes, soundIsImpact: .yes, confidence: 0.95),
+                        ShotCheck.Verdict(soundTime: 8, hasSwing: .no, soundIsImpact: .no, confidence: 0.95)]
+        let checked = ShotCheck.proposal(impacts: impacts, verdicts: verdicts, recordingDuration: 16, mode: .swing)
+        #expect(checked.windows.map(\.impactTime) == [4, 12])
+        #expect(checked.windows.map(\.start) == [0, 8])
+        #expect(checked.windows.map(\.end) == [8, 16])
+        #expect(checked.selected == [true, true])
+    }
+
+    @Test("Sin respuesta o con duda: se queda lo que proponía el corte automático")
     func unknownKeepsOriginal() {
         let impacts = [impact(3, 100), impact(8, 90)]
         let verdicts = [ShotCheck.Verdict(soundTime: 3, hasSwing: .yes, soundIsImpact: .unsure, confidence: 0.9),
                         ShotCheck.Verdict(soundTime: 8, hasSwing: .yes, soundIsImpact: .yes, confidence: 0.3)]
         let checked = ShotCheck.proposal(impacts: impacts, verdicts: verdicts, recordingDuration: 12, mode: .swing)
+        #expect(checked.windows.map(\.impactTime) == [3, 8])
         #expect(checked.outcomes == [.unknown, .unknown])
         #expect(checked.selected == [true, true])
-        // Sin ninguna respuesta (sin red, por ejemplo), igual que ahora.
+        #expect(checked.discardedCount == 0)
+        // Sin ninguna respuesta, los mismos golpes que proponía el corte automático.
         let none = ShotCheck.proposal(impacts: impacts, verdicts: [], recordingDuration: 12, mode: .swing)
-        #expect(none.windows == ClipPlanner.propose(for: impacts, recordingDuration: 12, mode: .swing).windows)
+        #expect(none.windows.map(\.impactTime) == ClipPlanner.propose(for: impacts, recordingDuration: 12, mode: .swing)
+            .windows.filter(\.isSuggested).map(\.impactTime))
     }
 
     @Test("Dos confirmados a menos de 2 s son el mismo swing: se queda el de más confianza")
@@ -107,9 +125,9 @@ struct ShotCheckTests {
         let verdicts = [ShotCheck.Verdict(soundTime: 4.0, hasSwing: .yes, soundIsImpact: .yes, confidence: 0.7),
                         ShotCheck.Verdict(soundTime: 4.6, hasSwing: .yes, soundIsImpact: .yes, confidence: 0.95)]
         let checked = ShotCheck.proposal(impacts: impacts, verdicts: verdicts, recordingDuration: 10, mode: .swing)
-        #expect(checked.windows.map(\.impactTime) == [4.0, 4.6])
-        #expect(checked.outcomes == [.sameSwing, .confirmed])
-        #expect(checked.selected == [false, true])
+        #expect(checked.windows.map(\.impactTime) == [4.6])
+        #expect(checked.outcomes == [.confirmed])
+        #expect(checked.discardedCount == 1)
     }
 
     @Test("El cuerpo de la petición lleva el modelo, la semilla, el esquema, una imagen por hoja y store false")

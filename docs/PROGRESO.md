@@ -475,3 +475,47 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   - El seguimiento del takeaway se pierde en el driver a 30 fps (parecido 0,23).
   - Las cajas del modelo quedan a 85–400 px.
 - PARADA 2 superada por indicación del usuario: "la siguiente ejecución sea yo en mi móvil".
+
+### Fase 2 (paso 1) y Fase 4 (primera función): verificador de golpes con Gemini (22-11-2026)
+- Decisiones del usuario:
+  - "Hazlo ahora solo con gemini flash, borra por ahora el hydrogen y continúa de tal manera que la siguiente ejecución sea yo en mi móvil".
+  - Luego, "Sí, el verificador": aprobación de la Fase 4 para su primera función.
+- Reparto (Fase 3), según la línea base:
+  - el sonido propone los golpes y Gemini Flash verifica cuáles lo son;
+  - las fases y el palo siguen en local, porque Gemini no los hace mejor (palo 1 de 9).
+- `GolfCore/Capture/ShotCheck` (10 tests):
+  - los 12 sonidos más fuertes, con una hoja de 12 fotogramas por sonido (de 0,6 s antes a 0,2 s después) y 6 hojas por petición;
+  - texto, esquema y cuerpo de la API Interactions (`gemini-3.6-flash`, semilla 7, razonamiento medio, `store: false`);
+  - validación de la respuesta;
+  - decisión: confirmado se propone; descartado queda sin marcar; sin respuesta o con confianza < 0,5 queda como estaba; dos confirmados a menos de 2 s son el mismo swing.
+- Medido antes de llevarlo a la app (`lab/verificador.py`, misma lógica con `GolfLab verificar-*`):
+  - Verificador de la app: **3 de 3 golpes y 0 picos falsos** (lógica actual: 1 de 3 y 1 falso).
+  - Con la misma advertencia de la regla 7 y etiquetas de Claude web.
+
+  | Clip | Peticiones | Tokens entrada | Salida | Razonamiento | Coste si fuera de pago | Segundos |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | driver-campo | 1 | 3.713 | 95 | 487 | 0,005 $ | 16 |
+  | story1-puerta-de-hierro | 2 | 9.574 | 390 | 2.814 | 0,019 $ | 58 |
+  | story2-simulador | 2 | 14.420 | 652 | 2.900 | 0,024 $ | 37 |
+
+  Coste real 0 (plan gratuito). Pedir solo la respuesta por hoja, sin fase ni caja por fotograma, lo hace de 4 a 6 veces más rápido que el preetiquetado.
+- App:
+  - Ajustes → "Comprobar golpes con Gemini": la clave va al llavero (`KeychainStore`, `WhenUnlockedThisDeviceOnly`).
+  - "Elige los golpes" → tarjeta "Comprobar con Gemini", aviso "¿Enviar a Google?" y lo que dijo Gemini en cada golpe.
+  - `ShotChecker` dibuja las hojas (`AVAssetImageGenerator` y `UIGraphicsImageRenderer`) y hace el POST (`URLSession`).
+  - Plan B: sin red, con la clave mala, sin cuota o con el servicio saturado sale el motivo y la lista se queda como la dejó el corte automático.
+  - La hoja devuelve ahora los clips elegidos: un golpe confirmado que el corte automático no proponía también se guarda.
+- CI en verde a la primera (run 44961442309). Capturas nuevas `autocut-check` y `settings` revisadas.
+- Limitaciones conocidas:
+  - Solo actúa en "Elige los golpes". Un vídeo importado con un solo golpe se guarda directo y no pasa por ahí.
+  - No cambia el instante del impacto del análisis de swing.
+  - Cada comprobación son 1 o 2 peticiones (unas 20 al día gratis) y de 15 a 60 s de espera.
+  - Las hojas de fotogramas salen del iPhone hacia Google, solo tras aceptar el aviso.
+  - En la onda, un golpe que Gemini descarta sigue marcado en rojo (detalle para la próxima vuelta).
+- Pendiente: las pruebas del iPhone (docs/07, filas "Fase 4") y anotar aquí el resultado. Después, el modelo B cuando haya uno libre, y el palo (SAM 2.1, etapa 4b, o mejorar `ClubLineFinder` midiendo con `evaluar.py`).
+- Qué he aprendido de Swift en esta etapa:
+  - El llavero se usa con `SecItemAdd`, `SecItemCopyMatching` y `SecItemDelete` del framework Security, con diccionarios de claves `kSec…`.
+  - `URLSession.shared.data(for:)` es asíncrono: se espera con `await` y los fallos de red llegan como `URLError` (sin conexión, tiempo agotado).
+  - `UIGraphicsImageRenderer` dibuja una imagen fuera de la pantalla; se puede usar fuera del hilo principal.
+  - `.alert(_:isPresented:actions:message:)` es el aviso del sistema con botones; el rol `.cancel` pone el botón de cancelar.
+  - Un `@State` se puede rellenar en el `init` con `_nombre = State(initialValue:)`; así la captura del CI abre la hoja ya comprobada.

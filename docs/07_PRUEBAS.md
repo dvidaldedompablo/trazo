@@ -20,6 +20,11 @@
 | 7 | Escuchar la vista previa del guion | Voz natural para lo que da iOS, subtítulos palabra a palabra, pausas como en la referencia |
 | 8 | Generar un análisis completo y uno corto | Estructura de docs/08; completo entre 60 y 90 s; corto entre 30 y 40 s |
 | 9 | Mirar la fecha de caducidad en Ayuda | Coincide con el día de instalación más 7 días |
+| Fase 4 (docs/10) | Ajustes → Comprobar golpes con Gemini: pegar la clave y Guardar; salir y volver a entrar | Sale "Clave guardada en el llavero"; la clave no se ve en ninguna parte |
+| Fase 4 | Importar la story con música (story2) en modo Swing; en Elige los golpes, "Comprobar los golpes" | Antes de enviar sale "¿Enviar a Google?"; tras unos 30 a 60 s, Gemini ve 1 golpe (a los 2,6 s) y queda marcado |
+| Fase 4 | Lo mismo con la story1 (el corte automático marca 2 de sus 8 sonidos; uno es de la música) | El de 3,2 s "es un golpe" y queda marcado; el de 4,3 s "no es un golpe", sin marcar |
+| Fase 4 | Modo avión y "Comprobar los golpes" | "No hay conexión a internet. Te propongo los golpes como siempre…" y la lista no cambia |
+| Fase 4 | Borrar la clave en Ajustes y volver a Elige los golpes | La tarjeta pide la clave en Ajustes y no hay botón de enviar |
 
 ## Prueba de 5 golpes (tracer)
 Graba cinco golpes distintos y rellena la tabla en `docs/PROGRESO.md`:

@@ -27,6 +27,7 @@ LAB = RAIZ / "lab"
 # En Windows, la consola de Git Bash recibe la salida como cp1252 y las tildes salen rotas.
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # los SystemExit salen por aquí
 
 # Las cinco fases que marca el usuario (teclas 1 a 5). "bajada" es la posición 5 de la app
 # (docs/04: brazo de delante paralelo al suelo al bajar).

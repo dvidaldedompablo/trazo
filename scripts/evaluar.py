@@ -183,37 +183,49 @@ def logica_actual(clip: Path, info: InfoVideo, datos: dict, carpeta: Path) -> di
 
 # ---------------------------------------------------------------- modelo B
 
-def modelo_b(clip: Path, info: InfoVideo, datos: dict) -> dict | None:
-    ruta = DERIVADOS / clip.stem / "modelo_b" / "resultado.json"
-    if not ruta.exists():
-        return None
-    b = json.loads(ruta.read_text(encoding="utf-8"))
-    respuestas = {round(p["t"], 3): p for p in b.get("modelo_picos") or []}
+def de_modelo(m: dict, info: InfoVideo, datos: dict) -> dict:
+    """Las cifras de un modelo a partir de su resumen (modelo_swings, modelo_palo, modelo_picos)."""
+    respuestas = {round(p["t"], 3): p for p in m.get("modelo_picos") or []}
     dados = [p for p in datos["picos"] if respuestas.get(round(p["t"], 3), {}).get("sonido_es_impacto") == "si"]
-    sw = (b.get("modelo_swings") or [None])[0] or {}
+    sw = (m.get("modelo_swings") or [None])[0] or {}
     resultado = {"golpes": len(dados), "picos_falsos": sum(1 for p in dados if p.get("es_palo") is False),
-                 "impacto": sw.get("impacto"), "top": sw.get("top"), "modelo": b.get("modelo_info", {}).get("modelo"),
-                 "info": b.get("modelo_info", {}), "palo": []}
-    propuestas = {p["fase"]: p for p in b.get("modelo_palo") or []}
+                 "impacto": sw.get("impacto"), "top": sw.get("top"), "modelo": m.get("modelo_info", {}).get("modelo"),
+                 "info": m.get("modelo_info", {}), "palo": []}
+    propuestas = {p["fase"]: p for p in m.get("modelo_palo") or []}
     for marca in datos["palo"]:
         if marca.get("x") is None:
             continue
         caso = {"fase": marca["fase"], "marca": (marca["x"], marca["y"]), "t_marca": marca["t"], "punto": None,
                 "linea": None, "indice": None, "cuenta": True, "nota": ""}
-        m = propuestas.get(marca["fase"])
-        if not m or m.get("t") is None:
+        propuesta = propuestas.get(marca["fase"])
+        if not propuesta or propuesta.get("t") is None:
             caso["nota"] = "no propone nada"
         else:
-            caso["indice"] = info.indice_mas_cercano(m["t"])
-            if m.get("x") is not None:
-                caso["punto"] = [m["x"], m["y"]]
-            elif m.get("caja"):
-                x0, y0, x1, y1 = m["caja"]
+            caso["indice"] = info.indice_mas_cercano(propuesta["t"])
+            if propuesta.get("x") is not None:
+                caso["punto"] = [propuesta["x"], propuesta["y"]]
+            elif propuesta.get("caja"):
+                x0, y0, x1, y1 = propuesta["caja"]
                 caso["punto"] = [(x0 + x1) / 2, (y0 + y1) / 2]
             else:
                 caso["nota"] = "no ve la cabeza del palo"
         resultado["palo"].append(caso)
     return resultado
+
+
+def modelo_a(clip: Path, info: InfoVideo, datos: dict) -> dict | None:
+    """El modelo A, que preetiquetó. Medirlo es limpio solo porque las etiquetas las puso Claude web
+    sin ver sus propuestas (la regla 3 de docs/10 lo prohíbe cuando el usuario corrige a A)."""
+    if not datos.get("modelo_swings") and not datos.get("modelo_palo"):
+        return None
+    return de_modelo(datos, info, datos)
+
+
+def modelo_b(clip: Path, info: InfoVideo, datos: dict) -> dict | None:
+    ruta = DERIVADOS / clip.stem / "modelo_b" / "resultado.json"
+    if not ruta.exists():
+        return None
+    return de_modelo(json.loads(ruta.read_text(encoding="utf-8")), info, datos)
 
 
 # ---------------------------------------------------------------- tabla e imágenes
@@ -261,6 +273,12 @@ def firmar(n: int | None) -> str:
     return "—" if n is None else f"{n:+d}"
 
 
+# Columnas de la tabla: (clave, título, función). La lógica actual siempre; cada modelo si hay resultado.
+METODOS = [("actual", "Lógica actual (GolfCore + MediaPipe)", None),
+           ("a", "Modelo A", modelo_a),
+           ("b", "Modelo B", modelo_b)]
+
+
 def main() -> None:
     clips = clips_del_banco()
     compilar()
@@ -270,53 +288,61 @@ def main() -> None:
         info = leer_info(clip)
         carpeta = DERIVADOS / clip.stem / "evaluar"
         carpeta.mkdir(parents=True, exist_ok=True)
-        actual = logica_actual(clip, info, datos, carpeta)
-        b = modelo_b(clip, info, datos)
+        fila = {"clip": clip.stem, "golpes": datos["golpes"], "autor": datos.get("autor_etiquetas", "usuario"),
+                "alto": info.alto}
         sw = datos["swings"][0]
-        for nombre, r in (("actual", actual), ("modelo-b", b)):
+        for clave, _, funcion in METODOS:
+            r = logica_actual(clip, info, datos, carpeta) if funcion is None else funcion(clip, info, datos)
+            fila[clave] = r
             if r is None:
                 continue
             puntuar_palo(r["palo"], info)
             r["error_impacto"] = fotogramas_de_error(info, r["impacto"], sw["impacto"])
             r["error_top"] = fotogramas_de_error(info, r["top"], sw["top"])
-            dibujar_casos(nombre, r["palo"], info, carpeta)
-        filas.append({"clip": clip.stem, "golpes": datos["golpes"], "autor": datos.get("autor_etiquetas", "usuario"),
-                      "alto": info.alto, "actual": actual, "b": b})
-        (carpeta / "resultado.json").write_text(json.dumps({"actual": actual, "modelo_b": b}, ensure_ascii=False,
+            dibujar_casos(clave, r["palo"], info, carpeta)
+        filas.append(fila)
+        (carpeta / "resultado.json").write_text(json.dumps({k: fila[k] for k, _, _ in METODOS}, ensure_ascii=False,
                                                            indent=2, default=str) + "\n", encoding="utf-8")
 
-    hay_b = all(f["b"] is not None for f in filas)
-
-    def columna(clave: str):
-        return [f[clave] for f in filas] if clave == "actual" or hay_b else None
-
-    def resumen(rs) -> dict:
+    def resumen(clave: str) -> dict | None:
+        rs = [f[clave] for f in filas]
+        if any(r is None for r in rs):
+            return None
         contables = [c for r in rs for c in r["palo"] if c["cuenta"]]
+        usuario = sum(1 for r in rs for c in r["palo"] if not c["cuenta"])
         return {
-            "golpes": sum(1 for f, r in zip(filas, rs) if r["golpes"] == f["golpes"]),
-            "falsos": sum(r["picos_falsos"] for r in rs),
+            "golpes": str(sum(1 for f, r in zip(filas, rs) if r["golpes"] == f["golpes"])),
+            "falsos": str(sum(r["picos_falsos"] for r in rs)),
             "impacto": " / ".join(firmar(r["error_impacto"]) for r in rs),
             "top": " / ".join(firmar(r["error_top"]) for r in rs),
-            "palo": f"{sum(c['encontrado'] for c in contables)} de {len(contables)}",
-            "usuario": sum(1 for r in rs for c in r["palo"] if not c["cuenta"]),
+            "palo": f"{sum(c['encontrado'] for c in contables)} de {len(contables)}"
+                    + (f" (+{usuario} que toca el usuario)" if usuario else ""),
+            "modelo": rs[0].get("modelo"),
         }
 
-    ra = resumen(columna("actual"))
-    rb = resumen(columna("b")) if hay_b else None
+    resumenes = {clave: resumen(clave) for clave, _, _ in METODOS}
+    # Un método sin datos en ningún clip (p. ej. sin modelo B configurado) no saca columna.
+    activos = [m for m in METODOS if m[0] == "actual" or any(f[m[0]] is not None for f in filas)]
+    titulos = [t + (f" ({resumenes[c]['modelo']})" if resumenes[c] and resumenes[c].get("modelo") else "")
+               for c, t, _ in activos]
     nombres = " / ".join(f["clip"].split("-")[0] for f in filas)
-    print("\n| Cifra | Lógica actual (GolfCore + MediaPipe) | Modelo B" + (f" ({filas[0]['b']['modelo']})" if hay_b else "") + " |")
-    print("| --- | --- | --- |")
-    print(f"| Golpes bien contados (de {len(filas)}) | {ra['golpes']} | {rb['golpes'] if rb else '—'} |")
-    print(f"| Picos falsos propuestos | {ra['falsos']} | {rb['falsos'] if rb else '—'} |")
-    print(f"| Error del impacto en fotogramas ({nombres}) | {ra['impacto']} | {rb['impacto'] if rb else '—'} |")
-    print(f"| Error del top en fotogramas ({nombres}) | {ra['top']} | {rb['top'] if rb else '—'} |")
-    print(f"| Palo encontrado (≤ {CRITERIO_PALO:.0%} del alto) | {ra['palo']} (+{ra['usuario']} que toca el usuario) "
-          f"| {rb['palo'] if rb else '—'} |")
+
+    def fila_tabla(titulo: str, campo: str) -> str:
+        return f"| {titulo} | " + " | ".join(resumenes[c][campo] if resumenes[c] else "—" for c, _, _ in activos) + " |"
+
+    print("\n| Cifra | " + " | ".join(titulos) + " |")
+    print("| --- |" + " --- |" * len(activos))
+    print(fila_tabla(f"Golpes bien contados (de {len(filas)})", "golpes"))
+    print(fila_tabla("Picos falsos propuestos", "falsos"))
+    print(fila_tabla(f"Error del impacto en fotogramas ({nombres})", "impacto"))
+    print(fila_tabla(f"Error del top en fotogramas ({nombres})", "top"))
+    print(fila_tabla(f"Palo encontrado (≤ {CRITERIO_PALO:.0%} del alto)", "palo"))
 
     print("\nDetalle del palo (distancia a la marca en px; fotogramas del método frente a la etiqueta):")
     for f in filas:
         print(f"  {f['clip']} (tope {CRITERIO_PALO * f['alto']:.0f} px):")
-        for nombre, r in (("actual", f["actual"]), ("B", f["b"])):
+        for clave, _, _ in METODOS:
+            r = f[clave]
             if r is None:
                 continue
             partes = []
@@ -328,13 +354,14 @@ def main() -> None:
                 else:
                     partes.append(f"{c['fase']} {'SI' if c['encontrado'] else 'NO'} {c['distancia']:.0f} px "
                                   f"({firmar(c['fotogramas'])} fot.)")
-            print(f"    {nombre:<7} " + "; ".join(partes))
+            print(f"    {clave:<7} " + "; ".join(partes))
     autores = sorted({f["autor"] for f in filas})
     print(f"\nEtiquetas: {', '.join(autores)}.")
     print("Aviso (regla 7 de docs/10): son los 3 clips con los que se ajustó la lógica actual; la medida sale mejor de lo que es.")
-    if not hay_b:
-        print("Falta el modelo B: lab\\.venv\\Scripts\\python lab\\preetiquetar.py --modelo B")
-    print(f"Imágenes para revisar a ojo: feedback/derivados/<clip>/evaluar/palo-*.jpg")
+    for clave, titulo, _ in activos:
+        if resumenes[clave] is None:
+            print(f"Faltan datos de {titulo} en algún clip: esa columna sale con guiones.")
+    print("Imágenes para revisar a ojo: feedback/derivados/<clip>/evaluar/palo-*.jpg")
 
 
 if __name__ == "__main__":

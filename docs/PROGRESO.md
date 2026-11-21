@@ -448,3 +448,30 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   Revisado a ojo (`revision.jpg`): los 9 puntos caen sobre la cabeza del palo. "Palo encontrado" se medirá sobre esos 9, no sobre 15. Las diferencias con Gemini están sobre todo en la preparación (de 6 a 9 fotogramas) y la bajada (de 1 a 6); top e impacto coinciden casi siempre.
 - Ojo para el paso 5: en las dos stories el sonido del golpe no cae en el fotograma del impacto. En la story 1 el pico va 51 ms antes de la imagen y en la story 2, 61 ms después (en el driver, 2 ms). Son grabaciones de pantalla o copias, con el audio algo desfasado. El error del impacto de la lógica actual, que usa el audio, llevará ese desfase dentro.
 - Recuento de cambios: una marca del palo sin punto ya solo cuenta por el instante (antes salía como "fuera de su caja").
+
+### Fase 1, pasos 5 y 6: línea base (22-11-2026)
+- `scripts/evaluar.py` compara cada método con las etiquetas y deja imágenes para revisar a ojo (`feedback/derivados/<clip>/evaluar/palo-*.jpg`).
+  - La lógica actual es el código real de GolfCore en Docker, con la pose de MediaPipe del 17-11 en lugar de Vision.
+  - `GolfLab` tiene tres órdenes nuevas: `swing` (`SwingImpactChooser`, el mismo camino que `SwingAnalyzer`), `linea` (`ClubLineFinder`) y `seguir` (`TemplateTracker`).
+  - El palo se mide de punta a punta, como lo vería el usuario. Cada método usa sus fotogramas; en la app, la preparación la toca el usuario y no cuenta. Se considera encontrado a no más del 5 % del alto del vídeo de la marca (criterio elegido por el usuario).
+- Modelo B: `gemini-4-hydrogen` dio 503 ("demanda alta") en la story 1 tras hacer el driver. El usuario decidió quitarlo por ahora y medir solo con Gemini Flash (`MODELO_B` vacío).
+- El modelo A (`gemini-3.6-flash`) se puede medir limpio porque las etiquetas las puso Claude web sin ver sus propuestas. La regla 3 lo prohíbe cuando es el usuario quien corrige a A. Sus respuestas ya estaban en la caché: 0 llamadas.
+- Regla 2 de docs/10 cambiada con el visto bueno del usuario: temperatura 0 si el modelo la admite; si no, semilla y razonamiento fijos y caché.
+
+**Línea base.** Aviso (regla 7 de docs/10): son los 3 clips con los que se ajustó la lógica actual, así que la medida sale mejor de lo que es. Además, las etiquetas las puso otra IA (Claude web), no el usuario.
+
+| Cifra | Lógica actual (GolfCore + MediaPipe) | Modelo A (gemini-3.6-flash) |
+| --- | --- | --- |
+| Golpes bien contados (de 3) | 1 | 3 |
+| Picos falsos propuestos | 1 | 0 |
+| Error del impacto en fotogramas (driver / story1 / story2) | +0 / -3 / -2 | +0 / +0 / +3 |
+| Error del top en fotogramas (driver / story1 / story2) | +0 / -2 / +2 | +0 / -2 / +1 |
+| Palo encontrado (≤ 5 % del alto) | 0 de 6 (+3 que toca el usuario) | 1 de 9 |
+
+- Golpes: el corte automático falla en las dos stories. En la story 1 propone un pico de la música y en la story 2 dice "no parece una tanda de golpes". El modelo marca como golpe justo el pico bueno en los 3 vídeos.
+- Impacto: en las stories, la lógica actual hereda el desfase del audio (de 50 a 60 ms). El modelo se fía del sonido en la story 2 (+3).
+- Palo: ninguno vale todavía.
+  - La línea de `ClubLineFinder` sale de las manos y se va por el borde de la pierna o del cuerpo, no por la varilla.
+  - El seguimiento del takeaway se pierde en el driver a 30 fps (parecido 0,23).
+  - Las cajas del modelo quedan a 85–400 px.
+- PARADA 2 superada por indicación del usuario: "la siguiente ejecución sea yo en mi móvil".

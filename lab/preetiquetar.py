@@ -134,11 +134,14 @@ class Config:
         if enviar and not clave:
             raise SystemExit("Falta GEMINI_API_KEY en lab\\.env (copia lab\\.env.example y pon tu clave).")
         # Sin .env valen los de lab/.env.example (así --sin-enviar funciona sin clave).
-        modelo_a, modelo_b = env.get("MODELO_A", "gemini-3.6-flash"), env.get("MODELO_B", "gemini-4-hydrogen")
-        if modelo_a == modelo_b:
+        # El modelo B está quitado por ahora (el usuario, 22-11-2026: hydrogen saturado); vacío = sin B.
+        modelo_a, modelo_b = env.get("MODELO_A", "gemini-3.6-flash"), env.get("MODELO_B", "")
+        if cual == "B" and not modelo_b:
+            raise SystemExit("No hay modelo B: ponlo en MODELO_B de lab\\.env (un modelo gratuito distinto del A).")
+        if modelo_b and modelo_a == modelo_b:
             # Regla 3 de docs/10: si preetiqueta el mismo que se evalúa, la medida sale inflada.
             raise SystemExit("MODELO_A y MODELO_B tienen que ser distintos (docs/10, regla 3).")
-        for modelo in (modelo_a, modelo_b):
+        for modelo in (m for m in (modelo_a, modelo_b) if m):
             comprobar_gratuito(modelo, env.get("PLAN_GRATUITO", "1"))
         return Config(clave=clave, modelo=modelo_a if cual == "A" else modelo_b,
                       precio_entrada=float(env.get(f"PRECIO_{cual}_ENTRADA", "0") or 0),

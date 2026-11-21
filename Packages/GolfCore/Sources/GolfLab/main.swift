@@ -11,6 +11,9 @@ import GolfCore
 //   GolfLab swing <poses.json> <audio.f32> <right|left>
 //   GolfLab linea <imagen.pgm> <manos-x> <manos-y> <largo-maximo>
 //   GolfLab seguir <x> <y> <fotograma1.pgm> <fotograma2.pgm> ...
+//   GolfLab verificar-plan <audio.f32> <duracion> <ancho> <alto>        (el verificador de golpes, ShotCheck)
+//   GolfLab verificar-cuerpo <audio.f32> <duracion> <peticion> <hoja1.jpg> ...
+//   GolfLab verificar-decidir <audio.f32> <duracion> <respuesta1.json> ...
 // El audio va en PCM float32 little-endian, mono, a 48 kHz: el formato que da AudioExtractor en la app.
 // Las imágenes van en PGM binario (P5, gris de 8 bits): la luminancia, como la lee la app.
 
@@ -29,6 +32,9 @@ enum LabError: Error, CustomStringConvertible {
               GolfLab swing <poses.json> <audio.f32> <right|left>
               GolfLab linea <imagen.pgm> <manos-x> <manos-y> <largo-maximo>
               GolfLab seguir <x> <y> <fotograma1.pgm> <fotograma2.pgm> ...
+              GolfLab verificar-plan <audio.f32> <duracion> <ancho> <alto>
+              GolfLab verificar-cuerpo <audio.f32> <duracion> <peticion> <hoja1.jpg> ...
+              GolfLab verificar-decidir <audio.f32> <duracion> <respuesta1.json> ...
             """
         case .unreadable(let path): "No puedo leer \(path)"
         }
@@ -248,6 +254,112 @@ func track(start: Point2D, paths: [String]) throws -> TrackReport {
     return TrackReport(found: score > 0.35 ? [center.x, center.y] : nil, minimumScore: score, centers: centers)
 }
 
+// MARK: - verificar: el verificador de golpes de la app (ShotCheck), para medirlo en el PC
+
+struct SheetPlan: Encodable {
+    let name: String
+    let soundTime: Double
+    let frameTimes: [Double]
+    let numbers: [Int]
+    let caption: String
+}
+
+struct RequestPlan: Encodable {
+    let text: String
+    let sheets: [SheetPlan]
+}
+
+struct WindowReport: Encodable {
+    let impactTime: Double
+    let start: Double
+    let end: Double
+    let isSuggested: Bool
+    let isTooShort: Bool
+}
+
+struct CheckPlan: Encodable {
+    let model: String
+    let instructions: String
+    let isShotSeries: Bool
+    let original: [WindowReport]
+    let columns: Int
+    let rows: Int
+    let cellWidth: Int
+    let cellHeight: Int
+    let gap: Int
+    let header: Int
+    let requests: [RequestPlan]
+}
+
+func report(_ w: ClipWindow) -> WindowReport {
+    WindowReport(impactTime: w.impactTime, start: w.start, end: w.end, isSuggested: w.isSuggested, isTooShort: w.isTooShort)
+}
+
+func checkPlan(audioPath: String, duration: Double, width: Int, height: Int) throws -> CheckPlan {
+    let impacts = ImpactDetector.detect(samples: try readSamples(audioPath), sampleRate: 48_000)
+    let original = ClipPlanner.propose(for: impacts, recordingDuration: duration, mode: .swing)
+    let layout = ShotCheck.layout(frameWidth: width, frameHeight: height)
+    let requests = ShotCheck.plan(for: impacts, duration: duration).map { request in
+        RequestPlan(text: request.text, sheets: request.sheets.map {
+            SheetPlan(name: $0.name, soundTime: $0.soundTime, frameTimes: $0.frameTimes, numbers: $0.numbers, caption: $0.caption)
+        })
+    }
+    return CheckPlan(model: ShotCheck.model, instructions: ShotCheck.instructions, isShotSeries: original.isShotSeries,
+                     original: original.windows.map(report), columns: layout.columns, rows: layout.rows,
+                     cellWidth: layout.cellWidth, cellHeight: layout.cellHeight, gap: layout.gap, header: layout.header,
+                     requests: requests)
+}
+
+struct VerdictReport: Encodable {
+    let soundTime: Double
+    let hasSwing: String
+    let soundIsImpact: String
+    let confidence: Double
+}
+
+struct CheckedWindowReport: Encodable {
+    let window: WindowReport
+    let outcome: String
+    let selected: Bool
+}
+
+struct CheckDecision: Encodable {
+    let verdicts: [VerdictReport]
+    let warnings: [String]
+    let windows: [CheckedWindowReport]
+    let confirmed: Int
+}
+
+func checkDecision(audioPath: String, duration: Double, responsePaths: [String]) throws -> CheckDecision {
+    let impacts = ImpactDetector.detect(samples: try readSamples(audioPath), sampleRate: 48_000)
+    let requests = ShotCheck.plan(for: impacts, duration: duration)
+    var verdicts: [ShotCheck.Verdict] = []
+    var warnings: [String] = []
+    // Una respuesta de la API por petición, en el mismo orden; la que falte se queda sin veredictos.
+    for (k, request) in requests.enumerated() {
+        guard k < responsePaths.count, let data = FileManager.default.contents(atPath: responsePaths[k]) else {
+            warnings.append("Sin respuesta para la petición \(k + 1)")
+            continue
+        }
+        guard let text = ShotCheck.outputText(fromResponse: data) else {
+            warnings.append("La respuesta \(k + 1) no trae texto")
+            continue
+        }
+        let parsed = ShotCheck.parse(text, for: request)
+        verdicts += parsed.verdicts
+        warnings += parsed.warnings
+    }
+    let checked = ShotCheck.proposal(impacts: impacts, verdicts: verdicts, recordingDuration: duration, mode: .swing)
+    return CheckDecision(
+        verdicts: verdicts.map { VerdictReport(soundTime: $0.soundTime, hasSwing: $0.hasSwing.rawValue,
+                                               soundIsImpact: $0.soundIsImpact.rawValue, confidence: $0.confidence) },
+        warnings: warnings,
+        windows: zip(checked.windows, zip(checked.outcomes, checked.selected)).map {
+            CheckedWindowReport(window: report($0.0), outcome: $0.1.0.rawValue, selected: $0.1.1)
+        },
+        confirmed: checked.confirmedCount)
+}
+
 // MARK: - Arranque
 
 do {
@@ -265,6 +377,24 @@ do {
     case "seguir":
         guard a.count >= 5, let x = Double(a[2]), let y = Double(a[3]) else { throw LabError.usage }
         try write(try track(start: Point2D(x: x, y: y), paths: Array(a[4...])))
+    case "verificar-plan":
+        guard a.count == 6, let seconds = Double(a[3]), let width = Int(a[4]), let height = Int(a[5]) else { throw LabError.usage }
+        try write(try checkPlan(audioPath: a[2], duration: seconds, width: width, height: height))
+    case "verificar-cuerpo":
+        // El cuerpo exacto que manda la app, con las hojas dibujadas en el PC.
+        guard a.count >= 6, let seconds = Double(a[3]), let k = Int(a[4]) else { throw LabError.usage }
+        let impacts = ImpactDetector.detect(samples: try readSamples(a[2]), sampleRate: 48_000)
+        let requests = ShotCheck.plan(for: impacts, duration: seconds)
+        guard requests.indices.contains(k) else { throw LabError.usage }
+        let jpegs = try a[5...].map { path in
+            guard let data = FileManager.default.contents(atPath: path) else { throw LabError.unreadable(path) }
+            return data
+        }
+        guard jpegs.count == requests[k].sheets.count else { throw LabError.usage }
+        FileHandle.standardOutput.write(try ShotCheck.requestBody(requests[k], sheetJPEGs: jpegs))
+    case "verificar-decidir":
+        guard a.count >= 4, let seconds = Double(a[3]) else { throw LabError.usage }
+        try write(try checkDecision(audioPath: a[2], duration: seconds, responsePaths: Array(a[4...])))
     default:
         throw LabError.usage
     }

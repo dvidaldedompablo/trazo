@@ -273,10 +273,24 @@ def firmar(n: int | None) -> str:
     return "—" if n is None else f"{n:+d}"
 
 
+def verificador(clip: Path, info: InfoVideo, datos: dict) -> dict | None:
+    """El verificador de golpes de la app (ShotCheck), medido con lab/verificador.py. Solo decide qué
+    clips se proponen: no toca el impacto, el top ni el palo (salen con guion)."""
+    ruta = DERIVADOS / clip.stem / "verificador" / "resultado.json"
+    if not ruta.exists():
+        return None
+    v = json.loads(ruta.read_text(encoding="utf-8"))
+    elegidos = [w["window"]["impactTime"] for w in v["windows"] if w["selected"]]
+    falsos = [t for t in elegidos if any(abs(p["t"] - t) < 0.02 and p.get("es_palo") is False for p in datos["picos"])]
+    return {"golpes": len(elegidos), "picos_falsos": len(falsos), "impacto": None, "top": None, "palo": None,
+            "modelo": v.get("modelo")}
+
+
 # Columnas de la tabla: (clave, título, función). La lógica actual siempre; cada modelo si hay resultado.
 METODOS = [("actual", "Lógica actual (GolfCore + MediaPipe)", None),
            ("a", "Modelo A", modelo_a),
-           ("b", "Modelo B", modelo_b)]
+           ("b", "Modelo B", modelo_b),
+           ("verificador", "Verificador de la app", verificador)]
 
 
 def main() -> None:
@@ -296,10 +310,11 @@ def main() -> None:
             fila[clave] = r
             if r is None:
                 continue
-            puntuar_palo(r["palo"], info)
             r["error_impacto"] = fotogramas_de_error(info, r["impacto"], sw["impacto"])
             r["error_top"] = fotogramas_de_error(info, r["top"], sw["top"])
-            dibujar_casos(clave, r["palo"], info, carpeta)
+            if r["palo"] is not None:
+                puntuar_palo(r["palo"], info)
+                dibujar_casos(clave, r["palo"], info, carpeta)
         filas.append(fila)
         (carpeta / "resultado.json").write_text(json.dumps({k: fila[k] for k, _, _ in METODOS}, ensure_ascii=False,
                                                            indent=2, default=str) + "\n", encoding="utf-8")
@@ -308,15 +323,17 @@ def main() -> None:
         rs = [f[clave] for f in filas]
         if any(r is None for r in rs):
             return None
-        contables = [c for r in rs for c in r["palo"] if c["cuenta"]]
-        usuario = sum(1 for r in rs for c in r["palo"] if not c["cuenta"])
+        sin_palo = any(r["palo"] is None for r in rs)
+        contables = [] if sin_palo else [c for r in rs for c in r["palo"] if c["cuenta"]]
+        usuario = 0 if sin_palo else sum(1 for r in rs for c in r["palo"] if not c["cuenta"])
+        sin_instantes = all(r["impacto"] is None and r["top"] is None for r in rs)
         return {
             "golpes": str(sum(1 for f, r in zip(filas, rs) if r["golpes"] == f["golpes"])),
             "falsos": str(sum(r["picos_falsos"] for r in rs)),
-            "impacto": " / ".join(firmar(r["error_impacto"]) for r in rs),
-            "top": " / ".join(firmar(r["error_top"]) for r in rs),
-            "palo": f"{sum(c['encontrado'] for c in contables)} de {len(contables)}"
-                    + (f" (+{usuario} que toca el usuario)" if usuario else ""),
+            "impacto": "—" if sin_instantes else " / ".join(firmar(r["error_impacto"]) for r in rs),
+            "top": "—" if sin_instantes else " / ".join(firmar(r["error_top"]) for r in rs),
+            "palo": "—" if sin_palo else (f"{sum(c['encontrado'] for c in contables)} de {len(contables)}"
+                                          + (f" (+{usuario} que toca el usuario)" if usuario else "")),
             "modelo": rs[0].get("modelo"),
         }
 
@@ -343,7 +360,7 @@ def main() -> None:
         print(f"  {f['clip']} (tope {CRITERIO_PALO * f['alto']:.0f} px):")
         for clave, _, _ in METODOS:
             r = f[clave]
-            if r is None:
+            if r is None or r["palo"] is None:
                 continue
             partes = []
             for c in r["palo"]:

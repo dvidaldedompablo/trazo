@@ -401,12 +401,13 @@ def fmt(t) -> str:
     return "--" if t is None else f"{t:.3f}"
 
 
-def comparar_con_modelo(datos: dict, info) -> None:
+def comparar_con_modelo(datos: dict, info, quien: str = "tú") -> None:
     """Cuenta qué propuestas del modelo has cambiado, para la PARADA 1 de docs/10.
 
     Criterio (solo para el recuento, no es la medida del banco): un instante cuenta como cambiado si
     está a 2 fotogramas o más del tuyo; una marca del palo, si además tu punto cae fuera de su caja;
-    un pico, si tu "es palo" no coincide con lo que dijo el modelo.
+    un pico, si tu "es palo" no coincide con lo que dijo el modelo. Una marca sin punto (cabeza del palo
+    que no se ve) solo se compara por el instante. `quien` es quien puso las etiquetas (tú o Claude web).
     """
     if not any(datos.get(k) for k in ("modelo_swings", "modelo_palo", "modelo_picos")):
         return
@@ -422,18 +423,21 @@ def comparar_con_modelo(datos: dict, info) -> None:
             d = fotogramas(ms[clave], sw[clave])
             total += 1
             cambiadas += d >= 2
-            filas.append(f"  {clave:<13} modelo {ms[clave]:.3f}  tú {sw[clave]:.3f}  ({d} fotogramas)")
+            filas.append(f"  {clave:<13} modelo {ms[clave]:.3f}  {quien} {sw[clave]:.3f}  ({d} fotogramas)")
     modelo_palo = {m["fase"]: m for m in datos.get("modelo_palo") or []}
     for p in datos["palo"]:
         m = modelo_palo.get(p["fase"])
         if not m or m.get("t") is None or p.get("t") is None:
             continue
         d = fotogramas(m["t"], p["t"])
-        dentro = (bool(m.get("caja")) and p.get("x") is not None
-                  and m["caja"][0] <= p["x"] <= m["caja"][2] and m["caja"][1] <= p["y"] <= m["caja"][3])
         total += 1
+        if p.get("x") is None:
+            cambiadas += d >= 2
+            filas.append(f"  {p['fase']:<13} modelo {m['t']:.3f}  {quien} {p['t']:.3f}  ({d} fotogramas, sin punto)")
+            continue
+        dentro = bool(m.get("caja")) and m["caja"][0] <= p["x"] <= m["caja"][2] and m["caja"][1] <= p["y"] <= m["caja"][3]
         cambiadas += d >= 2 or not dentro
-        filas.append(f"  {p['fase']:<13} modelo {m['t']:.3f}  tú {p['t']:.3f}  ({d} fotogramas, "
+        filas.append(f"  {p['fase']:<13} modelo {m['t']:.3f}  {quien} {p['t']:.3f}  ({d} fotogramas, "
                      f"{'dentro' if dentro else 'fuera'} de su caja)")
     modelo_picos = {round(m["t"], 3): m for m in datos.get("modelo_picos") or []}
     for p in datos["picos"]:
@@ -443,10 +447,10 @@ def comparar_con_modelo(datos: dict, info) -> None:
         total += 1
         distinto = (m["sonido_es_impacto"] == "si") != p["es_palo"]
         cambiadas += distinto
-        filas.append(f"  pico {p['t']:.3f}    modelo {m['sonido_es_impacto']:<3} tú {'sí' if p['es_palo'] else 'no'}")
+        filas.append(f"  pico {p['t']:.3f}    modelo {m['sonido_es_impacto']:<3} {quien} {'sí' if p['es_palo'] else 'no'}")
     print("Comparación con la propuesta del modelo:")
     print("\n".join(filas) if filas else "  (aún no hay nada que comparar)")
-    print(f"Propuestas del modelo que has cambiado: {cambiadas} de {total} comparables "
+    print(f"Propuestas del modelo cambiadas ({quien}): {cambiadas} de {total} comparables "
           "(instante a 2 fotogramas o más, punto fuera de la caja o pico distinto).")
 
 

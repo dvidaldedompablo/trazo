@@ -350,7 +350,7 @@ def importar(ruta: Path, archivo_respuesta: str, sobrescribir: bool) -> None:
         print(f"  Aviso: {a}")
     print(f"  Revisa a ojo el palo en {revision.relative_to(RAIZ)}")
     print("Cuánto coincide Claude web con Gemini (modelo A):")
-    comparar_con_modelo(datos, info)
+    comparar_con_modelo(datos, info, quien="Claude web")
 
 
 def main() -> None:

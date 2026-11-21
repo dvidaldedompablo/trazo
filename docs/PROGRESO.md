@@ -437,3 +437,14 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   - `importar`: valida y, si algo falla, no escribe nada. Probado con una respuesta inventada válida y otra con errores, y el archivo de etiquetas se restauró después.
 - `etiquetar.py`: si se corrigen etiquetas de Claude web, el autor pasa a "revisado por el usuario". El recuento de cambios ya no falla con un palo sin punto.
 - Pendiente: el usuario pasa las hojas a claude.ai (un chat por clip) y trae las 3 respuestas; se importan, se revisa `revision.jpg` y se sigue con el paso 5 (`scripts/evaluar.py`).
+- Hecho el mismo día: el usuario pasó las hojas a claude.ai (modelo "Claude Sonnet 5.5", confianza "media" en los 3) y las tres respuestas validaron a la primera. Importadas en `feedback/etiquetas/`.
+
+  | Clip | Top | Impacto | Pico del golpe (audio) | Puntos del palo | Propuestas de Gemini cambiadas |
+  | --- | --- | --- | --- | --- | --- |
+  | driver-campo | 6,867 s | 7,167 s | 7,169 s | 4 de 5 (top tapado) | 4 de 10 |
+  | story1-puerta-de-hierro | 3,052 s | 3,285 s | 3,234 s | 3 de 5 (takeaway y top no se ven) | 5 de 15 |
+  | story2-simulador | 2,202 s | 2,502 s | 2,563 s | 2 de 5 (la cabeza sale del encuadre) | 4 de 22 |
+
+  Revisado a ojo (`revision.jpg`): los 9 puntos caen sobre la cabeza del palo. "Palo encontrado" se medirá sobre esos 9, no sobre 15. Las diferencias con Gemini están sobre todo en la preparación (de 6 a 9 fotogramas) y la bajada (de 1 a 6); top e impacto coinciden casi siempre.
+- Ojo para el paso 5: en las dos stories el sonido del golpe no cae en el fotograma del impacto. En la story 1 el pico va 51 ms antes de la imagen y en la story 2, 61 ms después (en el driver, 2 ms). Son grabaciones de pantalla o copias, con el audio algo desfasado. El error del impacto de la lógica actual, que usa el audio, llevará ese desfase dentro.
+- Recuento de cambios: una marca del palo sin punto ya solo cuenta por el instante (antes salía como "fuera de su caja").

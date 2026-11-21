@@ -15,6 +15,10 @@ Uso (desde la raíz del repo; necesita lab\\.env con la clave, ver lab\\.env.exa
     lab\\.venv\\Scripts\\python lab\\preetiquetar.py                 (todos los clips de feedback/)
     lab\\.venv\\Scripts\\python lab\\preetiquetar.py driver-campo
     lab\\.venv\\Scripts\\python lab\\preetiquetar.py --sin-enviar    (prepara las hojas y no llama al modelo)
+    lab\\.venv\\Scripts\\python lab\\preetiquetar.py --modelo B      (paso 5: el modelo B sin ajustar nada)
+
+Con --modelo B el resultado va a feedback/derivados/<clip>/modelo_b/resultado.json y las etiquetas no se
+tocan: lo de B es una columna de la tabla de evaluar.py, no una propuesta para el usuario.
 """
 from __future__ import annotations
 
@@ -124,7 +128,7 @@ class Config:
     resolucion: str
 
     @staticmethod
-    def leer(enviar: bool) -> "Config":
+    def leer(enviar: bool, cual: str = "A") -> "Config":
         env = leer_env()
         clave = env.get("GEMINI_API_KEY", "")
         if enviar and not clave:
@@ -136,9 +140,9 @@ class Config:
             raise SystemExit("MODELO_A y MODELO_B tienen que ser distintos (docs/10, regla 3).")
         for modelo in (modelo_a, modelo_b):
             comprobar_gratuito(modelo, env.get("PLAN_GRATUITO", "1"))
-        return Config(clave=clave, modelo=modelo_a,
-                      precio_entrada=float(env.get("PRECIO_A_ENTRADA", "0") or 0),
-                      precio_salida=float(env.get("PRECIO_A_SALIDA", "0") or 0),
+        return Config(clave=clave, modelo=modelo_a if cual == "A" else modelo_b,
+                      precio_entrada=float(env.get(f"PRECIO_{cual}_ENTRADA", "0") or 0),
+                      precio_salida=float(env.get(f"PRECIO_{cual}_SALIDA", "0") or 0),
                       gratuito=True,
                       razonamiento=env.get("NIVEL_RAZONAMIENTO", ""),
                       semilla=int(env.get("SEMILLA", "7") or 7),
@@ -305,7 +309,7 @@ class Cliente:
                 # mejor probar más tarde u otro modelo gratuito que esperar un cuarto de hora.
                 if intento >= 2:
                     raise SystemExit(f"{self.cfg.modelo} está saturado en Google ({mensaje}). "
-                                     "Prueba más tarde u otro modelo gratuito en MODELO_A.")
+                                     "Prueba más tarde u otro modelo gratuito en MODELO_A o MODELO_B.")
                 espera = int(r.headers.get("Retry-After", "30") or 30)
                 print(f"    {self.cfg.modelo} saturado; espero {espera} s y lo intento otra vez.")
                 time.sleep(espera)
@@ -449,11 +453,11 @@ def resumir(por_fotograma: dict[int, dict], hay_swing: bool, picos: list[dict]) 
 
 # ---------------------------------------------------------------- un clip
 
-def preetiquetar(clip, cfg: Config, enviar: bool) -> Registro | None:
+def preetiquetar(clip, cfg: Config, enviar: bool, cual: str = "A") -> Registro | None:
     info = leer_info(clip)
     fotogramas = leer_fotogramas(info)
     datos = cargar_etiquetas(clip)
-    carpeta = DERIVADOS / clip.stem / "preetiquetado"
+    carpeta = DERIVADOS / clip.stem / ("preetiquetado" if cual == "A" else "modelo_b")
     carpeta.mkdir(parents=True, exist_ok=True)
     registro = Registro()
     cliente = Cliente(cfg, registro, enviar)
@@ -550,14 +554,20 @@ def preetiquetar(clip, cfg: Config, enviar: bool) -> Registro | None:
         return None
     hay_swing = hay_swing_gruesa != "no" or any(p["hay_swing"] == "si" for p in modelo_picos)
     resumen = resumir(por_fotograma, hay_swing, sorted(modelo_picos, key=lambda p: p["t"]))
-    datos = cargar_etiquetas(clip)  # otra vez, por si el usuario lo ha guardado mientras tanto
-    datos.update(resumen)
-    datos["modelo_info"] = {
+    info_modelo = {
         "modelo": cfg.modelo, "fecha": datetime.now().isoformat(timespec="seconds"), "semilla": cfg.semilla,
         "razonamiento": cfg.razonamiento or "por defecto", "resolucion_imagen": cfg.resolucion,
         "hay_swing_gruesa": hay_swing_gruesa, **registro.totales(),
     }
-    guardar_etiquetas(clip, datos)
+    if cual == "A":
+        datos = cargar_etiquetas(clip)  # otra vez, por si el usuario lo ha guardado mientras tanto
+        datos.update(resumen)
+        datos["modelo_info"] = info_modelo
+        guardar_etiquetas(clip, datos)
+    else:
+        # El modelo B no escribe en las etiquetas: su resultado es una columna de evaluar.py.
+        (carpeta / "resultado.json").write_text(json.dumps({**resumen, "modelo_info": info_modelo},
+                                                           ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (carpeta / "registro.json").write_text(json.dumps({"llamadas": registro.llamadas, "avisos": registro.avisos,
                                                        "totales": registro.totales()}, ensure_ascii=False, indent=2),
                                            encoding="utf-8")
@@ -571,19 +581,21 @@ def preetiquetar(clip, cfg: Config, enviar: bool) -> Registro | None:
 
 
 def main() -> None:
-    argumentos = argparse.ArgumentParser(description="Preetiqueta los clips del banco con el modelo A.")
+    argumentos = argparse.ArgumentParser(description="Preetiqueta los clips del banco con el modelo A (o pasa el B).")
     argumentos.add_argument("clips", nargs="*", help="nombres de clip; sin nada, todos los de feedback/")
     argumentos.add_argument("--sin-enviar", action="store_true", help="prepara las hojas y no llama al modelo")
+    argumentos.add_argument("--modelo", choices=["A", "B"], default="A",
+                            help="A preetiqueta (escribe modelo_* en las etiquetas); B es la columna del paso 5")
     a = argumentos.parse_args()
     enviar = not a.sin_enviar
-    cfg = Config.leer(enviar)
+    cfg = Config.leer(enviar, a.modelo)
     clips = [resolver_clip(c) for c in a.clips] or clips_del_banco()
-    print(f"Modelo A: {cfg.modelo}  (plan {'gratuito' if cfg.gratuito else 'de pago'}, semilla {cfg.semilla}, "
+    print(f"Modelo {a.modelo}: {cfg.modelo}  (plan {'gratuito' if cfg.gratuito else 'de pago'}, semilla {cfg.semilla}, "
           f"razonamiento {cfg.razonamiento or 'por defecto'})")
     resumen = []
     try:
         for clip in clips:
-            registro = preetiquetar(clip, cfg, enviar)
+            registro = preetiquetar(clip, cfg, enviar, a.modelo)
             if registro:
                 resumen.append((clip.name, registro.totales()))
     except CuotaAgotada as error:

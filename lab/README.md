@@ -52,6 +52,7 @@ Con `--sin-enviar` prepara las hojas en `feedback\derivados\<clip>\preetiquetado
 - Al final enseña los tokens y el coste por clip: el real (0 en el plan gratuito) y lo que costaría en el de pago.
 - La fase "bajada" de tus etiquetas es la fase `transicion` del modelo (posición 5 de la app).
 - La caja del palo se pide de 0 a 1000 en cada fotograma y se guarda en píxeles del vídeo girado.
+- `--modelo B` pasa los clips por el modelo B con el mismo camino y deja el resultado en `feedback\derivados\<clip>\modelo_b\resultado.json`, sin tocar las etiquetas: es la columna B de `evaluar.py`.
 
 ### 3. `etiquetar.py`: tus etiquetas, que son la verdad
 
@@ -103,7 +104,16 @@ lab\.venv\Scripts\python lab\claude_web.py importar driver-campo respuesta.txt
 - `importar` valida la respuesta (fotogramas enviados, fases en orden, x e y de 0 a 1000) y, si algo falla, no escribe nada. `golpes` y `musica` salen de la tabla de docs/10; `es_palo` de cada pico se deduce del impacto (Claude web no oye el audio). Deja `revision.jpg` con el palo marcado para mirarlo a ojo.
 - Si luego corriges algo con `etiquetar.py`, al guardar el autor pasa a "claude-web (...), revisado por el usuario".
 
+### 4. `scripts\evaluar.py`: la tabla del banco
+
+```powershell
+lab\.venv\Scripts\python scripts\evaluar.py
+```
+
+Compara con las etiquetas la lógica actual (GolfCore real con la pose de MediaPipe del 17-11, en `feedback\derivados\<clip>\pose\poses.json`) y el modelo B. Saca golpes bien contados, picos falsos, error del impacto y del top en fotogramas y palo encontrado (a no más del 5 % del alto del vídeo de la marca). Deja en `feedback\derivados\<clip>\evaluar\` las imágenes `palo-*.jpg` con lo detectado (cian) y la marca con su círculo (magenta).
+
 ## `GolfLab`
 
 Es un ejecutable aparte dentro de `Packages/GolfCore` (`Sources/GolfLab`). Llama a la lógica real y escribe JSON; no cambia nada de ella y la app no lo enlaza.
 `picos.py` lo compila y lo lanza con la imagen `swift:6.3`, la misma de `scripts/test-golfcore.sh`.
+Órdenes: `picos` (detector de audio y corte automático), `swing` (posiciones con `SwingImpactChooser`, como `SwingAnalyzer` en la app), `linea` (`ClubLineFinder`) y `seguir` (`TemplateTracker`, de la preparación al takeaway).

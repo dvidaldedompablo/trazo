@@ -15,6 +15,10 @@ enum UITestScreen: String {
     case autocut
     /// La misma hoja con un vídeo narrado, sin golpes: el control de sensatez no propone clips.
     case autocutVoice = "autocut-voice"
+    /// La hoja de elegir golpes después de comprobarlos con Gemini (datos de demostración, sin red).
+    case autocutCheck = "autocut-check"
+    /// Ajustes, con la clave de Gemini por poner.
+    case settings
     /// "Creando tu tracer" (s03) a mitad del seguimiento.
     case processing
     /// Toca la bola, con un toque y la lupa.

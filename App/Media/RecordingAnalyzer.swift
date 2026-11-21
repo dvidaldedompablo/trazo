@@ -11,6 +11,9 @@ struct PendingRecording: Identifiable, Sendable {
     let info: VideoInfo
     /// La onda resumida en barras (de 0 a 1) para dibujarla.
     let bars: [Double]
+    /// Todos los sonidos fuertes que encontró `ImpactDetector`, también los que no se proponen:
+    /// el verificador de golpes (ShotChecker) puede preguntar por ellos.
+    let impacts: [Impact]
     /// Un clip propuesto por golpe, con su miniatura en el instante del impacto (JPEG).
     let windows: [ClipWindow]
     let thumbnails: [Data?]
@@ -47,7 +50,7 @@ enum RecordingAnalyzer {
         let strongest = isShotSeries ? impacts.max { $0.strength < $1.strength }?.time : nil
         return PendingRecording(sourceURL: url, mode: mode, origin: origin, info: info,
                                 bars: Waveform.bars(samples: samples, count: barCount),
-                                windows: windows, thumbnails: thumbnails, strongestImpact: strongest,
+                                impacts: impacts, windows: windows, thumbnails: thumbnails, strongestImpact: strongest,
                                 isShotSeries: isShotSeries)
     }
 }

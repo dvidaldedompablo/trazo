@@ -150,9 +150,23 @@ enum DemoData {
         let info = VideoInfo(duration: duration, nominalFrameRate: 240, measuredFrameRate: 240, frameCount: 9120,
                              width: 1080, height: 1920, codec: "hvc1", hasAudio: true)
         return PendingRecording(sourceURL: MediaStore.temporaryURL(extension: "mov"), mode: .tracer, origin: .recorded,
-                                info: info, bars: bars, windows: windows,
+                                info: info, bars: bars, impacts: impacts, windows: windows,
                                 thumbnails: windows.map { _ in thumbnail }, strongestImpact: impacts[0].time,
                                 isShotSeries: ClipPlanner.isShotSeries(impacts))
+    }
+
+    /// Lo que devolvería el verificador de golpes con la grabación de `pendingRecording()`: Gemini
+    /// confirma los dos primeros golpes y dice que el tercero (el flojo, de otro jugador) no lo es.
+    /// Sirve para la captura de la hoja tras comprobar, sin red.
+    static func shotCheckResult() -> ShotChecker.Result {
+        let pending = pendingRecording()
+        let verdicts = [ShotCheck.Verdict(soundTime: 6.2, hasSwing: .yes, soundIsImpact: .yes, confidence: 0.95),
+                        ShotCheck.Verdict(soundTime: 19.8, hasSwing: .yes, soundIsImpact: .yes, confidence: 0.95),
+                        ShotCheck.Verdict(soundTime: 31.4, hasSwing: .no, soundIsImpact: .no, confidence: 0.9)]
+        let checked = ShotCheck.proposal(impacts: pending.impacts, verdicts: verdicts,
+                                         recordingDuration: pending.info.duration, mode: pending.mode)
+        return ShotChecker.Result(checked: checked, thumbnails: checked.windows.map { _ in pending.thumbnails.first ?? nil },
+                                  sounds: verdicts.count, warnings: [])
     }
 
     /// Un vídeo narrado de 95 s sin golpes (como el de referencia): la voz da sonidos secos cada
@@ -171,7 +185,7 @@ enum DemoData {
         let info = VideoInfo(duration: duration, nominalFrameRate: 30, measuredFrameRate: 30, frameCount: 2850,
                              width: 1080, height: 1920, codec: "avc1", hasAudio: true)
         return PendingRecording(sourceURL: MediaStore.temporaryURL(extension: "mov"), mode: .swing, origin: .imported,
-                                info: info, bars: bars, windows: proposal.windows, thumbnails: [],
+                                info: info, bars: bars, impacts: impacts, windows: proposal.windows, thumbnails: [],
                                 strongestImpact: nil, isShotSeries: proposal.isShotSeries)
     }
 }

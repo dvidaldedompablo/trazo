@@ -85,9 +85,9 @@ struct ImportScreen: View {
             showsPicker = true
         }
         .sheet(item: $pending) { pending in
-            ClipPickerView(pending: pending) { selection, keepFull in
+            ClipPickerView(pending: pending) { chosen, keepFull in
                 self.pending = nil
-                Task { await save(pending, selection: selection, keepFull: keepFull) }
+                Task { await save(pending, windows: chosen, keepFull: keepFull) }
             }
             .interactiveDismissDisabled()
         }
@@ -131,15 +131,15 @@ struct ImportScreen: View {
         return (movie.url, false)
     }
 
-    private func save(_ pending: PendingRecording, selection: [Bool], keepFull: Bool) async {
-        guard selection.contains(true) || keepFull else {
+    private func save(_ pending: PendingRecording, windows: [ClipWindow], keepFull: Bool) async {
+        guard !windows.isEmpty || keepFull else {
             MediaStore.removeIfPresent(pending.sourceURL)
             step = .picking
             return
         }
         step = .importing
         do {
-            let clips = try await ClipSaver.save(pending, selection: selection, keepFullRecording: keepFull, in: context)
+            let clips = try await ClipSaver.save(pending, windows: windows, keepFullRecording: keepFull, in: context)
             step = .done(doneText(count: clips.count, stretched: pending.mayBeStretched))
             startTracer(clips.map(\.id))
         } catch {

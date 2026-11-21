@@ -11,6 +11,7 @@
 | XcodeGen | Un `project.yml` legible que Claude Code puede escribir sin Xcode; el `.xcodeproj` se genera en el CI. |
 | `.ipa` sin firmar + Sideloadly | Instalación con Apple ID gratuito, sin pagar la cuenta de desarrollador. |
 | GolfCore como paquete aparte | La lógica pura se prueba con tests en el CI sin cámara ni iPhone. |
+| Verificador de golpes con Gemini, opcional | La única llamada de red (excepción de CLAUDE.md, Fase 4 de docs/10 aprobada el 22-11-2026). En la línea base, el corte automático acierta 1 de 3 vídeos y Gemini Flash 3 de 3. Clave del usuario en el llavero, aviso antes de enviar y plan B local. |
 
 ## Estructura de carpetas
 ```
@@ -132,7 +133,14 @@ Lista inicial de palos (editable en Ajustes, solo "Hierro 7" con valor): Driver,
 
 ## Arnés de capturas para el CI
 - Argumento `-UITestScreen <nombre>`: la app abre directamente esa pantalla con datos de `DemoData` (sin cámara ni permisos), animaciones desactivadas y hora fija.
-- Nombres: home, camera-tracer, camera-swing, processing, adjust, tracer-result, review, swing-result, help, settings, library, history.
+- Nombres: home, components, camera-tracer, camera-swing, library, autocut, autocut-voice, autocut-check, processing, ball-tap, tracer-check, review, swing-result, settings (y más adelante adjust, tracer-result, help, history).
+
+## Verificador de golpes con Gemini (la única llamada de red)
+- `GolfCore/Capture/ShotCheck`: lógica pura y con tests. Decide qué sonidos se mandan (los 12 más fuertes), qué fotogramas lleva cada hoja (12, de 0,6 s antes a 0,2 s después del sonido) y cómo se reparten (6 hojas por petición). También guarda el texto, el esquema JSON, el cuerpo de la petición a la API Interactions (`gemini-3.6-flash`, semilla 7, razonamiento medio, `store: false`), la validación de la respuesta y la decisión.
+- `App/Media/ShotChecker`: dibuja las hojas con `AVAssetImageGenerator` y `UIGraphicsImageRenderer`, hace el POST con `URLSession` (clave en la cabecera `x-goog-api-key`) y devuelve la propuesta revisada. Los errores (sin red, clave mala, cuota, saturado) salen con su mensaje y la lista se queda como la dejó el corte automático.
+- `App/Support/KeychainStore`: la clave, en el llavero (`WhenUnlockedThisDeviceOnly`). Se escribe en Ajustes, en "Comprobar golpes con Gemini".
+- `ClipPickerView`: tarjeta "Comprobar con Gemini". Primero aparece el aviso "¿Enviar a Google?" y, si lo aceptas, cada golpe enseña lo que dijo Gemini. Un sonido confirmado se propone aunque el corte automático no lo propusiera. Uno descartado sigue en la lista, sin marcar. Si no hay respuesta, se queda como estaba.
+- El laboratorio mide esta misma lógica antes de cambiarla (`lab/verificador.py` con `GolfLab verificar-*`, columna "Verificador de la app" de `scripts/evaluar.py`).
 
 ## Concurrencia y rendimiento
 - Pipelines como funciones `async` o actores, con progreso por `AsyncStream` y cancelación.

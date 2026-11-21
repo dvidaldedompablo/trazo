@@ -4,19 +4,49 @@ import UIKit
 
 /// Elige los golpes (tras grabar con "Corte auto" o importar un vídeo con varios golpes):
 /// la onda con los impactos y un clip por golpe para marcar los que se guardan.
+///
+/// Con la clave de Gemini en Ajustes aparece "Comprobar con Gemini" (docs/10, Fase 4): tras un aviso,
+/// el verificador de golpes mira los fotogramas de cada sonido fuerte y la lista se rehace con lo que
+/// dice. Si falla, la lista se queda como la dejó el corte automático (el plan B).
 struct ClipPickerView: View {
     let pending: PendingRecording
-    /// Lo elegido. Ningún golpe y sin el vídeo entero = descartar.
-    let onFinish: (_ selection: [Bool], _ keepFullRecording: Bool) -> Void
+    /// Los clips elegidos. Ninguno y sin el vídeo entero = descartar.
+    let onFinish: (_ chosen: [ClipWindow], _ keepFullRecording: Bool) -> Void
 
+    @State private var windows: [ClipWindow]
+    @State private var thumbnails: [Data?]
     @State private var selection: [Bool]
+    /// Lo que dijo Gemini de cada clip; `nil` si no se ha comprobado.
+    @State private var outcomes: [ShotCheck.Outcome]? = nil
     @State private var keepFull = false
+    @State private var check: CheckState = .idle
+    @State private var asksToSend = false
+    @State private var hasKey = false
 
-    init(pending: PendingRecording, onFinish: @escaping (_ selection: [Bool], _ keepFullRecording: Bool) -> Void) {
+    enum CheckState: Equatable {
+        case idle
+        case running
+        case done(String)
+        case failed(String)
+    }
+
+    /// - Parameter demoCheck: para las capturas del CI, la hoja ya comprobada sin red.
+    init(pending: PendingRecording, demoCheck: ShotChecker.Result? = nil,
+         onFinish: @escaping (_ chosen: [ClipWindow], _ keepFullRecording: Bool) -> Void) {
         self.pending = pending
         self.onFinish = onFinish
-        // Si no parece una tanda de golpes no hay nada propuesto (ni se enseña la lista).
-        _selection = State(initialValue: pending.windows.map { pending.isShotSeries && $0.isSuggested })
+        if let demoCheck {
+            _windows = State(initialValue: demoCheck.checked.windows)
+            _thumbnails = State(initialValue: demoCheck.thumbnails)
+            _selection = State(initialValue: demoCheck.checked.selected)
+            _outcomes = State(initialValue: demoCheck.checked.outcomes)
+            _check = State(initialValue: .done(Self.checkSummary(demoCheck)))
+        } else {
+            _windows = State(initialValue: pending.windows)
+            _thumbnails = State(initialValue: pending.thumbnails)
+            // Si no parece una tanda de golpes no hay nada propuesto (ni se enseña la lista).
+            _selection = State(initialValue: pending.windows.map { pending.isShotSeries && $0.isSuggested })
+        }
     }
 
     var body: some View {
@@ -38,10 +68,13 @@ struct ClipPickerView: View {
                         .foregroundStyle(Color.texto2)
                 }
                 waveformPanel
+                if canCheck {
+                    checkPanel
+                }
                 if showsClips {
-                    ForEach(pending.windows.indices, id: \.self) { index in
-                        ClipRow(number: index + 1, window: pending.windows[index], thumbnail: pending.thumbnails[index],
-                                mode: pending.mode, isSelected: selection[index]) {
+                    ForEach(windows.indices, id: \.self) { index in
+                        ClipRow(number: index + 1, window: windows[index], thumbnail: thumbnails[safe: index] ?? nil,
+                                mode: pending.mode, outcome: outcomes?[safe: index], isSelected: selection[index]) {
                             selection[index].toggle()
                         }
                     }
@@ -58,33 +91,53 @@ struct ClipPickerView: View {
             .padding(.bottom, Spacing.l)
         }
         .background(Color.bola)
+        .onAppear { hasKey = KeychainStore.geminiKey != nil }
+        // El aviso de CLAUDE.md: antes de enviar nada, el usuario lo acepta.
+        .alert("¿Enviar a Google?", isPresented: $asksToSend) {
+            Button("Enviar") { startCheck() }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            let n = ShotChecker.soundCount(pending)
+            Text("Se envían \(n == 1 ? "1 hoja" : "\(n) hojas") con fotogramas de este vídeo a Gemini (Google), con tu clave, para ver qué sonidos son golpes. No se envía el vídeo entero ni el sonido.")
+        }
     }
 
     private var selectedCount: Int { selection.filter { $0 }.count }
 
-    /// Hay golpes que proponer: algún impacto y con pinta de tanda de golpes de golf.
-    private var showsClips: Bool { pending.isShotSeries && !pending.windows.isEmpty }
+    /// Hay golpes que proponer: los del corte automático (si parece una tanda de golpes) o los que
+    /// ha confirmado Gemini aunque el corte automático no los propusiera.
+    private var showsClips: Bool { !windows.isEmpty && (pending.isShotSeries || outcomes != nil) }
+
+    /// Se puede comprobar con Gemini: hay sonido y algún sonido fuerte, y no se ha comprobado ya.
+    private var canCheck: Bool { pending.info.hasAudio && !pending.impacts.isEmpty }
 
     private var summary: String {
         let duration = SpanishFormat.number(pending.info.duration, decimals: 0)
         if !pending.info.hasAudio {
             return "Este vídeo no tiene sonido: no puedo buscar los golpes. Puedes guardarlo entero (\(duration) s)."
         }
+        if outcomes != nil {
+            switch windows.count {
+            case 0: return "Ningún sonido es un golpe. Puedes guardar el vídeo entero o descartarlo."
+            case 1: return "Marca el golpe para guardarlo."
+            default: return "Marca los golpes que quieres guardar."
+            }
+        }
         if !pending.isShotSeries {
             // Control de sensatez: muchos sonidos secos seguidos (una voz, aplausos) no son golpes.
             return "No he reconocido una tanda de golpes en este vídeo. Puedes guardar el vídeo entero o descartarlo."
         }
-        switch pending.windows.count {
+        switch windows.count {
         case 0: return "No se ha oído ningún golpe en \(duration) s. Puedes guardar el vídeo entero o descartarlo."
         case 1: return "He oído 1 golpe. Márcalo para guardarlo."
-        default: return "He oído \(pending.windows.count) golpes. Marca los que quieres guardar."
+        default: return "He oído \(windows.count) golpes. Marca los que quieres guardar."
         }
     }
 
     private var waveformPanel: some View {
         // Los golpes propuestos, en rojo en la onda. Si no es una tanda de golpes, ninguno.
         let highlighted = showsClips
-            ? Set(pending.windows.map { Waveform.barIndex(for: $0.impactTime, duration: pending.info.duration, count: pending.bars.count) })
+            ? Set(windows.map { Waveform.barIndex(for: $0.impactTime, duration: pending.info.duration, count: pending.bars.count) })
             : []
         return WaveformView(bars: pending.bars, highlighted: highlighted, duration: pending.info.duration)
             .frame(height: 86)
@@ -92,20 +145,101 @@ struct ClipPickerView: View {
         .background(Color.papel, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
     }
 
+    // MARK: Comprobar con Gemini
+
+    private var checkPanel: some View {
+        VStack(alignment: .leading, spacing: Spacing.m) {
+            HStack(spacing: Spacing.s) {
+                Image(systemName: "sparkle.magnifyingglass").accessibilityHidden(true)
+                Text("Comprobar con Gemini").typeStyle(.etiqueta)
+            }
+            .foregroundStyle(Color.pino)
+            switch check {
+            case .idle:
+                if hasKey {
+                    Text("¿No te fías del sonido? Gemini mira los fotogramas de cada sonido fuerte y dice cuáles son golpes.")
+                        .typeStyle(.nota)
+                        .foregroundStyle(Color.texto2)
+                    Button { asksToSend = true } label: { Text("Comprobar los golpes") }
+                        .buttonStyle(.secundario)
+                } else {
+                    Text("Si pones tu clave de Gemini en Ajustes, puedo comprobar qué sonidos son golpes mirando los fotogramas.")
+                        .typeStyle(.nota)
+                        .foregroundStyle(Color.texto2)
+                }
+            case .running:
+                HStack(spacing: Spacing.s) {
+                    ProgressView()
+                    Text("Comprobando \(ShotChecker.soundCount(pending)) sonidos con Gemini…")
+                        .typeStyle(.nota)
+                        .foregroundStyle(Color.texto2)
+                }
+            case .done(let text):
+                Text(text)
+                    .typeStyle(.nota)
+                    .foregroundStyle(Color.texto2)
+            case .failed(let text):
+                Text(text + " Te propongo los golpes como siempre, solo por el sonido.")
+                    .typeStyle(.nota)
+                    .foregroundStyle(Color.texto2)
+                if hasKey {
+                    Button { asksToSend = true } label: { Text("Volver a intentarlo") }
+                        .buttonStyle(.secundario)
+                }
+            }
+        }
+        .padding(Spacing.l)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.papel, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
+    }
+
+    private func startCheck() {
+        guard let key = KeychainStore.geminiKey else {
+            hasKey = false
+            return
+        }
+        check = .running
+        Task {
+            do {
+                let result = try await ShotChecker.check(pending, key: key)
+                windows = result.checked.windows
+                thumbnails = result.thumbnails
+                selection = result.checked.selected
+                outcomes = result.checked.outcomes
+                check = .done(Self.checkSummary(result))
+            } catch {
+                // Plan B: la lista sigue como la dejó el corte automático.
+                check = .failed((error as? LocalizedError)?.errorDescription ?? "No se ha podido comprobar.")
+            }
+        }
+    }
+
+    static func checkSummary(_ result: ShotChecker.Result) -> String {
+        let confirmed = result.checked.confirmedCount
+        let sounds = result.sounds == 1 ? "1 sonido" : "\(result.sounds) sonidos"
+        switch confirmed {
+        case 0: return "Gemini ha mirado \(sounds) y no ve ningún golpe."
+        case 1: return "Gemini ha mirado \(sounds) y ve 1 golpe."
+        default: return "Gemini ha mirado \(sounds) y ve \(confirmed) golpes."
+        }
+    }
+
+    // MARK: Botones
+
     @ViewBuilder
     private var buttons: some View {
         let total = selectedCount + (keepFull ? 1 : 0)
         VStack(spacing: Spacing.m) {
             Button {
-                onFinish(selection, keepFull)
+                onFinish(chosen, keepFull)
             } label: {
                 Text(saveTitle)
             }
             .buttonStyle(.principal)
-            .disabled(total == 0)
+            .disabled(total == 0 || check == .running)
             .opacity(total == 0 ? 0.5 : 1)
             Button {
-                onFinish(selection.map { _ in false }, false)
+                onFinish([], false)
             } label: {
                 Text("Descartar")
             }
@@ -114,17 +248,22 @@ struct ClipPickerView: View {
         .padding(.top, Spacing.s)
     }
 
+    private var chosen: [ClipWindow] {
+        zip(windows, selection).filter(\.1).map(\.0)
+    }
+
     /// Sin golpes que proponer: guardar el vídeo entero o descartarlo.
     private var wholeVideoButtons: some View {
         VStack(spacing: Spacing.m) {
             Button {
-                onFinish(selection.map { _ in false }, true)
+                onFinish([], true)
             } label: {
                 Text("Guardar el vídeo entero")
             }
             .buttonStyle(.principal)
+            .disabled(check == .running)
             Button {
-                onFinish(selection.map { _ in false }, false)
+                onFinish([], false)
             } label: {
                 Text("Descartar")
             }
@@ -145,12 +284,13 @@ struct ClipPickerView: View {
     }
 }
 
-/// Un golpe propuesto: miniatura en el instante del impacto, cuándo fue y si se guarda.
+/// Un golpe propuesto: miniatura en el instante del impacto, cuándo fue, qué dijo Gemini y si se guarda.
 private struct ClipRow: View {
     let number: Int
     let window: ClipWindow
     let thumbnail: Data?
     let mode: CaptureMode
+    let outcome: ShotCheck.Outcome?
     let isSelected: Bool
     let toggle: () -> Void
 
@@ -173,6 +313,17 @@ private struct ClipRow: View {
                     Text(detail)
                         .typeStyle(.filaSub)
                         .foregroundStyle(Color.texto2)
+                    if let outcome {
+                        HStack(spacing: Spacing.xs + 2) {
+                            Circle().fill(Self.color(outcome))
+                                .frame(width: Size.chipDot, height: Size.chipDot)
+                                .accessibilityHidden(true)
+                            Text(Self.text(outcome))
+                                .typeStyle(.filaSub)
+                                .foregroundStyle(Color.texto2)
+                        }
+                        .padding(.top, 2)
+                    }
                 }
                 Spacer(minLength: Spacing.s)
                 ZStack {
@@ -190,7 +341,7 @@ private struct ClipRow: View {
             .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Golpe \(number), \(detail)")
+        .accessibilityLabel("Golpe \(number), \(detail)" + (outcome.map { ", \(Self.text($0))" } ?? ""))
         .accessibilityValue(isSelected ? "Se guarda" : "No se guarda")
         .accessibilityAddTraits(.isToggle)
     }
@@ -201,5 +352,29 @@ private struct ClipRow: View {
             text += mode == .tracer ? " · corto: le falta parte del vuelo" : " · corto: le falta parte del swing"
         }
         return text
+    }
+
+    static func text(_ outcome: ShotCheck.Outcome) -> String {
+        switch outcome {
+        case .confirmed: "Gemini: es un golpe"
+        case .rejected: "Gemini: no es un golpe"
+        case .unknown: "Gemini: no lo tiene claro"
+        case .sameSwing: "Gemini: es el mismo swing que otro"
+        }
+    }
+
+    static func color(_ outcome: ShotCheck.Outcome) -> Color {
+        switch outcome {
+        case .confirmed: .bien
+        case .rejected: .rojoTrazo
+        case .unknown, .sameSwing: .texto3
+        }
+    }
+}
+
+extension Array {
+    /// El elemento en `index`, o `nil` si se sale de la lista.
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

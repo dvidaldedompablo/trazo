@@ -168,10 +168,10 @@ final class RecordModel {
     // MARK: Elegir golpes
 
     /// El usuario ha elegido qué guardar en la hoja. `selection` vacío y sin vídeo entero = descartar todo.
-    func finishChoosing(selection: [Bool], keepFullRecording: Bool) {
+    func finishChoosing(windows: [ClipWindow], keepFullRecording: Bool) {
         guard let pending else { return }
         self.pending = nil
-        guard selection.contains(true) || keepFullRecording else {
+        guard !windows.isEmpty || keepFullRecording else {
             MediaStore.removeIfPresent(pending.sourceURL)
             message = "Grabación descartada"
             return
@@ -180,7 +180,7 @@ final class RecordModel {
         phase = .saving
         work = Task {
             do {
-                let clips = try await ClipSaver.save(pending, selection: selection, keepFullRecording: keepFullRecording, in: context)
+                let clips = try await ClipSaver.save(pending, windows: windows, keepFullRecording: keepFullRecording, in: context)
                 message = clips.count == 1 ? "1 vídeo guardado en Tus vídeos" : "\(clips.count) vídeos guardados en Tus vídeos"
                 savedBatch = SavedBatch(clipIDs: clips.map(\.id))
             } catch {

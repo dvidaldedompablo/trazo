@@ -12,6 +12,9 @@ struct SettingsScreen: View {
     @AppStorage(SettingsKey.analysisSubtitles) private var subtitles = true
     @State private var taps: [Date] = []
     @State private var message: String?
+    /// La clave de Gemini mientras se escribe; al guardarla va al llavero y aquí se vacía.
+    @State private var keyDraft = ""
+    @State private var hasKey = false
 
     var body: some View {
         ScrollView {
@@ -68,6 +71,8 @@ struct SettingsScreen: View {
                     .tint(Color.pino)
                 }
 
+                geminiSection
+
                 Text("El resto de Ajustes (unidades, Mis palos, color del trazo…) llega en la etapa 9.")
                     .typeStyle(.sub)
                     .foregroundStyle(Color.pino.opacity(0.7))
@@ -99,6 +104,54 @@ struct SettingsScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .overlay(alignment: .bottom) { Toast(message: $message) }
         .sensoryFeedback(.success, trigger: diagnostics)
+        .onAppear { hasKey = KeychainStore.geminiKey != nil }
+    }
+
+    /// La clave de Gemini para el verificador de golpes (docs/10, Fase 4). Va al llavero, nunca se
+    /// enseña entera y no sale del iPhone salvo en la cabecera de cada comprobación que aceptes.
+    private var geminiSection: some View {
+        section("Comprobar golpes con Gemini") {
+            if hasKey {
+                HStack {
+                    Label("Clave guardada en el llavero", systemImage: "key.fill")
+                        .typeStyle(.etiqueta)
+                        .foregroundStyle(Color.pino)
+                    Spacer()
+                    Button("Borrar") {
+                        KeychainStore.deleteGeminiKey()
+                        hasKey = false
+                        message = "Clave borrada"
+                    }
+                    .typeStyle(.etiqueta)
+                    .foregroundStyle(Color.texto2)
+                }
+            } else {
+                SecureField("Pega aquí tu clave de Gemini", text: $keyDraft)
+                    .textContentType(.password)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .typeStyle(.cuerpo)
+                    .padding(Spacing.m)
+                    .background(Color.bola, in: RoundedRectangle(cornerRadius: Radius.thumbnailSmall, style: .continuous))
+                Button {
+                    let key = keyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if KeychainStore.saveGeminiKey(key) {
+                        hasKey = true
+                        message = "Clave guardada"
+                    } else {
+                        message = "No se ha podido guardar la clave"
+                    }
+                    keyDraft = ""
+                } label: {
+                    Text("Guardar la clave")
+                }
+                .buttonStyle(.principal)
+                .disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            Text("Al elegir los golpes de una grabación, Gemini puede mirar los fotogramas de cada sonido fuerte y decir cuáles son golpes. Antes de enviar nada te pido permiso, y solo van hojas de fotogramas: ni el vídeo ni el sonido. Con la clave gratuita de Google AI Studio (aistudio.google.com) no pagas nada; da para unas 20 comprobaciones al día. Sin red o si falla, los golpes salen solo por el sonido, como siempre.")
+                .typeStyle(.nota)
+                .foregroundStyle(Color.texto3)
+        }
     }
 
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {

@@ -5,14 +5,15 @@ import SwiftData
 /// Guarda en la biblioteca lo que el usuario ha elegido de una grabación.
 @MainActor
 enum ClipSaver {
-    /// Corta y guarda los clips elegidos. Con `keepFullRecording`, guarda también el vídeo entero;
-    /// si no, lo borra (a 240 fps ocupa mucho). Devuelve los clips guardados.
+    /// Corta y guarda los clips elegidos (los del corte automático o los que confirmó Gemini).
+    /// Con `keepFullRecording`, guarda también el vídeo entero; si no, lo borra (a 240 fps ocupa
+    /// mucho). Devuelve los clips guardados.
     @discardableResult
-    static func save(_ pending: PendingRecording, selection: [Bool], keepFullRecording: Bool,
+    static func save(_ pending: PendingRecording, windows: [ClipWindow], keepFullRecording: Bool,
                      in context: ModelContext) async throws -> [Clip] {
         try MediaStore.prepareClipsDirectory()
         var clips: [Clip] = []
-        for (window, isSelected) in zip(pending.windows, selection) where isSelected {
+        for window in windows {
             let name = MediaStore.newFileName(extension: "mov")
             try await ClipExporter.export(from: pending.sourceURL, range: window.start...window.end, to: MediaStore.url(forFile: name))
             clips.append(try await insertClip(fileName: name, mode: pending.mode, origin: pending.origin,

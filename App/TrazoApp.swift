@@ -71,6 +71,10 @@ private struct RootView: View {
             ClipPickerView(pending: DemoData.pendingRecording()) { _, _ in }
         case .autocutVoice:
             ClipPickerView(pending: DemoData.pendingVoiceRecording()) { _, _ in }
+        case .autocutCheck:
+            ClipPickerView(pending: DemoData.pendingRecording(), demoCheck: DemoData.shotCheckResult()) { _, _ in }
+        case .settings:
+            NavigationStack { SettingsScreen() }
         case .processing:
             NavigationStack { TracerProcessingView(clipID: UUID(), demo: DemoData.processingLive()) }
         case .ballTap:

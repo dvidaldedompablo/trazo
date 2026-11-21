@@ -52,8 +52,8 @@ struct RecordScreen: View {
         // a pantalla completa, así que este esquema vale solo para ella.
         .preferredColorScheme(.dark)
         .sheet(item: $model.pending) { pending in
-            ClipPickerView(pending: pending) { selection, keepFull in
-                model.finishChoosing(selection: selection, keepFullRecording: keepFull)
+            ClipPickerView(pending: pending) { chosen, keepFull in
+                model.finishChoosing(windows: chosen, keepFullRecording: keepFull)
             }
             .preferredColorScheme(.light)
             .interactiveDismissDisabled()

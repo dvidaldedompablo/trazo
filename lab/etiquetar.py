@@ -308,6 +308,10 @@ class Etiquetador:
 
     def guardar(self) -> None:
         self.datos["golpes"] = sum(1 for sw in self.datos["swings"] if sw.get("impacto") is not None)
+        # Si las etiquetas las puso Claude web (lab/claude_web.py) y aquí se corrigen, que conste.
+        autor = str(self.datos.get("autor_etiquetas", ""))
+        if self.cambios and autor.startswith("claude-web") and "revisado por el usuario" not in autor:
+            self.datos["autor_etiquetas"] = autor + ", revisado por el usuario"
         ruta = guardar_etiquetas(self.clip, self.datos)
         self.cambios = False
         self.aviso = "Guardado"
@@ -425,7 +429,8 @@ def comparar_con_modelo(datos: dict, info) -> None:
         if not m or m.get("t") is None or p.get("t") is None:
             continue
         d = fotogramas(m["t"], p["t"])
-        dentro = bool(m.get("caja")) and m["caja"][0] <= p["x"] <= m["caja"][2] and m["caja"][1] <= p["y"] <= m["caja"][3]
+        dentro = (bool(m.get("caja")) and p.get("x") is not None
+                  and m["caja"][0] <= p["x"] <= m["caja"][2] and m["caja"][1] <= p["y"] <= m["caja"][3])
         total += 1
         cambiadas += d >= 2 or not dentro
         filas.append(f"  {p['fase']:<13} modelo {m['t']:.3f}  tú {p['t']:.3f}  ({d} fotogramas, "

@@ -89,6 +89,20 @@ Si cierras la ventana con la X sin guardar, tus cambios quedan en `<clip>.sin-gu
 
 `motivo` de cada pico no se puede escribir desde la ventana: si quieres dejar una nota, edítalo en el JSON con el bloc de notas.
 
+### 3b. `claude_web.py`: etiquetas puestas por Claude web (en lugar del paso 3)
+
+Decisión del usuario (21-11-2026). Aviso: así la tabla de `evaluar.py` compara una IA con otra y no dice si aciertan de verdad; las etiquetas quedan marcadas con `"autor_etiquetas": "claude-web (...)"`.
+
+```powershell
+lab\.venv\Scripts\python lab\claude_web.py preparar
+lab\.venv\Scripts\python lab\claude_web.py importar driver-campo respuesta.txt
+```
+
+- `preparar` crea `feedback\para_claude_web\<clip>\` con las hojas de fotogramas (`01-vista-general.jpg`, `NN-swing.jpg` y `NN-impacto.jpg`) y `mensaje.txt`. En claude.ai, un chat nuevo por clip: adjunta todas las hojas de ese clip, pega el texto de `mensaje.txt` y envía.
+- A Claude web no se le enseñan las propuestas de Gemini; de ellas solo se usa el impacto para recortar el tramo del swing.
+- `importar` valida la respuesta (fotogramas enviados, fases en orden, x e y de 0 a 1000) y, si algo falla, no escribe nada. `golpes` y `musica` salen de la tabla de docs/10; `es_palo` de cada pico se deduce del impacto (Claude web no oye el audio). Deja `revision.jpg` con el palo marcado para mirarlo a ojo.
+- Si luego corriges algo con `etiquetar.py`, al guardar el autor pasa a "claude-web (...), revisado por el usuario".
+
 ## `GolfLab`
 
 Es un ejecutable aparte dentro de `Packages/GolfCore` (`Sources/GolfLab`). Llama a la lógica real y escribe JSON; no cambia nada de ella y la app no lo enlaza.

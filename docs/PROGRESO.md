@@ -424,3 +424,16 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
 - Mejora sin llamadas nuevas (todo sale de la caché): entre fotogramas empatados se elige el que representa la posición de la app (el último de la preparación y del takeaway; el del medio en mitad de subida, top y bajada), solo cerca del impacto, y el top del palo es el mismo fotograma que el top del swing.
 - Revisado a ojo (cajas dibujadas sobre los 15 fotogramas): las fases parecen razonables; **las cajas de la cabeza del palo casi nunca aciertan** (unas 3 de 15 cerca; en el driver, ninguna). Para la Fase 2: probar el palo con un fotograma por imagen en vez de hojas en mosaico, y SAM 2.1 con el toque del usuario.
 - PARADA 1: el usuario etiqueta los 3 clips con `lab/etiquetar.py` y apunta cuántas propuestas del modelo ha corregido (la herramienta lo cuenta al guardar).
+
+### Fase 1, PARADA 1: las etiquetas las pone Claude web (21-11-2026)
+- El usuario no quiere etiquetar a mano y ha elegido que lo haga Claude web, después de que se le avisara de que entonces la tabla compara una IA con otra y no dice si aciertan de verdad (docs/10, regla 3: las etiquetas del usuario son la verdad). Le ofrecí dos opciones con menos trabajo (modo guiado y solo lo mínimo) y prefirió Claude web.
+- Para que la comparación valga lo más posible:
+  - A Claude web no se le enseñan las propuestas de Gemini (modelo A). De A solo se usa su impacto para recortar el tramo del swing. Claude web (Anthropic) es de otra familia que Gemini, que es el modelo B evaluado.
+  - Las etiquetas importadas llevan `"autor_etiquetas": "claude-web (<modelo>)"`. `evaluar.py` tendrá que decirlo en cada tabla, además del aviso de la regla 7.
+  - `golpes` (1 en los 3) y `musica` (sí en las dos stories) salen de la tabla de docs/10, que escribió el usuario. El driver queda sin música porque la tabla no lo dice.
+  - `picos[].es_palo` se deduce: es palo el pico más cercano al impacto de Claude web si está a 0,15 s o menos (no puede oír el audio).
+- `lab/claude_web.py`:
+  - `preparar`: hojas de 8 fotogramas a casi tamaño real, con el número de fotograma, el instante y marcas cada 100 (escala de 0 a 1000) en los bordes. Lleva una vista general, el tramo del swing (de 2,0 s antes a 0,3 s después del impacto, a unos 30 fotogramas por segundo) y una hoja con todos los fotogramas de alrededor del impacto. Más `mensaje.txt` con las 5 posiciones de docs/04. Salen 10, 9 y 11 imágenes (driver, story1, story2) en `feedback/para_claude_web/`, que está ignorado.
+  - `importar`: valida y, si algo falla, no escribe nada. Probado con una respuesta inventada válida y otra con errores, y el archivo de etiquetas se restauró después.
+- `etiquetar.py`: si se corrigen etiquetas de Claude web, el autor pasa a "revisado por el usuario". El recuento de cambios ya no falla con un palo sin punto.
+- Pendiente: el usuario pasa las hojas a claude.ai (un chat por clip) y trae las 3 respuestas; se importan, se revisa `revision.jpg` y se sigue con el paso 5 (`scripts/evaluar.py`).

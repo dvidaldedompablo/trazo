@@ -22,21 +22,30 @@ enum PhotoLibrary {
     static func saveVideo(at url: URL) async throws {
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else { throw PhotoLibraryError.denied }
+        let now = Date.now
         try await PHPhotoLibrary.shared().performChanges {
             let request = PHAssetCreationRequest.forAsset()
             request.addResource(with: .video, fileURL: url, options: nil)
+            // Con la fecha de hoy: si no, Fotos lo coloca en el día en que se grabó el vídeo original
+            // y parece que no se ha guardado (lo vimos con varios clips de stories de otros días).
+            request.creationDate = now
         }
     }
 
     /// Guarda varios vídeos en Fotos de una vez, en una sola operación: o entran todos o ninguno.
-    /// (Antes se guardaban uno detrás de otro, pidiendo permiso cada vez, y con 9 solo entraba uno.)
+    /// Cada copia lleva la fecha de ahora, un segundo después de la anterior: así salen todas juntas al
+    /// final de Fotos, en el orden en que llegan. Con la fecha original de cada grabación, Fotos
+    /// las repartía por sus días y solo se veía una al final (vídeo del usuario, 22-11-2026: Fotos
+    /// pasó de 6.910 a 6.916 elementos, así que sí se guardaban las 6).
     static func saveVideos(at urls: [URL]) async throws {
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else { throw PhotoLibraryError.denied }
+        let start = Date.now
         try await PHPhotoLibrary.shared().performChanges {
-            for url in urls {
+            for (index, url) in urls.enumerated() {
                 let request = PHAssetCreationRequest.forAsset()
                 request.addResource(with: .video, fileURL: url, options: nil)
+                request.creationDate = start.addingTimeInterval(Double(index))
             }
         }
     }

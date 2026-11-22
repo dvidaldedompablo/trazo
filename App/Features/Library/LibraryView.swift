@@ -353,7 +353,8 @@ struct LibraryView: View {
         var saved = 0
         var lastError: String?
         do {
-            try await PhotoLibrary.saveVideos(at: files)
+            // Del más antiguo al más reciente: en Fotos quedan en el orden en que se grabaron.
+            try await PhotoLibrary.saveVideos(at: Array(files.reversed()))
             saved = files.count
         } catch PhotoLibraryError.denied {
             saveReport = PhotoLibraryError.denied.errorDescription

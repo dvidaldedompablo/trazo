@@ -87,7 +87,7 @@ func crop(_ image: GrayImage, _ rect: PixelRect) -> GrayImage? {
 
 func write<T: Encodable>(_ value: T) throws {
     let encoder = JSONEncoder()
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
     FileHandle.standardOutput.write(try encoder.encode(value))
     FileHandle.standardOutput.write(Data("\n".utf8))
 }
@@ -453,6 +453,40 @@ func swingDecision(duration: Double, impact: Double?, width: Int, height: Int, p
     }
 }
 
+// MARK: - catalogo: el catálogo de ejercicios en JSON (assets/ejercicios/catalogo.json)
+
+struct CatalogEntry: Encodable {
+    let id: String
+    let numero: Int
+    let fallo: String
+    let que_se_ve: String
+    let ejercicio: String
+    let material: String
+    let repeticiones: String
+    let que_debe_sentir: String
+    let error_tipico: String
+    let camara: String
+    let imagen: String
+    let clip: String
+    let tiene_clip: Bool
+    let revisado_por_profesional: Bool
+    /// Fallos del análisis que lo detectan (vacío: aún no se puede medir).
+    let lo_detecta: [String]
+    /// Se enseña al usuario: el análisis lo mide con la cámara de detrás, la que usa la app.
+    let se_puede_medir: Bool
+}
+
+func catalog() -> [CatalogEntry] {
+    ExerciseCatalog.all.map { e in
+        CatalogEntry(id: e.id, numero: e.number, fallo: e.fault, que_se_ve: e.whatYouSee, ejercicio: e.exercise,
+                     material: e.equipment, repeticiones: e.repetitions, que_debe_sentir: e.feeling,
+                     error_tipico: e.typicalMistake, camara: e.camera.rawValue, imagen: "assets/ejercicios/\(e.imageFile)",
+                     clip: "assets/ejercicios/\(e.clipFile)", tiene_clip: e.hasClip,
+                     revisado_por_profesional: e.reviewedByProfessional, lo_detecta: e.detectedBy.map(\.rawValue),
+                     se_puede_medir: e.isMeasurable(with: .behind))
+    }
+}
+
 // MARK: - Arranque
 
 do {
@@ -513,6 +547,8 @@ do {
         guard a.count == 8, let seconds = Double(a[2]), let width = Int(a[4]), let height = Int(a[5]) else { throw LabError.usage }
         try write(swingDecision(duration: seconds, impact: impactArgument(a[3]), width: width, height: height,
                                 positionsPath: a[6], bodyPath: a[7]))
+    case "catalogo":
+        try write(catalog())
     case "verificar-decidir":
         guard a.count >= 4, let seconds = Double(a[3]) else { throw LabError.usage }
         try write(try checkDecision(audioPath: a[2], duration: seconds, responsePaths: Array(a[4...])))

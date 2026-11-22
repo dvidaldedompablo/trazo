@@ -1,0 +1,303 @@
+[
+  {
+    "camara" : "detras",
+    "clip" : "assets/ejercicios/takeaway_dentro.mp4",
+    "ejercicio" : "Pon una varilla en el suelo, paralela a la línea hacia el objetivo. Al subir, la cabeza del palo pasa por encima de la varilla hasta que el palo queda paralelo al suelo.",
+    "error_tipico" : "Girar las muñecas al empezar, que mete el palo hacia dentro.",
+    "fallo" : "Takeaway por dentro",
+    "id" : "takeaway_dentro",
+    "imagen" : "assets/ejercicios/takeaway_dentro.png",
+    "lo_detecta" : [
+      "takeawayInside"
+    ],
+    "material" : "Una varilla de alineación o un palo en el suelo",
+    "numero" : 1,
+    "que_debe_sentir" : "Que el palo sale recto hacia atrás y las manos y la cabeza del palo se mueven juntas.",
+    "que_se_ve" : "Al empezar a subir, la cabeza del palo se va enseguida hacia detrás del cuerpo, por detrás de las manos.",
+    "repeticiones" : "10 subidas lentas y 10 golpes",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : true,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "detras",
+    "clip" : "assets/ejercicios/takeaway_fuera.mp4",
+    "ejercicio" : "Pon una funda de palo justo fuera y detrás de la bola. Al subir, el palo no debe tocarla.",
+    "error_tipico" : "Empujar el palo con los brazos en vez de girar los hombros.",
+    "fallo" : "Takeaway por fuera",
+    "id" : "takeaway_fuera",
+    "imagen" : "assets/ejercicios/takeaway_fuera.png",
+    "lo_detecta" : [
+      "takeawayOutside"
+    ],
+    "material" : "Una funda de palo o una varilla",
+    "numero" : 2,
+    "que_debe_sentir" : "Que el palo empieza a subir pegado a la línea y gira con el cuerpo.",
+    "que_se_ve" : "Al empezar a subir, la cabeza del palo se aleja del cuerpo, hacia fuera de la línea de la bola.",
+    "repeticiones" : "10 subidas lentas y 10 golpes",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : true,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "detras",
+    "clip" : "assets/ejercicios/subida_vertical.mp4",
+    "ejercicio" : "Haz swings lentos sintiendo que las manos van más alrededor del cuerpo y menos hacia arriba.",
+    "error_tipico" : "Levantar los brazos sin girar el cuerpo.",
+    "fallo" : "Subida vertical",
+    "id" : "subida_vertical",
+    "imagen" : "assets/ejercicios/subida_vertical.png",
+    "lo_detecta" : [
+      "steepMidBackswing"
+    ],
+    "material" : "Solo el palo",
+    "numero" : 3,
+    "que_debe_sentir" : "Que las manos giran alrededor del cuerpo, como si rodearas un barril.",
+    "que_se_ve" : "A mitad de la subida, el palo apunta muy hacia arriba y las manos suben pegadas a la cabeza.",
+    "repeticiones" : "10 swings lentos",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : true,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "detras",
+    "clip" : "assets/ejercicios/subida_plana.mp4",
+    "ejercicio" : "Haz swings lentos sintiendo que las manos suben más cerca de la cabeza.",
+    "error_tipico" : "Girar las muñecas hacia dentro al empezar la subida.",
+    "fallo" : "Subida plana",
+    "id" : "subida_plana",
+    "imagen" : "assets/ejercicios/subida_plana.png",
+    "lo_detecta" : [
+      "flatMidBackswing"
+    ],
+    "material" : "Solo el palo",
+    "numero" : 4,
+    "que_debe_sentir" : "Que las manos suben por delante del pecho y no por detrás.",
+    "que_se_ve" : "A mitad de la subida, el palo queda muy tumbado y las manos se van hacia detrás del cuerpo.",
+    "repeticiones" : "10 swings lentos",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : true,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "ambas",
+    "clip" : "assets/ejercicios/ritmo_rapido.mp4",
+    "ejercicio" : "Cuenta en voz alta \"uno, dos, tres\" mientras subes y \"cuatro\" al golpear la bola.",
+    "error_tipico" : "Contar deprisa: el ritmo de la cuenta también tiene que ser lento.",
+    "fallo" : "Ritmo rápido",
+    "id" : "ritmo_rapido",
+    "imagen" : "assets/ejercicios/ritmo_rapido.png",
+    "lo_detecta" : [
+      "fastTempo"
+    ],
+    "material" : "Solo el palo",
+    "numero" : 5,
+    "que_debe_sentir" : "Que la subida es tranquila y la velocidad llega al bajar.",
+    "que_se_ve" : "La subida dura muy poco comparada con la bajada: el swing parece un tirón.",
+    "repeticiones" : "10 swings contando",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : true,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "ambas",
+    "clip" : "assets/ejercicios/transicion_brusca.mp4",
+    "ejercicio" : "Haz swings parando un segundo arriba del todo antes de empezar a bajar.",
+    "error_tipico" : "Hacer la pausa demasiado corta o no llegar a terminar la subida.",
+    "fallo" : "Transición brusca",
+    "id" : "transicion_brusca",
+    "imagen" : "assets/ejercicios/transicion_brusca.png",
+    "lo_detecta" : [
+
+    ],
+    "material" : "Solo el palo",
+    "numero" : 6,
+    "que_debe_sentir" : "Que arriba hay un momento de calma y la bajada empieza suave.",
+    "que_se_ve" : "Arriba del todo, el palo cambia de dirección de golpe, sin un instante de calma.",
+    "repeticiones" : "10 swings con pausa",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : false,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "detras",
+    "clip" : "assets/ejercicios/cadera_adelante.mp4",
+    "ejercicio" : "Ponte con el culo tocando una silla o una pared. Mantén ese contacto durante la subida y la bajada.",
+    "error_tipico" : "Separarse de la silla justo antes de golpear.",
+    "fallo" : "La cadera se adelanta hacia la bola",
+    "id" : "cadera_adelante",
+    "imagen" : "assets/ejercicios/cadera_adelante.png",
+    "lo_detecta" : [
+      "earlyExtension"
+    ],
+    "material" : "Una silla o una pared detrás",
+    "numero" : 7,
+    "que_debe_sentir" : "Que el culo se queda atrás y el cuerpo gira sin levantarse.",
+    "que_se_ve" : "Al bajar, el culo se separa de donde estaba y la cadera se acerca a la bola: el cuerpo se levanta.",
+    "repeticiones" : "10 swings lentos y 5 golpes",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : true,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "frente",
+    "clip" : "assets/ejercicios/deslizamiento_cadera.mp4",
+    "ejercicio" : "Clava una varilla en el suelo, justo por fuera de la cadera de atrás. Al subir, la cadera gira sin tocarla.",
+    "error_tipico" : "Tocar la varilla al llegar arriba del todo.",
+    "fallo" : "La cadera se desliza al subir",
+    "id" : "deslizamiento_cadera",
+    "imagen" : "assets/ejercicios/deslizamiento_cadera.png",
+    "lo_detecta" : [
+
+    ],
+    "material" : "Una varilla de alineación clavada en el suelo",
+    "numero" : 8,
+    "que_debe_sentir" : "Que la cadera gira sobre sí misma, como una puerta, sin irse de lado.",
+    "que_se_ve" : "Al subir, la cadera se mueve de lado hacia atrás en vez de girar.",
+    "repeticiones" : "10 subidas lentas",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : false,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "ambas",
+    "clip" : "assets/ejercicios/brazos_separados.mp4",
+    "ejercicio" : "Pon una toalla bajo las dos axilas. Haz el swing sin que se caiga.",
+    "error_tipico" : "Apretar tanto los brazos que el swing queda rígido.",
+    "fallo" : "Brazos separados del cuerpo",
+    "id" : "brazos_separados",
+    "imagen" : "assets/ejercicios/brazos_separados.png",
+    "lo_detecta" : [
+      "handsFarFromBody"
+    ],
+    "material" : "Una toalla pequeña",
+    "numero" : 9,
+    "que_debe_sentir" : "Que los brazos y el pecho giran juntos.",
+    "que_se_ve" : "Los brazos se alejan del pecho y se mueven por su cuenta, sin ir con el cuerpo.",
+    "repeticiones" : "10 swings cortos",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : true,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "frente",
+    "clip" : "assets/ejercicios/poco_giro_hombros.mp4",
+    "ejercicio" : "Cruza un palo sobre el pecho. Gira hasta que el hombro de delante quede bajo la barbilla.",
+    "error_tipico" : "Inclinar los hombros en vez de girarlos.",
+    "fallo" : "Poco giro de hombros",
+    "id" : "poco_giro_hombros",
+    "imagen" : "assets/ejercicios/poco_giro_hombros.png",
+    "lo_detecta" : [
+
+    ],
+    "material" : "Un palo",
+    "numero" : 10,
+    "que_debe_sentir" : "Que la espalda acaba mirando al objetivo.",
+    "que_se_ve" : "Arriba del todo, la espalda casi no mira al objetivo: los hombros han girado poco.",
+    "repeticiones" : "10 giros lentos a cada lado",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : false,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "frente",
+    "clip" : "assets/ejercicios/transferencia_peso.mp4",
+    "ejercicio" : "Junta los pies. Al empezar a bajar, da un paso con el pie de delante hacia el objetivo y golpea.",
+    "error_tipico" : "Dar el paso tarde, cuando ya estás golpeando.",
+    "fallo" : "Poca transferencia de peso",
+    "id" : "transferencia_peso",
+    "imagen" : "assets/ejercicios/transferencia_peso.png",
+    "lo_detecta" : [
+
+    ],
+    "material" : "Solo el palo",
+    "numero" : 11,
+    "que_debe_sentir" : "Que el peso pasa al pie de delante antes de golpear.",
+    "que_se_ve" : "Al golpear, el peso sigue en el pie de atrás y el cuerpo se queda atrás.",
+    "repeticiones" : "10 swings con el paso",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : false,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "ambas",
+    "clip" : "assets/ejercicios/equilibrio_final.mp4",
+    "ejercicio" : "Termina cada swing y aguanta la posición final tres segundos sin moverte.",
+    "error_tipico" : "Swing tan fuerte que no puedes quedarte quieto.",
+    "fallo" : "Pérdida de equilibrio en el final",
+    "id" : "equilibrio_final",
+    "imagen" : "assets/ejercicios/equilibrio_final.png",
+    "lo_detecta" : [
+      "unbalancedFinish",
+      "shortFinish"
+    ],
+    "material" : "Solo el palo",
+    "numero" : 12,
+    "que_debe_sentir" : "Que acabas con el peso en el pie de delante y el pecho mirando al objetivo.",
+    "que_se_ve" : "Al terminar el swing, el jugador da un paso o se tambalea.",
+    "repeticiones" : "10 swings aguantando el final",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : true,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "ambas",
+    "clip" : "assets/ejercicios/cabeza_se_mueve.mp4",
+    "ejercicio" : "Fija la vista en un punto de la bola. Mantenla ahí hasta después de golpear.",
+    "error_tipico" : "Levantar la cabeza para ver adónde va la bola.",
+    "fallo" : "La cabeza se mueve",
+    "id" : "cabeza_se_mueve",
+    "imagen" : "assets/ejercicios/cabeza_se_mueve.png",
+    "lo_detecta" : [
+      "headMovement"
+    ],
+    "material" : "Solo el palo y una bola",
+    "numero" : 13,
+    "que_debe_sentir" : "Que la cabeza se queda quieta y el cuerpo gira debajo.",
+    "que_se_ve" : "Durante el swing, la cabeza sube, baja o se va de lado.",
+    "repeticiones" : "10 golpes",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : true,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "frente",
+    "clip" : "assets/ejercicios/manos_atras.mp4",
+    "ejercicio" : "Haz golpes cortos con el mango por delante de la bola en el momento de golpear.",
+    "error_tipico" : "Echar la bola hacia arriba con las muñecas.",
+    "fallo" : "Impacto con las manos atrás",
+    "id" : "manos_atras",
+    "imagen" : "assets/ejercicios/manos_atras.png",
+    "lo_detecta" : [
+
+    ],
+    "material" : "Palo y bola",
+    "numero" : 14,
+    "que_debe_sentir" : "Que las manos llegan a la bola antes que la cabeza del palo.",
+    "que_se_ve" : "Al golpear, las manos van por detrás de la bola y el palo se inclina hacia atrás.",
+    "repeticiones" : "10 golpes cortos",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : false,
+    "tiene_clip" : true
+  },
+  {
+    "camara" : "detras",
+    "clip" : "assets/ejercicios/bajada_por_fuera.mp4",
+    "ejercicio" : "Pon una funda de palo por fuera de la bola. Al bajar, el palo llega desde dentro sin tocarla.",
+    "error_tipico" : "Empezar la bajada con los hombros, que lanza el palo hacia fuera.",
+    "fallo" : "Bajada por fuera",
+    "id" : "bajada_por_fuera",
+    "imagen" : "assets/ejercicios/bajada_por_fuera.png",
+    "lo_detecta" : [
+      "steepDownswing"
+    ],
+    "material" : "Una funda de palo",
+    "numero" : 15,
+    "que_debe_sentir" : "Que el palo baja por detrás de las manos y llega a la bola desde dentro.",
+    "que_se_ve" : "Al empezar a bajar, el palo sale hacia fuera y baja por encima, cruzando la línea de la bola.",
+    "repeticiones" : "10 swings lentos y 10 golpes",
+    "revisado_por_profesional" : false,
+    "se_puede_medir" : true,
+    "tiene_clip" : true
+  }
+]

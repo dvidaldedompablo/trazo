@@ -740,3 +740,4 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   - Ahora entran todos en una sola operación (`PhotoLibrary.saveVideos`). Si falla, se reintenta uno a uno, y un aviso que no se va solo dice cuántos han entrado y por qué no el resto.
   - Compartir usa la hoja del iPhone (`ShareSheet`, `UIActivityViewController`) en vez de `ShareLink`.
 - Captura nueva: `library-select`.
+- Guardar varios, segunda parte. En la grabación de pantalla del usuario (22-11-2026, 20:35), Fotos pasó de 6.910 a 6.916 elementos al guardar 6: sí se guardaban todos. Fotos los colocaba en el día en que se grabó cada vídeo original y por eso solo se veía uno al final. Ahora cada copia lleva la fecha de hoy (`creationDate`), un segundo después de la anterior y del más antiguo al más reciente, así que salen juntas al final de Fotos.

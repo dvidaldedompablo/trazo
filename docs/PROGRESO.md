@@ -724,3 +724,19 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
 | Errores claros (permisos, espacio, audio, vídeo corto, interrupciones, segundo plano) | Hecho en código | Etapa 10. **iPhone**: bloquear a mitad de un vídeo |
 | Accesibilidad: Dynamic Type, VoiceOver, Reducir movimiento | Hecho en código | Estilos con `relativeTo`, etiquetas en botones y asas, y `accessibilityReduceMotion` en Inicio y en el proceso. **iPhone**: un repaso con VoiceOver |
 | Ninguna llamada de red salvo la excepción escrita; nada personal en el repo | Hecho | Solo Gemini, con clave en el llavero y el aviso o el interruptor. `git check-ignore` antes de cada commit |
+
+### Tus vídeos: Seleccionar, deslizar y guardar varios (22-11-2026)
+- El usuario lo pidió con una captura de su iPhone: "Seleccionar" como en la galería de Fotos.
+- Funciona así:
+  - "Seleccionar" pasa a "Cancelar" y el título dice cuántos vídeos hay elegidos; también hay "Seleccionar todo";
+  - cada vídeo elegido lleva un visto;
+  - abajo hay una barra de cristal con Compartir, el número, Guardar en Fotos y Borrar (con confirmación).
+- Deslizar para seleccionar (`SwipeSelect.swift`), con un gesto de UIKit (`UIGestureRecognizerRepresentable`):
+  - empieza solo si el dedo sale de lado, y entonces corta el arrastre de la lista;
+  - marca el tramo entre el primer vídeo y el dedo; si empiezas en uno marcado, desmarca;
+  - en los bordes, la lista se desplaza sola.
+  - Primer intento con `DragGesture` + `scrollDisabled`: el usuario vio que solo llegaba a los 9 primeros, porque `scrollDisabled` también bloqueaba el desplazamiento automático.
+- Guardar varios: el usuario eligió 9 y solo entró 1 en Fotos.
+  - Ahora entran todos en una sola operación (`PhotoLibrary.saveVideos`). Si falla, se reintenta uno a uno, y un aviso que no se va solo dice cuántos han entrado y por qué no el resto.
+  - Compartir usa la hoja del iPhone (`ShareSheet`, `UIActivityViewController`) en vez de `ShareLink`.
+- Captura nueva: `library-select`.

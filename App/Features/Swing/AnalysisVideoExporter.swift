@@ -85,6 +85,10 @@ enum AnalysisVideoExporter {
         var exerciseTrack: AVMutableCompositionTrack?
         var exerciseTransforms: [(CMTime, CGAffineTransform)] = []
         var missingClips: [String] = []
+        // Los AVURLAsset de los ejercicios tienen que seguir vivos hasta exportar: una pista
+        // (AVAssetTrack) solo guarda una referencia débil a su asset, y si este se libera,
+        // insertTimeRange falla con el error -12780.
+        var exerciseAssets: [AVURLAsset] = []
         guard let videoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
               let audioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
         else { throw MediaError.exportFailed("montaje") }
@@ -131,12 +135,14 @@ enum AnalysisVideoExporter {
                 videoTrack.insertEmptyTimeRange(CMTimeRange(start: time(block.start), duration: time(block.duration)))
                 guard let index = Self.improvementIndex(kind), index < improvementItems.count else { break }
                 let exercise = improvementItems[index].exercise
-                guard !leaveOut.contains(.exercises), exercise.hasClip, let url = ExerciseAssets.url(exercise.clipFile),
-                      let source = try? await AVURLAsset(url: url).loadTracks(withMediaType: .video).first
+                let exerciseAsset = ExerciseAssets.url(exercise.clipFile).map { AVURLAsset(url: $0) }
+                guard !leaveOut.contains(.exercises), exercise.hasClip, let exerciseAsset,
+                      let source = try? await exerciseAsset.loadTracks(withMediaType: .video).first
                 else {
                     missingClips.append(exercise.id)
                     break
                 }
+                exerciseAssets.append(exerciseAsset)
                 if exerciseTrack == nil {
                     exerciseTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
                 }
@@ -180,36 +186,34 @@ enum AnalysisVideoExporter {
                                            of: voiceTrack, at: .zero)
         }
 
+        // Una pista de audio vacía hace fallar la exportación (-11838): si no hay voz, fuera.
+        if audioTrack.segments.isEmpty { composition.removeTrack(audioTrack) }
+
         // 5. Los gráficos encima (telestrador, chips, subtítulos y tarjetas).
-        let videoLayer = CALayer()
-        videoLayer.frame = CGRect(x: 0, y: 0, width: VideoLayers.width, height: VideoLayers.height)
         let overlay = try Self.overlayLayer(analysis: analysis, measurements: measurements, score: score,
                                             script: script, blocks: blocks, voice: voice, total: total,
                                             swingStart: swingStart, slowMotionFactor: slowMotionFactor,
                                             subtitles: subtitles, improvementItems: improvementItems,
                                             missingClips: missingClips)
-        let parent = CALayer()
-        parent.frame = videoLayer.frame
-        parent.isGeometryFlipped = true
-        parent.addSublayer(videoLayer)
-        parent.addSublayer(overlay)
-
         let videoComposition = AVMutableVideoComposition()
         videoComposition.renderSize = CGSize(width: VideoLayers.width, height: VideoLayers.height)
         videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
-        if !leaveOut.contains(.overlay) { videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(postProcessingAsVideoLayer: videoLayer, in: parent) }
         let instruction = AVMutableVideoCompositionInstruction()
         instruction.timeRange = CMTimeRange(start: .zero, duration: time(total))
         let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
         // El vídeo grabado lleva su giro en el transform: se aplica para verlo derecho.
         layerInstruction.setTransform(preferredTransform, at: .zero)
-        instruction.layerInstructions = [layerInstruction]
+        var layers = [layerInstruction]
         if let exerciseTrack {
             // La pista de los ejercicios va encima de la del swing.
             let exerciseLayer = AVMutableVideoCompositionLayerInstruction(assetTrack: exerciseTrack)
             for (at, transform) in exerciseTransforms { exerciseLayer.setTransform(transform, at: at) }
-            instruction.layerInstructions = [exerciseLayer, layerInstruction]
+            layers.insert(exerciseLayer, at: 0)
         }
+        if !leaveOut.contains(.overlay) {
+            layers.insert(VideoLayers.attachOverlay(overlay, to: videoComposition, composition: composition), at: 0)
+        }
+        instruction.layerInstructions = layers
         videoComposition.instructions = [instruction]
 
         // 6. Exportar en H.264 con AAC.
@@ -235,6 +239,8 @@ enum AnalysisVideoExporter {
         } catch {
             throw MediaError.exportFailed("montaje: " + describeError(error))
         }
+        // El clip, la voz y los ejercicios, vivos hasta aquí (ver exerciseAssets).
+        withExtendedLifetime((asset, voiceAsset, exerciseAssets)) {}
 
         // 7. Que quepa para reenviarlo: H.264 + AAC, 1080p, menos de 16 MB. Si para caber la calidad
         //    baja mucho, también una versión ligera en 720p (petición del usuario, 22-11-2026).

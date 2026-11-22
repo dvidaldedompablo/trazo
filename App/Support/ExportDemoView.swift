@@ -19,6 +19,9 @@ struct ExportDemoView: View {
         ("sin capas, ejercicios ni voz", true, [.overlay, .exercises, .voice, .compression]),
     ]
 
+    /// `-DemoVariant 9`: el vídeo del tracer (etapa 5) con la curva de demostración.
+    static let tracerVariant = 9
+
     var body: some View {
         Text(status)
             .typeStyle(.sub)
@@ -45,6 +48,10 @@ struct ExportDemoView: View {
         }
         guard let clip = Bundle.main.url(forResource: "demo_swing", withExtension: "mp4") else {
             finish("error: falta demo_swing.mp4 en la app")
+            return
+        }
+        if UserDefaults.standard.integer(forKey: "DemoVariant") == Self.tracerVariant {
+            await exportTracer(clip: clip, finish: finish)
             return
         }
         note("[\(variant.name)] probando la voz")
@@ -74,6 +81,31 @@ struct ExportDemoView: View {
                    + (output.missingClips.isEmpty ? "ninguno" : output.missingClips.joined(separator: ", ")))
         } catch {
             finish("error [\(variant.name)]: \(describeError(error)) · último paso: \(status) · \(voice)")
+        }
+    }
+
+    /// El vídeo del tracer sobre el clip de demostración: la curva de la captura, pasada al tamaño del
+    /// clip, con la distancia del hierro 7 y la marca de agua. El clip acaba antes de que caiga la bola,
+    /// así que también prueba el último fotograma congelado.
+    private func exportTracer(clip: URL, finish: (String) -> Void) async {
+        let analysis = DemoData.reviewAnalysis()
+        let sx = 1080 / Double(analysis.videoWidth), sy = 1920 / Double(analysis.videoHeight)
+        var curve = analysis.outcome.curve
+        for keyPath in [\TracerCurve.launch, \TracerCurve.apex, \TracerCurve.landing] {
+            curve[keyPath: keyPath] = Point2D(curve[keyPath: keyPath].x * sx, curve[keyPath: keyPath].y * sy)
+        }
+        let edit = TracerEdit(curve: curve, colorRaw: TracerColorChoice.rojoTV.rawValue,
+                              customColorHex: Int(TracerPalette.customDefaultHex), showsDistance: true,
+                              manualDistanceMeters: nil, clubName: "Hierro 7", clubDistanceMeters: 150)
+        let started = Date.now
+        do {
+            let video = try await TracerVideoExporter.export(clipURL: clip, impactTime: 1.2, edit: edit, units: "m", watermark: true)
+            let target = URL.documentsDirectory.appending(path: "demo-tracer.mp4")
+            try? FileManager.default.removeItem(at: target)
+            try FileManager.default.copyItem(at: video.url, to: target)
+            finish("ok [tracer] en \(Int(Date.now.timeIntervalSince(started))) s · \(SpanishFormat.number(video.duration, decimals: 1)) s de vídeo")
+        } catch {
+            finish("error [tracer]: \(describeError(error))")
         }
     }
 }

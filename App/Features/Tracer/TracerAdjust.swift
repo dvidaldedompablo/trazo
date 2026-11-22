@@ -312,23 +312,16 @@ enum TracerVideoExporter {
 
         let overlay = overlayLayer(edit: edit, impactTime: impactTime, total: total, scale: scale, render: render,
                                    units: units, watermark: watermark)
-        let videoLayer = CALayer()
-        videoLayer.frame = CGRect(origin: .zero, size: render)
-        let parent = CALayer()
-        parent.frame = videoLayer.frame
-        parent.isGeometryFlipped = true
-        parent.addSublayer(videoLayer)
-        parent.addSublayer(overlay)
-
         let videoComposition = AVMutableVideoComposition()
         videoComposition.renderSize = render
         videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
-        videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(postProcessingAsVideoLayer: videoLayer, in: parent)
         let instruction = AVMutableVideoCompositionInstruction()
         instruction.timeRange = CMTimeRange(start: .zero, duration: time(total))
         let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
         layerInstruction.setTransform(transform.concatenating(CGAffineTransform(scaleX: scale, y: scale)), at: .zero)
-        instruction.layerInstructions = [layerInstruction]
+        // El trazo va como pista aparte encima del vídeo (ver VideoLayers.attachOverlay).
+        let overlayInstruction = VideoLayers.attachOverlay(overlay, to: videoComposition, composition: composition)
+        instruction.layerInstructions = [overlayInstruction, layerInstruction]
         videoComposition.instructions = [instruction]
 
         guard let session = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality)
@@ -342,6 +335,8 @@ enum TracerVideoExporter {
         } catch {
             throw MediaError.exportFailed("tracer: " + describeError(error))
         }
+        // La pista solo guarda una referencia débil a su asset: tiene que seguir vivo hasta aquí.
+        withExtendedLifetime(asset) {}
         return (output, total)
     }
 

@@ -15,6 +15,26 @@ enum VideoLayers {
     /// Márgenes de seguridad (docs/02): 90 px a los lados, 160 arriba, 220 abajo.
     static let sideMargin: CGFloat = 90
 
+    /// Pone las capas animadas encima del vídeo como una pista más (`additionalLayer:asTrackID:`) y
+    /// devuelve su instrucción, que va la primera (arriba del todo).
+    /// No se usa `postProcessingAsVideoLayer:in:`: hace que el compositor de vídeo de iOS se cierre de
+    /// golpe a mitad de exportación en el simulador (lo vimos en el CI) y, según el foro de Apple
+    /// (hilo 133681), también en algunos iPhone. Con la capa como pista aparte funciona en los dos.
+    static func attachOverlay(_ overlay: CALayer, to videoComposition: AVMutableVideoComposition,
+                              composition: AVMutableComposition) -> AVMutableVideoCompositionLayerInstruction {
+        let container = CALayer()
+        container.frame = CGRect(origin: .zero, size: videoComposition.renderSize)
+        // Core Animation dibuja el vídeo con el origen abajo: se da la vuelta para pensar en px de arriba abajo.
+        container.isGeometryFlipped = true
+        overlay.frame = container.bounds
+        container.addSublayer(overlay)
+        let trackID = composition.unusedTrackID()
+        videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(additionalLayer: container, asTrackID: trackID)
+        let instruction = AVMutableVideoCompositionLayerInstruction()
+        instruction.trackID = trackID
+        return instruction
+    }
+
     // MARK: Piezas básicas
 
     /// Texto como capa, con la fuente ya resuelta (Archivo o SF) y tamaño en píxeles de vídeo.

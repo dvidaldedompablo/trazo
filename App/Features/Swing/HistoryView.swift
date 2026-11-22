@@ -102,7 +102,18 @@ struct HistoryView: View {
         VStack(alignment: .leading, spacing: Spacing.s) {
             Text(title).typeStyle(.etiqueta).foregroundStyle(Color.pino)
             Text(unit).typeStyle(.nota).foregroundStyle(Color.texto3)
-            chart().frame(height: 180)
+            chart()
+                // Fechas en español ("25 oct") aunque el iPhone esté en otro idioma, y margen a los
+                // lados para que la última etiqueta no se corte.
+                .chartXAxis {
+                    AxisMarks(values: .automatic(desiredCount: 4)) {
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                    }
+                }
+                .chartXScale(range: .plotDimension(padding: 18))
+                .environment(\.locale, Locale(identifier: "es_ES"))
+                .frame(height: 180)
         }
         .padding(Spacing.l)
         .background(Color.papel, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))

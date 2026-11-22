@@ -35,16 +35,29 @@ run_variant() {
   } >> ci-video/resultado.txt
   if [ "$state" = "la app se cerró" ]; then
     # El informe de fallo más reciente de Trazo, posterior al arranque.
-    local report
-    report=$(find "$REPORTS" -name 'Trazo*' -newer "$marker" 2>/dev/null | head -1)
+    # El informe tarda unos segundos en escribirse.
+    local report=""
+    for _ in $(seq 1 20); do
+      report=$(find "$REPORTS" -name 'Trazo*' -newer "$marker" 2>/dev/null | head -1)
+      [ -n "$report" ] && break
+      sleep 1
+    done
     if [ -n "$report" ]; then
       cp "$report" "ci-video/fallo-variante-$variant.ips"
       echo "informe de fallo: fallo-variante-$variant.ips" >> ci-video/resultado.txt
+      # Las primeras líneas del hilo que falló, para leerlas en el registro sin bajar nada.
+      grep -m1 -A3 '"exception"' "$report" >> ci-video/resultado.txt || true
+    else
+      echo "sin informe de fallo en $REPORTS" >> ci-video/resultado.txt
     fi
+    xcrun simctl spawn "$UDID" log show --last 3m --style compact       --predicate 'process == "Trazo" AND (messageType == error OR messageType == fault)'       2>/dev/null | tail -40 > "ci-video/registro-variante-$variant.txt" || true
   fi
   rm -f "$marker"
   [ "$state" = "terminó" ] && grep -q "^ok" "$DATA/tmp/export-done"
 }
+
+# El vídeo del tracer (etapa 5). No cuenta para el resultado: es un aviso.
+run_variant 9 300 || echo "(el vídeo del tracer ha fallado)" >> ci-video/resultado.txt
 
 if run_variant 0 900; then
   ok=0

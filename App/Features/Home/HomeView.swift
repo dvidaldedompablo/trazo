@@ -30,12 +30,16 @@ struct HomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     header
+                    expiryBanner
+                        .padding(.top, Spacing.m)
                     tracerCard
                         .padding(.top, HomeLayout.headerToTracer)
                     swingCard
                         .padding(.top, HomeLayout.tracerToSwing)
                     exercisesLink
                         .padding(.top, HomeLayout.swingToHelp)
+                    historyLink
+                        .padding(.top, Spacing.s)
                     helpLink
                         .padding(.top, Spacing.s)
                     if !Typography.isLatoAvailable {
@@ -196,6 +200,35 @@ struct HomeView: View {
     }
 
     // MARK: - Ayuda
+
+    /// Tu progreso: nota y ritmo de los análisis en el tiempo.
+    private var historyLink: some View {
+        NavigationLink(value: HomeDestination.history) {
+            HelpRow(systemImage: "chart.xyaxis.line", title: "Tu progreso", subtitle: "Tu nota y tu ritmo, análisis a análisis")
+        }
+        .buttonStyle(RowButtonStyle())
+    }
+
+    /// Aviso amarillo bajo la cabecera cuando la app caduca en 2 días o menos (docs/02, s01).
+    @ViewBuilder
+    private var expiryBanner: some View {
+        if let days = ProvisioningInfo.daysLeft(), days <= 2, let date = ProvisioningInfo.expirationDate {
+            NavigationLink(value: HomeDestination.helpChapter("renovar")) {
+                HStack(spacing: Spacing.m) {
+                    Image(systemName: "calendar").font(.system(size: Size.icon, weight: .semibold)).accessibilityHidden(true)
+                    Text(days <= 0 ? "Tu app caduca hoy. Renuévala con Sideloadly." : "Tu app caduca \(ProvisioningInfo.longDate(date)). Renuévala con Sideloadly.")
+                        .typeStyle(.etiqueta)
+                        .multilineTextAlignment(.leading)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").accessibilityHidden(true)
+                }
+                .foregroundStyle(Color.pino)
+                .padding(Spacing.l)
+                .background(Color.amarillo, in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+    }
 
     /// Ejercicios: un ejercicio para cada fallo que el análisis puede ver.
     private var exercisesLink: some View {

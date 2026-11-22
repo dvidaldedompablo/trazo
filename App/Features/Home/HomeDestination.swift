@@ -12,6 +12,10 @@ enum HomeDestination: Hashable {
     /// Ejercicios: la lista de fallos y el detalle de cada uno (por su id del catálogo).
     case exercises
     case exercise(String)
+    /// Un capítulo de la Ayuda (por su id de HelpContent).
+    case helpChapter(String)
+    /// Tu progreso: nota y ritmo de los análisis en el tiempo.
+    case history
     /// "Creando tu tracer" de un clip (y, al terminar, su resultado).
     case tracerProcessing(UUID)
     /// "Revisa las posiciones" de un swing (y, al generar, "Tu análisis").
@@ -25,6 +29,8 @@ enum HomeDestination: Hashable {
         case .pickSwingVideo: "Elegir vídeo de swing"
         case .help: "Ayuda"
         case .exercises, .exercise: "Ejercicios"
+        case .helpChapter: "Ayuda"
+        case .history: "Tu progreso"
         case .tracerProcessing: "Creando tu tracer"
         case .swingReview: "Revisa las posiciones"
         }
@@ -37,7 +43,7 @@ enum HomeDestination: Hashable {
         case .tracerProcessing: 4
         case .swingReview: 6
         case .settings, .help: 9
-        case .exercises, .exercise: 9
+        case .exercises, .exercise, .helpChapter, .history: 9
         }
     }
 
@@ -49,7 +55,10 @@ enum HomeDestination: Hashable {
         case .settings: SettingsScreen()
         case .pickShotVideo: ImportScreen(mode: .tracer)
         case .pickSwingVideo: ImportScreen(mode: .swing)
-        case .help: PlaceholderScreen(destination: .help)
+        case .help: HelpView()
+        case let .helpChapter(id):
+            if let chapter = HelpContent.chapter(id) { HelpChapterView(chapter: chapter) } else { HelpView() }
+        case .history: HistoryView()
         case .exercises: ExercisesView()
         case let .exercise(id):
             if let exercise = ExerciseCatalog.exercise(id: id) {

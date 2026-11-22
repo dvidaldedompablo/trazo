@@ -32,9 +32,13 @@ enum SettingsKey {
     /// Comprobar los golpes con Gemini siempre, sin el aviso de cada vez (si hay clave). Activado por
     /// defecto: el usuario lo pidió así y dio su permiso expreso el 22-11-2026 (CLAUDE.md). Lo puede quitar.
     static let geminiAlwaysCheck = "gemini.alwaysCheck"
+    /// Unidades de la distancia del tracer: "m" o "yd".
+    static let units = "general.units"
+    /// Marca de agua "Trazo" en el vídeo del tracer (apagada por defecto).
+    static let tracerWatermark = "tracer.watermark"
 
     static let all = [tracerColor, tracerCustomColor, tracerShowsDistance, tracerFastShutter,
                       captureFrameRate, captureCountdown, captureAutoCut, diagnostics,
                       handedness, heightCentimeters, analysisVoice, shortAnalysisVideo, analysisSubtitles,
-                      geminiAlwaysCheck]
+                      geminiAlwaysCheck, units, tracerWatermark]
 }

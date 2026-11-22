@@ -11,6 +11,14 @@ struct SettingsScreen: View {
     @AppStorage(SettingsKey.shortAnalysisVideo) private var shortVideo = false
     @AppStorage(SettingsKey.analysisSubtitles) private var subtitles = true
     @AppStorage(SettingsKey.geminiAlwaysCheck) private var geminiAlways = true
+    @AppStorage(SettingsKey.units) private var units = "m"
+    @AppStorage(SettingsKey.tracerColor) private var colorChoice: TracerColorChoice = .rojoTV
+    @AppStorage(SettingsKey.tracerCustomColor) private var customColorHex = Int(TracerPalette.customDefaultHex)
+    @AppStorage(SettingsKey.tracerShowsDistance) private var showsDistance = true
+    @AppStorage(SettingsKey.tracerFastShutter) private var fastShutter = true
+    @AppStorage(SettingsKey.tracerWatermark) private var watermark = false
+    @Environment(\.modelContext) private var context
+    @State private var asksToDeleteOld = false
     @State private var taps: [Date] = []
     @State private var message: String?
     /// La clave de Gemini mientras se escribe; al guardarla va al llavero y aquí se vacía.
@@ -24,6 +32,14 @@ struct SettingsScreen: View {
                     .typeStyle(.tituloPantalla)
                     .foregroundStyle(Color.pino)
                     .accessibilityAddTraits(.isHeader)
+
+                section("Unidades") {
+                    Picker("Unidades", selection: $units) {
+                        Text("Metros").tag("m")
+                        Text("Yardas").tag("yd")
+                    }
+                    .pickerStyle(.segmented)
+                }
 
                 section("Tú") {
                     HStack {
@@ -52,6 +68,40 @@ struct SettingsScreen: View {
                         .foregroundStyle(Color.texto3)
                 }
 
+                section("Mis palos") {
+                    NavigationLink {
+                        ClubsView()
+                    } label: {
+                        HStack {
+                            Text("Distancia de cada palo").typeStyle(.etiqueta).foregroundStyle(Color.pino)
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundStyle(Color.texto3)
+                        }
+                    }
+                    Text("El Tracer pone la distancia de tu palo. La app no la mide: la escribes tú.")
+                        .typeStyle(.nota)
+                        .foregroundStyle(Color.texto3)
+                }
+
+                section("Tracer") {
+                    Text("Color del trazo por defecto").typeStyle(.etiqueta).foregroundStyle(Color.pino)
+                    ColorSwatchRow(selection: $colorChoice, customColor: Binding(
+                        get: { Color(hex: UInt32(customColorHex)) },
+                        set: { customColorHex = Int($0.hexValue) }))
+                    Toggle(isOn: $showsDistance) {
+                        Text("Enseñar la distancia").typeStyle(.etiqueta).foregroundStyle(Color.pino)
+                    }
+                    .tint(Color.pino)
+                    Toggle(isOn: $fastShutter) {
+                        Text("Obturación rápida al grabar").typeStyle(.etiqueta).foregroundStyle(Color.pino)
+                    }
+                    .tint(Color.pino)
+                    Toggle(isOn: $watermark) {
+                        Text("Marca de agua \"Trazo\" en el vídeo").typeStyle(.etiqueta).foregroundStyle(Color.pino)
+                    }
+                    .tint(Color.pino)
+                }
+
                 section("Análisis") {
                     NavigationLink {
                         VoiceSettingsView()
@@ -74,9 +124,18 @@ struct SettingsScreen: View {
 
                 geminiSection
 
-                Text("El resto de Ajustes (unidades, Mis palos, color del trazo…) llega en la etapa 9.")
-                    .typeStyle(.sub)
-                    .foregroundStyle(Color.pino.opacity(0.7))
+                section("Avanzado") {
+                    Toggle(isOn: $diagnostics) {
+                        Text("Modo diagnóstico").typeStyle(.etiqueta).foregroundStyle(Color.pino)
+                    }
+                    .tint(Color.pino)
+                    Text("Enseña lo que detecta la app: fps, puntos del tracer, esqueleto y la tabla de medidas.")
+                        .typeStyle(.nota)
+                        .foregroundStyle(Color.texto3)
+                    Button("Borrar vídeos de hace más de 30 días") { asksToDeleteOld = true }
+                        .typeStyle(.etiqueta)
+                        .foregroundStyle(Color.rojoTrazo)
+                }
 
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(BuildLabel.version(BuildInfo.version, build: BuildInfo.build))
@@ -106,6 +165,12 @@ struct SettingsScreen: View {
         .overlay(alignment: .bottom) { Toast(message: $message) }
         .sensoryFeedback(.success, trigger: diagnostics)
         .onAppear { hasKey = KeychainStore.geminiKey != nil }
+        .confirmationDialog("¿Borrar los vídeos de hace más de 30 días?", isPresented: $asksToDeleteOld, titleVisibility: .visible) {
+            Button("Borrar", role: .destructive) { deleteOldClips() }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Se borran de la app con sus análisis y sus tracers. Lo que guardaste en Fotos no se toca.")
+        }
     }
 
     /// La clave de Gemini para el verificador de golpes (docs/10, Fase 4). Va al llavero, nunca se
@@ -169,6 +234,15 @@ struct SettingsScreen: View {
         .padding(Spacing.l)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.papel, in: RoundedRectangle(cornerRadius: Radius.panel, style: .continuous))
+    }
+
+    /// Borra los clips de hace más de 30 días (con sus análisis y tracers), no lo que está en Fotos.
+    private func deleteOldClips() {
+        let limit = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
+        let old = (try? context.fetch(FetchDescriptor<Clip>(predicate: #Predicate { $0.createdAt < limit }))) ?? []
+        for clip in old { ClipSaver.delete(clip, in: context) }
+        try? context.save()
+        message = old.isEmpty ? "No hay vídeos de hace más de 30 días" : (old.count == 1 ? "1 vídeo borrado" : "\(old.count) vídeos borrados")
     }
 
     /// Cuenta los toques de los últimos 3 s; al quinto cambia el modo diagnóstico.

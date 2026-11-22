@@ -22,6 +22,7 @@ Cada capítulo es una pantalla con desplazamiento. Títulos y subtítulos de la 
 
 **Para los dos**
 - Activa "Corte auto": graba varios golpes seguidos y la app te propone un clip por golpe usando el sonido del impacto.
+- Con tu clave de Gemini en Ajustes, la app comprueba mirando los fotogramas qué sonidos son golpes y reparte el vídeo en un clip por golpe.
 - Si hay mucho viento, el micrófono lo nota. La app usará también el movimiento para encontrar el impacto.
 
 ---
@@ -47,10 +48,12 @@ Si grabaste varios golpes seguidos, la app los prepara uno detrás de otro. En "
 (Grabar, revisar posiciones y generar)
 
 1. Toca "Grabar swing" o "Elegir vídeo".
-2. La app busca tu cuerpo, el impacto (por el sonido) y siete posiciones: preparación, takeaway, mitad de subida, top, transición, impacto y final.
+2. La app busca tu cuerpo, el impacto y siete posiciones: preparación, takeaway, mitad de subida, top, transición, impacto y final. Con tu clave de Gemini lo hace Gemini; sin red, el propio iPhone.
 3. En "Revisa las posiciones", comprueba cada una. Si alguna no está en su sitio, muévela fotograma a fotograma.
 4. Toca la cabeza del palo en la preparación. Si te lo pide, ajusta la línea del palo en las posiciones 3 y 5.
-5. Toca "Generar análisis". En uno o dos minutos tendrás el vídeo con voz, líneas, medidas, ritmo, nota e informe.
+5. Toca "Generar análisis". En uno o dos minutos tendrás el vídeo con voz, líneas, medidas, ritmo, nota, informe y, al final, "A mejorar" con tres ejercicios.
+
+El vídeo se entiende solo: puedes reenviárselo a tu profesor. Pesa menos de 16 MB para que quepa en un mensaje.
 
 Consejo: enséñale el informe a tu profesor. La app mide lo que ve en un vídeo; tu profesor sabe por qué lo haces.
 
@@ -79,10 +82,11 @@ Todas las medidas son aproximadas: salen de un vídeo en dos dimensiones.
 
 - **No encuentra el impacto**: arrastra el marcador rojo de la línea de tiempo hasta el golpe.
 - **La bola se pierde**: es normal con cielo blanco o árboles detrás. Si la ves más adelante en el vídeo, usa "Tocar la bola". Si no, ajusta el final del vuelo con las asas. Para la próxima vez: móvil quieto y más cielo detrás de la bola.
-- **No me encuentra en el vídeo**: graba con el cuerpo entero y el palo dentro del encuadre, con buena luz.
+- **No me encuentra en el vídeo**: graba con el cuerpo entero y el palo dentro del encuadre, con buena luz. Con tu clave de Gemini en Ajustes, Gemini lo intenta antes que el iPhone.
+- **Gemini no contesta**: sin red, sin cuota del día (unas 20 comprobaciones) o con Google saturado, la app sigue sola con el iPhone y te dice el motivo.
 - **Las posiciones están mal**: muévelas en "Revisa las posiciones". Dos o tres toques suelen bastar.
 - **El ritmo sale raro**: si importaste un vídeo a cámara lenta sin dar acceso a Fotos, puede venir estirado. Da acceso a Fotos o graba desde la app.
-- **La voz suena robótica**: descarga una voz mejor en Ajustes del iPhone > Accesibilidad > Contenido leído > Voces > Español (el nombre del menú puede variar según la versión de iOS). Elige una "mejorada" o "premium" y selecciónala en Ajustes de Trazo.
+- **La voz no suena como siempre**: la voz del análisis es Dora (Kokoro) y va dentro de la app. Si no carga, se usa una voz del iPhone; puedes elegirla en Ajustes, en Voz del análisis.
 - **La app no abre**: probablemente ha caducado. Mira "Renovar la app cada 7 días".
 
 ---
@@ -95,6 +99,7 @@ Todas las medidas son aproximadas: salen de un vídeo en dos dimensiones.
 - **Mis palos**: escribe tu distancia de vuelo con cada palo. El Tracer la usa cuando eliges el palo.
 - **Tracer**: color y distancia por defecto, obturación rápida y marca de agua.
 - **Análisis**: voz, botón para probarla, vídeo completo o corto y subtítulos.
+- **Comprobar golpes con Gemini**: tu clave gratuita de Google AI Studio, guardada en el llavero, y si quieres que compruebe siempre sin preguntar.
 - **Avanzado**: modo diagnóstico (para ver lo que detecta la app) y borrar vídeos antiguos.
 
 ---
@@ -111,4 +116,4 @@ Cómo renovarla:
 4. Escribe tu Apple ID y toca Start.
 5. Si te pide un código, mira el iPhone.
 
-La fecha de caducidad aparece arriba en esta pantalla. La app te avisa un día antes.
+La fecha de caducidad aparece arriba en la Ayuda. La app te avisa un día antes.

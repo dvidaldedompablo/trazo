@@ -24,6 +24,9 @@ enum UITestScreen: String {
     case exercise
     /// Genera el vídeo de análisis completo de demostración (solo para el CI, no es una captura).
     case exportDemo = "export-demo"
+    /// Ayuda (s08) y Tu progreso.
+    case help
+    case history
     /// "Creando tu tracer" (s03) a mitad del seguimiento.
     case processing
     /// Toca la bola, con un toque y la lupa.

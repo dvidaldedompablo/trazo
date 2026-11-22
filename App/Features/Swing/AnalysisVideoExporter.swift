@@ -131,7 +131,10 @@ enum AnalysisVideoExporter {
                     exerciseTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
                 }
                 guard let track = exerciseTrack else { break }
-                let sourceDuration = try await AVURLAsset(url: url).load(.duration).seconds
+                // La duración de la PISTA de vídeo (no la del archivo, que puede durar un fotograma más):
+                // pedir un trozo que se sale de la pista da el error -12780 al montar.
+                let sourceRange = try await source.load(.timeRange)
+                let sourceDuration = max(sourceRange.duration.seconds - 1.0 / 60, 0)
                 let size = try await source.load(.naturalSize)
                 // A lo ancho del vídeo, debajo de la banda del título (sirve también si el usuario
                 // pone un clip suyo de otro tamaño).
@@ -144,7 +147,7 @@ enum AnalysisVideoExporter {
                 var cursor = block.start
                 while cursor < block.end - 0.05, sourceDuration > 0.1 {
                     let piece = min(sourceDuration, block.end - cursor)
-                    try track.insertTimeRange(CMTimeRange(start: .zero, duration: time(piece)), of: source, at: time(cursor))
+                    try track.insertTimeRange(CMTimeRange(start: sourceRange.start, duration: time(piece)), of: source, at: time(cursor))
                     cursor += piece
                 }
             case let .script(kind):

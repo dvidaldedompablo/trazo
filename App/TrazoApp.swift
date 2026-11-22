@@ -53,7 +53,7 @@ private struct RootView: View {
             .preferredColorScheme(screen.map { Self.videoScreens.contains($0) } ?? false ? .dark : .light)
             // En las capturas del CI: avisa al script de que la pantalla ya está abierta.
             .task {
-                if UITestHarness.isActive { UITestHarness.markReady() }
+                if UITestHarness.isActive { UITestHarness.markReady() } else { await ExpiryReminder.schedule() }
             }
     }
 
@@ -88,6 +88,10 @@ private struct RootView: View {
             NavigationStack { ExerciseDetailView(exercise: ExerciseCatalog.all[0]) }
         case .exportDemo:
             ExportDemoView()
+        case .help:
+            NavigationStack { HelpView() }
+        case .history:
+            NavigationStack { HistoryView(demo: DemoData.historyEntries()) }
         case .processing:
             NavigationStack { TracerProcessingView(clipID: UUID(), demo: DemoData.processingLive()) }
         case .ballTap:

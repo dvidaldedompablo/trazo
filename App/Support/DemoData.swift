@@ -155,6 +155,16 @@ enum DemoData {
                                 isShotSeries: ClipPlanner.isShotSeries(impacts))
     }
 
+    /// Seis análisis de demostración para "Tu progreso": la nota sube y el ritmo se acerca a 3 : 1.
+    static func historyEntries() -> [HistoryEntry] {
+        let scores = [61, 64, 70, 68, 75, 82]
+        let tempos = [2.1, 2.3, 2.5, 2.6, 2.8, 2.9]
+        return scores.indices.map { k in
+            HistoryEntry(id: UUID(), date: Calendar.current.date(byAdding: .day, value: -7 * (scores.count - 1 - k), to: .now) ?? .now,
+                         score: scores[k], tempo: tempos[k])
+        }
+    }
+
     /// Lo que devolvería el verificador de golpes con la grabación de `pendingRecording()`: Gemini
     /// confirma los dos primeros golpes y dice que el tercero (el flojo, de otro jugador) no lo es.
     /// Sirve para la captura de la hoja tras comprobar, sin red.

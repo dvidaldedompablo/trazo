@@ -11,6 +11,8 @@ enum UITestScreen: String {
     case cameraSwing = "camera-swing"
     /// Tus vídeos con clips de demostración.
     case library
+    /// Tus vídeos en modo "Seleccionar", con dos elegidos.
+    case librarySelect = "library-select"
     /// La hoja de elegir golpes tras grabar con "Corte auto".
     case autocut
     /// La misma hoja con un vídeo narrado, sin golpes: el control de sensatez no propone clips.

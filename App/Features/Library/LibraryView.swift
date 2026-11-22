@@ -6,6 +6,8 @@ import UIKit
 /// Tus vídeos (docs/02, pantalla 10): rejilla de miniaturas verticales con el tipo, la fecha y la duración.
 /// Los golpes del Tracer llevan su estado: "En proceso" con el avance, "Listo" o "Falló".
 /// Al mantener pulsado un clip: "Guardar original en Fotos", el tracer y "Borrar".
+/// "Seleccionar" (como en la galería del iPhone): se tocan varios vídeos y abajo salen Compartir,
+/// cuántos hay, Guardar en Fotos y Borrar.
 struct LibraryView: View {
     // @Query lee de SwiftData y vuelve a dibujar la vista cuando cambia la biblioteca.
     @Query(sort: \Clip.createdAt, order: .reverse) private var clips: [Clip]
@@ -24,17 +26,45 @@ struct LibraryView: View {
     @State private var openSwingResult: UUID?
     /// Golpe que falló y se ha tocado: se enseña el motivo y qué hacer.
     @State private var failedClip: Clip?
+    /// Modo "Seleccionar" y los vídeos elegidos (por su id, que no cambia aunque cambie la lista).
+    @State private var isSelecting = false
+    @State private var selection: Set<UUID> = []
+    @State private var asksToDeleteSelection = false
+    @State private var isSavingSelection = false
+
+    /// Capturas del CI: abre en modo "Seleccionar" con los dos primeros elegidos.
+    var demoSelecting = false
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: LibraryLayout.gap), count: 3)
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.l) {
-                Text("Tus vídeos")
-                    .typeStyle(.tituloPantalla)
-                    .foregroundStyle(Color.pino)
-                    .accessibilityAddTraits(.isHeader)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(isSelecting ? selectionTitle : "Tus vídeos")
+                        .typeStyle(.tituloPantalla)
+                        .foregroundStyle(Color.pino)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: Spacing.s)
+                    if !clips.isEmpty {
+                        Button(isSelecting ? "Cancelar" : "Seleccionar") {
+                            isSelecting.toggle()
+                            selection = []
+                        }
+                        .buttonStyle(SelectCapsuleStyle())
+                    }
+                }
+                .padding(.horizontal, Spacing.textMargin - Spacing.cardMargin)
+                if isSelecting {
+                    Button(selection.count == clips.count ? "Quitar la selección" : "Seleccionar todo") {
+                        selection = selection.count == clips.count ? [] : Set(clips.map(\.id))
+                    }
+                    .typeStyle(.etiqueta)
+                    .foregroundStyle(Color.texto2)
                     .padding(.horizontal, Spacing.textMargin - Spacing.cardMargin)
+                }
                 if clips.isEmpty {
                     Text("Aún no hay vídeos. Graba tu primer golpe desde Inicio.")
                         .typeStyle(.sub)
@@ -43,12 +73,14 @@ struct LibraryView: View {
                 } else {
                     LazyVGrid(columns: columns, spacing: LibraryLayout.gap) {
                         ForEach(clips) { clip in
-                            Button { open(clip) } label: {
+                            Button { isSelecting ? toggle(clip) : open(clip) } label: {
                                 ClipThumbnail(clip: clip, tracer: tracer(for: clip), swing: swing(for: clip),
                                               progress: queue.activeClipID == clip.id ? queue.live.progress : nil)
+                                    .overlay { if isSelecting { SelectionMark(isSelected: selection.contains(clip.id)) } }
                             }
                             .buttonStyle(.plain)
-                            .contextMenu { menu(for: clip) }
+                            .contextMenu { if !isSelecting { menu(for: clip) } }
+                            .accessibilityAddTraits(isSelecting && selection.contains(clip.id) ? .isSelected : [])
                         }
                     }
                 }
@@ -58,6 +90,28 @@ struct LibraryView: View {
         }
         .background(Color.bola)
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            if isSelecting { selectionBar }
+        }
+        .sensoryFeedback(.selection, trigger: selection)
+        .onAppear {
+            if demoSelecting, selection.isEmpty {
+                isSelecting = true
+                selection = Set(clips.prefix(2).map(\.id))
+            }
+        }
+        .onChange(of: clips.map(\.id)) { _, ids in
+            // Si un vídeo desaparece (borrado), sale también de la selección.
+            selection.formIntersection(ids)
+        }
+        .confirmationDialog(selection.count == 1 ? "¿Borrar este vídeo?" : "¿Borrar \(selection.count) vídeos?",
+                            isPresented: $asksToDeleteSelection, titleVisibility: .visible) {
+            Button(selection.count == 1 ? "Borrar 1 vídeo" : "Borrar \(selection.count) vídeos", role: .destructive) {
+                deleteSelection()
+            }
+        } message: {
+            Text("Se borran de Trazo con sus tracers y análisis. Lo que guardaste en Fotos sigue allí.")
+        }
         .fullScreenCover(item: $openClip) { clip in
             ClipDetailView(clip: clip)
         }
@@ -93,6 +147,97 @@ struct LibraryView: View {
             Text("Se borra de Trazo. Si lo guardaste en Fotos, allí sigue.")
         }
         .overlay(alignment: .bottom) { Toast(message: $message) }
+    }
+
+    // MARK: Seleccionar
+
+    private var selectionTitle: String {
+        switch selection.count {
+        case 0: "Selecciona vídeos"
+        case 1: "1 vídeo"
+        default: "\(selection.count) vídeos"
+        }
+    }
+
+    private var selectedClips: [Clip] { clips.filter { selection.contains($0.id) } }
+
+    /// Los archivos que se pueden compartir o guardar (los de demostración no tienen archivo propio).
+    private var selectedFiles: [URL] { selectedClips.filter { !$0.isDemo }.map(\.fileURL) }
+
+    private func toggle(_ clip: Clip) {
+        if selection.contains(clip.id) { selection.remove(clip.id) } else { selection.insert(clip.id) }
+    }
+
+    /// La barra de abajo del modo "Seleccionar", como en Fotos: Compartir, cuántos, Guardar y Borrar.
+    private var selectionBar: some View {
+        HStack(spacing: Spacing.l) {
+            ShareLink(items: selectedFiles) {
+                Image(systemName: "square.and.arrow.up").font(.system(size: 20, weight: .regular))
+                    .frame(width: Size.minTouch, height: Size.minTouch)
+            }
+            .disabled(selectedFiles.isEmpty)
+            .accessibilityLabel("Compartir")
+            Spacer(minLength: 0)
+            Text(selection.isEmpty ? "Toca los vídeos" : selectionTitle)
+                .typeStyle(.etiqueta)
+                .foregroundStyle(Color.pino)
+            Spacer(minLength: 0)
+            Button { Task { await saveSelection() } } label: {
+                Group {
+                    if isSavingSelection {
+                        ProgressView().tint(Color.pino)
+                    } else {
+                        Image(systemName: "arrow.down.to.line").font(.system(size: 20, weight: .regular))
+                    }
+                }
+                .frame(width: Size.minTouch, height: Size.minTouch)
+            }
+            .disabled(selectedFiles.isEmpty || isSavingSelection)
+            .accessibilityLabel("Guardar en Fotos")
+            Button { asksToDeleteSelection = true } label: {
+                Image(systemName: "trash").font(.system(size: 20, weight: .regular))
+                    .frame(width: Size.minTouch, height: Size.minTouch)
+            }
+            .disabled(selection.isEmpty)
+            .foregroundStyle(selection.isEmpty ? Color.texto3 : Color.rojoTrazo)
+            .accessibilityLabel("Borrar")
+        }
+        .foregroundStyle(Color.pino)
+        .padding(.horizontal, Spacing.l)
+        .padding(.vertical, Spacing.xs)
+        .glassEffect(.regular, in: Capsule())
+        .padding(.horizontal, Spacing.cardMargin)
+        .padding(.bottom, Spacing.s)
+    }
+
+    /// Guarda en Fotos los vídeos elegidos, uno detrás de otro, y dice cuántos han ido bien.
+    private func saveSelection() async {
+        let files = selectedFiles
+        isSavingSelection = true
+        defer { isSavingSelection = false }
+        var saved = 0
+        var lastError: String?
+        for url in files {
+            do {
+                try await PhotoLibrary.saveVideo(at: url)
+                saved += 1
+            } catch {
+                lastError = error.localizedDescription
+            }
+        }
+        if let lastError, saved < files.count {
+            message = saved == 0 ? lastError : "Guardados \(saved) de \(files.count). \(lastError)"
+        } else {
+            message = saved == 1 ? "1 vídeo guardado en Fotos" : "\(saved) vídeos guardados en Fotos"
+        }
+    }
+
+    private func deleteSelection() {
+        let doomed = selectedClips
+        for clip in doomed { ClipSaver.delete(clip, in: context) }
+        message = doomed.count == 1 ? "1 vídeo borrado" : "\(doomed.count) vídeos borrados"
+        selection = []
+        isSelecting = false
     }
 
     private func tracer(for clip: Clip) -> TracerResult? {
@@ -168,6 +313,49 @@ struct LibraryView: View {
         } label: {
             Label("Borrar", systemImage: "trash")
         }
+    }
+}
+
+/// El botón "Seleccionar" / "Cancelar" de arriba a la derecha: una cápsula pequeña, como en Fotos.
+private struct SelectCapsuleStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .typeStyle(.etiqueta)
+            .foregroundStyle(Color.pino)
+            .padding(.horizontal, Spacing.m)
+            .frame(minHeight: 36)
+            .background(Color.niebla, in: Capsule())
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .frame(minHeight: Size.minTouch)
+            .contentShape(Capsule())
+    }
+}
+
+/// La marca de un vídeo en el modo "Seleccionar": un círculo abajo a la derecha que se llena con un
+/// visto al elegirlo, y la miniatura se aclara un poco (como en Fotos).
+private struct SelectionMark: View {
+    let isSelected: Bool
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Color.white.opacity(isSelected ? 0.25 : 0)
+            Group {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, Color.pino)
+                } else {
+                    Image(systemName: "circle")
+                        .foregroundStyle(.white)
+                }
+            }
+            .font(.system(size: 24, weight: .regular))
+            .background(Circle().fill(isSelected ? Color.white : Color.black.opacity(0.15)).padding(2))
+            .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
+            .padding(Spacing.s)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Radius.thumbnail, style: .continuous))
+        .allowsHitTesting(false)
     }
 }
 

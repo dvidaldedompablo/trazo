@@ -74,6 +74,8 @@ private struct RootView: View {
             RecordScreen(mode: .swing)
         case .library:
             NavigationStack { LibraryView() }
+        case .librarySelect:
+            NavigationStack { LibraryView(demoSelecting: true) }
         case .autocut:
             ClipPickerView(pending: DemoData.pendingRecording()) { _, _ in }
         case .autocutVoice:

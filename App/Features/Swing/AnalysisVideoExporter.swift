@@ -18,8 +18,18 @@ enum AnalysisVideoExporter {
         var compressionProblem: String? = nil
     }
 
+    /// Solo para el diagnóstico del CI: quitar piezas del montaje para saber cuál falla.
+    struct Leave: OptionSet, Sendable {
+        let rawValue: Int
+        static let overlay = Leave(rawValue: 1)
+        static let exercises = Leave(rawValue: 2)
+        static let voice = Leave(rawValue: 4)
+        static let compression = Leave(rawValue: 8)
+    }
+
     @concurrent
     static func export(clipURL: URL, analysis: SwingAnalysis, short: Bool, subtitles: Bool,
+                       leaveOut: Leave = [],
                        progress: @escaping @Sendable (ExportProgress) -> Void) async throws -> Output {
         // 1. Guion, nota y bloques.
         progress(ExportProgress(stepName: "Escribiendo el guion", fraction: 0.02))
@@ -121,7 +131,7 @@ enum AnalysisVideoExporter {
                 videoTrack.insertEmptyTimeRange(CMTimeRange(start: time(block.start), duration: time(block.duration)))
                 guard let index = Self.improvementIndex(kind), index < improvementItems.count else { break }
                 let exercise = improvementItems[index].exercise
-                guard exercise.hasClip, let url = ExerciseAssets.url(exercise.clipFile),
+                guard !leaveOut.contains(.exercises), exercise.hasClip, let url = ExerciseAssets.url(exercise.clipFile),
                       let source = try? await AVURLAsset(url: url).loadTracks(withMediaType: .video).first
                 else {
                     missingClips.append(exercise.id)
@@ -164,7 +174,7 @@ enum AnalysisVideoExporter {
         }
 
         let voiceAsset = AVURLAsset(url: voiceURL)
-        if let voiceTrack = try await voiceAsset.loadTracks(withMediaType: .audio).first {
+        if !leaveOut.contains(.voice), let voiceTrack = try await voiceAsset.loadTracks(withMediaType: .audio).first {
             let voiceDuration = try await voiceAsset.load(.duration)
             try audioTrack.insertTimeRange(CMTimeRange(start: .zero, duration: CMTimeMinimum(voiceDuration, time(total))),
                                            of: voiceTrack, at: .zero)
@@ -187,7 +197,7 @@ enum AnalysisVideoExporter {
         let videoComposition = AVMutableVideoComposition()
         videoComposition.renderSize = CGSize(width: VideoLayers.width, height: VideoLayers.height)
         videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
-        videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(postProcessingAsVideoLayer: videoLayer, in: parent)
+        if !leaveOut.contains(.overlay) { videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(postProcessingAsVideoLayer: videoLayer, in: parent) }
         let instruction = AVMutableVideoCompositionInstruction()
         instruction.timeRange = CMTimeRange(start: .zero, duration: time(total))
         let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
@@ -234,6 +244,11 @@ enum AnalysisVideoExporter {
         var main = outputURL
         var light: URL?
         var note: String?
+        if leaveOut.contains(.compression) {
+            let kept = MediaStore.temporaryURL(extension: "mp4")
+            try? FileManager.default.copyItem(at: outputURL, to: kept)
+            return Output(main: kept, light: nil, missingClips: missingClips, compressionProblem: "sin recomprimir (diagnóstico)")
+        }
         do {
             let compressed = try await VideoCompressor.compress(outputURL, width: Int(VideoLayers.width),
                                                                 height: Int(VideoLayers.height))

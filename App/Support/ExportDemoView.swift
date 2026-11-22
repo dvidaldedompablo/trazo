@@ -31,31 +31,45 @@ struct ExportDemoView: View {
         }
         // ¿Suena Kokoro o la voz de reserva? Se prueba una frase antes de montar.
         let kokoro = await KokoroEngine.shared.render("Prueba de voz.") != nil
-        do {
+        var report = ["voz Kokoro: \(kokoro ? "sí" : "no (voz de reserva)")"]
+        var anyOK = false
+        // Primero el vídeo de verdad. Si falla, variantes cortas sin una pieza cada una, para saber
+        // qué pieza rompe el montaje (el error -12780 no dice cuál).
+        let variants: [(String, Bool, AnalysisVideoExporter.Leave)] = [
+            ("completo", false, []),
+            ("sin ejercicios", true, [.exercises, .compression]),
+            ("sin capas", true, [.overlay, .compression]),
+            ("sin voz", true, [.voice, .compression]),
+            ("sin capas, ejercicios ni voz", true, [.overlay, .exercises, .voice, .compression]),
+        ]
+        for (index, variant) in variants.enumerated() {
+            if index > 0 && anyOK { break }
             let started = Date.now
-            let output = try await AnalysisVideoExporter.export(clipURL: clip, analysis: DemoData.swingAnalysis(reviewed: true),
-                                                                short: false, subtitles: true) { progress in
-                Task { @MainActor in status = "\(progress.stepName) \(Int(progress.fraction * 100)) %" }
+            do {
+                let output = try await AnalysisVideoExporter.export(clipURL: clip, analysis: DemoData.swingAnalysis(reviewed: true),
+                                                                    short: variant.1, subtitles: true, leaveOut: variant.2) { progress in
+                    Task { @MainActor in status = "\(variant.0): \(progress.stepName) \(Int(progress.fraction * 100)) %" }
+                }
+                let documents = URL.documentsDirectory
+                let name = index == 0 ? "demo-analisis.mp4" : "demo-variante-\(index).mp4"
+                let main = documents.appending(path: name)
+                try? FileManager.default.removeItem(at: main)
+                try FileManager.default.copyItem(at: output.main, to: main)
+                var light = "no"
+                if let url = output.light {
+                    let target = documents.appending(path: "demo-analisis-720p.mp4")
+                    try? FileManager.default.removeItem(at: target)
+                    try FileManager.default.copyItem(at: url, to: target)
+                    light = "sí"
+                }
+                if index == 0 { anyOK = true }
+                report.append("[\(variant.0)] ok en \(Int(Date.now.timeIntervalSince(started))) s · 720p: \(light) · "
+                              + "recompresión: \(output.compressionProblem ?? "bien") · clips que faltan: "
+                              + (output.missingClips.isEmpty ? "ninguno" : output.missingClips.joined(separator: ", ")))
+            } catch {
+                report.append("[\(variant.0)] error: \(describeError(error)) · último paso: \(status)")
             }
-            let documents = URL.documentsDirectory
-            let main = documents.appending(path: "demo-analisis.mp4")
-            try? FileManager.default.removeItem(at: main)
-            try FileManager.default.copyItem(at: output.main, to: main)
-            var light = "no"
-            if let url = output.light {
-                let target = documents.appending(path: "demo-analisis-720p.mp4")
-                try? FileManager.default.removeItem(at: target)
-                try FileManager.default.copyItem(at: url, to: target)
-                light = "sí"
-            }
-            let seconds = Int(Date.now.timeIntervalSince(started))
-            finish("ok\nvoz Kokoro: \(kokoro ? "sí" : "no (voz de reserva)")\nversión 720p: \(light)\n"
-                   + "recompresión: \(output.compressionProblem ?? "bien")\n"
-                   + "clips que faltan: \(output.missingClips.isEmpty ? "ninguno" : output.missingClips.joined(separator: ", "))\n"
-                   + "segundos en generarlo: \(seconds)")
-        } catch {
-            finish("error: \((error as? LocalizedError)?.errorDescription ?? describeError(error))\n"
-                   + "detalle: \(describeError(error))\núltimo paso: \(status)\nvoz Kokoro: \(kokoro ? "sí" : "no")")
         }
+        finish((anyOK ? "ok" : "error: el vídeo completo no se ha podido generar") + "\n" + report.joined(separator: "\n"))
     }
 }

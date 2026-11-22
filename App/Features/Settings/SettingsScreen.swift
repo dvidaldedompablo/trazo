@@ -1,9 +1,9 @@
 import GolfCore
+import SwiftData
 import SwiftUI
 
-/// Ajustes (todavía parcial; se completa en la etapa 9). Ya están los ajustes que usa el análisis
-/// de swing: quién eres (mano dominante y estatura) y el vídeo del análisis (voz, duración y
-/// subtítulos). El modo diagnóstico sigue oculto: 5 toques seguidos en la versión.
+/// Ajustes (docs/02, pantalla 10): unidades, quién eres, tus palos, el tracer, el análisis, la clave
+/// de Gemini y lo avanzado. El modo diagnóstico también se activa con 5 toques seguidos en la versión.
 struct SettingsScreen: View {
     @AppStorage(SettingsKey.diagnostics) private var diagnostics = false
     @AppStorage(SettingsKey.handedness) private var handedness = Handedness.right.rawValue

@@ -706,3 +706,21 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   - Voz Kokoro en todo el vídeo (−21,7 LUFS); ningún clip de ejercicio falta.
   - Tardó 359 s en el simulador del runner. En el iPhone debería ir bastante más rápido; se comprueba con el modo diagnóstico.
 - Vídeo del tracer de demostración: 8,2 s en 1080 x 1920, en 23 s. El trazo crece desde el impacto, se mueve la cabeza de la bola y al caer salen la marca y la etiqueta.
+
+### Lista de aceptación de la versión 1.0 (docs/07), punto por punto (22-11-2026)
+| Punto | Estado | Cómo se ha comprobado / qué falta |
+|---|---|---|
+| Inicio igual que la maqueta, con vista previa y animación de arranque | Hecho | Captura `home` comparada con s01. La vibración al caer la bola, en el iPhone |
+| Grabar a 240 fps con guías, nivel, cuenta atrás y corte automático | Hecho en código | **iPhone**: 240 fps reales en el modo diagnóstico y 3 golpes con Corte auto |
+| Importar desde Fotos conservando la cámara lenta | Hecho en código | **iPhone**: diagnóstico con 240 fps y duración real |
+| Tracer automático, ajuste manual siempre a mano, "Tocar la bola" y aviso de bola perdida | Hecho | Capturas `adjust` y `tracer-check`. **iPhone**: prueba de 5 golpes |
+| Las seis claves de javiggil (docs/09, A) | Hecho | docs/09 |
+| Color del trazo (5 + otro) y distancia con palo y unidades | Hecho | Capturas `adjust`, `settings` y `home` |
+| Vídeo del tracer a 1080p con audio original, en Fotos | Hecho | Vídeo de demostración del CI (1080 x 1920). **iPhone**: Guardar en Fotos y que suene el golpe |
+| Análisis con 7 posiciones revisables, medidas, ritmo, nota, fallos y ejercicios | Hecho | Capturas `review`, `swing-result`, `exercises` y `exercise` |
+| Vídeo de análisis con voz, subtítulos palabra a palabra, líneas, ritmo, nota e informe | Hecho | Vídeo de demostración del CI, revisado fotograma a fotograma. **iPhone**: un análisis real |
+| Ayuda con todos los capítulos y aviso de caducidad con notificación | Hecho | Captura `help`. **iPhone**: la fecha coincide con la instalación + 7 días |
+| Ajustes completos, historial con gráfico y "Tus vídeos" | Hecho | Capturas `settings`, `history` y `library` |
+| Errores claros (permisos, espacio, audio, vídeo corto, interrupciones, segundo plano) | Hecho en código | Etapa 10. **iPhone**: bloquear a mitad de un vídeo |
+| Accesibilidad: Dynamic Type, VoiceOver, Reducir movimiento | Hecho en código | Estilos con `relativeTo`, etiquetas en botones y asas, y `accessibilityReduceMotion` en Inicio y en el proceso. **iPhone**: un repaso con VoiceOver |
+| Ninguna llamada de red salvo la excepción escrita; nada personal en el repo | Hecho | Solo Gemini, con clave en el llavero y el aviso o el interruptor. `git check-ignore` antes de cada commit |

@@ -31,6 +31,8 @@ struct LibraryView: View {
     @State private var selection: Set<UUID> = []
     @State private var asksToDeleteSelection = false
     @State private var isSavingSelection = false
+    /// Resultado de guardar varios en Fotos cuando no han entrado todos (se queda hasta que lo cierras).
+    @State private var saveReport: String?
 
     /// Capturas del CI: abre en modo "Seleccionar" con los dos primeros elegidos.
     var demoSelecting = false
@@ -40,9 +42,7 @@ struct LibraryView: View {
     @State private var itemFrames: [UUID: CGRect] = [:]
     @State private var contentOrigin: CGPoint = .zero
     @State private var viewportHeight: CGFloat = 0
-    @State private var scrollOffset: CGFloat = 0
-    @State private var maximumScrollOffset: CGFloat = 0
-    @State private var scrollPosition = ScrollPosition(edge: .top)
+    @State private var scroller = SwipeScroller()
     @State private var swipe: SwipeSelection?
     @State private var autoScroll: Task<Void, Never>?
 
@@ -97,8 +97,12 @@ struct LibraryView: View {
                             }
                         }
                     }
-                    // Solo en "Seleccionar"; un toque sigue siendo un toque (hace falta mover 10 pt).
-                    .simultaneousGesture(swipeGesture, including: isSelecting ? .all : .subviews)
+                    // Solo en "Seleccionar": deslizar de lado marca vídeos (SwipeSelect.swift).
+                    .gesture(SwipeSelectGesture(isEnabled: isSelecting, coordinateSpace: .named(Self.viewportSpace),
+                                                scroller: scroller,
+                                                onBegan: { start, current in swipeBegan(at: start, current: current) },
+                                                onChanged: { point in swipeChanged(to: point) },
+                                                onEnded: { endSwipe() }))
                 }
             }
             .padding(.horizontal, Spacing.cardMargin)
@@ -109,15 +113,6 @@ struct LibraryView: View {
             }
         }
         .coordinateSpace(.named(Self.viewportSpace))
-        .scrollPosition($scrollPosition)
-        // Mientras se selecciona deslizando, el dedo no mueve la lista (lo hace el desplazamiento automático).
-        .scrollDisabled(swipe?.isActive == true)
-        .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, offset in
-            scrollOffset = offset
-        }
-        .onScrollGeometryChange(for: CGFloat.self) { max($0.contentSize.height - $0.containerSize.height + $0.contentInsets.bottom, 0) } action: { _, value in
-            maximumScrollOffset = value
-        }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
             viewportHeight = height
         }
@@ -139,6 +134,11 @@ struct LibraryView: View {
         .onChange(of: clips.map(\.id)) { _, ids in
             // Si un vídeo desaparece (borrado), sale también de la selección.
             selection.formIntersection(ids)
+        }
+        .alert("Guardar en Fotos", isPresented: Binding(get: { saveReport != nil }, set: { if !$0 { saveReport = nil } })) {
+            Button("Vale", role: .cancel) {}
+        } message: {
+            Text(saveReport ?? "")
         }
         .confirmationDialog(selection.count == 1 ? "¿Borrar este vídeo?" : "¿Borrar \(selection.count) vídeos?",
                             isPresented: $asksToDeleteSelection, titleVisibility: .visible) {
@@ -205,45 +205,35 @@ struct LibraryView: View {
     private static let contentSpace = "library-content"
     private static let viewportSpace = "library-viewport"
 
-    /// Un deslizamiento en curso: con qué selección empezó, desde qué vídeo y si marca o desmarca.
+    /// Un deslizamiento en curso: con qué selección empezó, desde qué vídeo, si marca o desmarca y
+    /// dónde está el dedo (para seguir marcando mientras la lista se desplaza sola).
     private struct SwipeSelection {
-        var isActive: Bool
-        var base: Set<UUID> = []
-        var startIndex = 0
-        var selects = true
-        var lastPoint: CGPoint = .zero
+        var base: Set<UUID>
+        var startIndex: Int
+        var selects: Bool
+        var lastPoint: CGPoint
     }
 
-    private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 10, coordinateSpace: .named(Self.viewportSpace))
-            .onChanged { value in swipeChanged(value) }
-            .onEnded { _ in endSwipe() }
+    /// Empieza en el vídeo donde se puso el dedo. Si ya estaba marcado, el deslizamiento desmarca.
+    private func swipeBegan(at start: CGPoint, current: CGPoint) {
+        guard isSelecting, let index = index(at: start, nearest: true) else { return }
+        swipe = SwipeSelection(base: selection, startIndex: index, selects: !selection.contains(clips[index].id),
+                               lastPoint: current)
+        applySwipe(at: current)
+        updateAutoScroll(for: current)
     }
 
-    /// Como en Fotos: si el dedo sale de lado desde un vídeo, empieza a seleccionar; si sale en
-    /// vertical, es un desplazamiento normal y no se toca nada.
-    private func swipeChanged(_ value: DragGesture.Value) {
-        guard isSelecting else { return }
-        if swipe == nil {
-            let horizontal = abs(value.translation.width) > abs(value.translation.height)
-            guard horizontal, let start = index(at: value.startLocation, nearest: false) else {
-                swipe = SwipeSelection(isActive: false)
-                return
-            }
-            swipe = SwipeSelection(isActive: true, base: selection, startIndex: start,
-                                   selects: !selection.contains(clips[start].id), lastPoint: value.location)
-        }
-        guard var current = swipe, current.isActive else { return }
-        current.lastPoint = value.location
-        swipe = current
-        applySwipe(at: value.location)
-        updateAutoScroll(for: value.location)
+    private func swipeChanged(to point: CGPoint) {
+        guard swipe != nil else { return }
+        swipe?.lastPoint = point
+        applySwipe(at: point)
+        updateAutoScroll(for: point)
     }
 
     /// Marca (o desmarca) todos los vídeos entre el primero y el que está bajo el dedo, en el orden de
     /// la rejilla; los que quedan fuera del tramo vuelven a como estaban al empezar.
     private func applySwipe(at viewportPoint: CGPoint) {
-        guard let current = swipe, current.isActive, let end = index(at: viewportPoint, nearest: true) else { return }
+        guard let current = swipe, let end = index(at: viewportPoint, nearest: true) else { return }
         var updated = current.base
         let range = min(current.startIndex, end)...max(current.startIndex, end)
         for index in range where clips.indices.contains(index) {
@@ -268,15 +258,17 @@ struct LibraryView: View {
             .min { distance(itemFrames[clips[$0].id]!) < distance(itemFrames[clips[$1].id]!) }
     }
 
-    /// Cerca del borde de arriba o de abajo, la lista se desplaza sola mientras el dedo siga ahí, y la
-    /// selección sigue al dedo. Abajo se deja sitio para la barra de Compartir y Borrar.
+    /// Cerca del borde de arriba o de abajo, la lista se desplaza sola mientras el dedo siga ahí (más
+    /// rápido cuanto más cerca del borde), y la selección sigue al dedo. Abajo se deja sitio para la
+    /// barra de Compartir y Borrar.
     private func updateAutoScroll(for viewportPoint: CGPoint) {
-        let bottomEdge = viewportHeight - 130
+        let bottomEdge = viewportHeight - 140
+        let topEdge: CGFloat = 110
         let speed: CGFloat
         if viewportPoint.y > bottomEdge {
-            speed = min((viewportPoint.y - bottomEdge) / 6, 14)
-        } else if viewportPoint.y < 90 {
-            speed = -min((90 - viewportPoint.y) / 6, 14)
+            speed = min(4 + (viewportPoint.y - bottomEdge) / 5, 22)
+        } else if viewportPoint.y < topEdge {
+            speed = -min(4 + (topEdge - viewportPoint.y) / 5, 22)
         } else {
             speed = 0
         }
@@ -284,12 +276,11 @@ struct LibraryView: View {
         autoScroll = nil
         guard speed != 0 else { return }
         autoScroll = Task { @MainActor in
-            while !Task.isCancelled, swipe?.isActive == true {
-                let target = min(max(scrollOffset + speed, 0), maximumScrollOffset)
-                if abs(target - scrollOffset) < 0.5 { break }
-                scrollPosition.scrollTo(y: target)
-                if let point = swipe?.lastPoint { applySwipe(at: point) }
+            while !Task.isCancelled, let point = swipe?.lastPoint {
+                guard scroller.scroll(by: speed) else { break }
+                // Tras desplazar, el mismo punto de la pantalla cae sobre otros vídeos.
                 try? await Task.sleep(for: .milliseconds(16))
+                applySwipe(at: point)
             }
         }
     }
@@ -307,7 +298,8 @@ struct LibraryView: View {
     /// La barra de abajo del modo "Seleccionar", como en Fotos: Compartir, cuántos, Guardar y Borrar.
     private var selectionBar: some View {
         HStack(spacing: Spacing.l) {
-            ShareLink(items: selectedFiles) {
+            // La hoja de compartir del iPhone, con todos los vídeos (ShareLink a veces pasaba solo el primero).
+            Button { ShareSheet.present(selectedFiles) } label: {
                 Image(systemName: "square.and.arrow.up").font(.system(size: 20, weight: .regular))
                     .frame(width: Size.minTouch, height: Size.minTouch)
             }
@@ -346,25 +338,43 @@ struct LibraryView: View {
         .padding(.bottom, Spacing.s)
     }
 
-    /// Guarda en Fotos los vídeos elegidos, uno detrás de otro, y dice cuántos han ido bien.
+    /// Guarda en Fotos los vídeos elegidos: primero todos en una sola operación; si eso falla, uno a uno
+    /// para saber cuáles no entran. Si no entran todos, lo dice en un aviso que no se va solo.
     private func saveSelection() async {
-        let files = selectedFiles
+        let all = selectedFiles
+        let files = all.filter { FileManager.default.fileExists(atPath: $0.path) }
+        let missing = all.count - files.count
+        guard !files.isEmpty else {
+            saveReport = "No se encuentran los archivos de estos vídeos en el iPhone."
+            return
+        }
         isSavingSelection = true
         defer { isSavingSelection = false }
         var saved = 0
         var lastError: String?
-        for url in files {
-            do {
-                try await PhotoLibrary.saveVideo(at: url)
-                saved += 1
-            } catch {
-                lastError = error.localizedDescription
+        do {
+            try await PhotoLibrary.saveVideos(at: files)
+            saved = files.count
+        } catch PhotoLibraryError.denied {
+            saveReport = PhotoLibraryError.denied.errorDescription
+            return
+        } catch {
+            for url in files {
+                do {
+                    try await PhotoLibrary.saveVideo(at: url)
+                    saved += 1
+                } catch {
+                    lastError = error.localizedDescription
+                }
             }
         }
-        if let lastError, saved < files.count {
-            message = saved == 0 ? lastError : "Guardados \(saved) de \(files.count). \(lastError)"
-        } else {
+        if saved == all.count {
             message = saved == 1 ? "1 vídeo guardado en Fotos" : "\(saved) vídeos guardados en Fotos"
+        } else {
+            var text = "Se han guardado \(saved) de \(all.count) vídeos en Fotos."
+            if missing > 0 { text += " \(missing == 1 ? "Falta el archivo de 1 vídeo" : "Faltan los archivos de \(missing) vídeos")." }
+            if let lastError { text += " Motivo: \(lastError)" }
+            saveReport = text
         }
     }
 

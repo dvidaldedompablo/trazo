@@ -28,6 +28,19 @@ enum PhotoLibrary {
         }
     }
 
+    /// Guarda varios vídeos en Fotos de una vez, en una sola operación: o entran todos o ninguno.
+    /// (Antes se guardaban uno detrás de otro, pidiendo permiso cada vez, y con 9 solo entraba uno.)
+    static func saveVideos(at urls: [URL]) async throws {
+        let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+        guard status == .authorized || status == .limited else { throw PhotoLibraryError.denied }
+        try await PHPhotoLibrary.shared().performChanges {
+            for url in urls {
+                let request = PHAssetCreationRequest.forAsset()
+                request.addResource(with: .video, fileURL: url, options: nil)
+            }
+        }
+    }
+
     /// Permiso para leer la fototeca (lo pide si todavía no se ha preguntado).
     static func readAccess() async -> PHAuthorizationStatus {
         let current = PHPhotoLibrary.authorizationStatus(for: .readWrite)

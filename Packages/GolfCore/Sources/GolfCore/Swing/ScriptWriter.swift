@@ -5,6 +5,8 @@ public enum ScriptBlockKind: String, Sendable, Codable, CaseIterable {
     case hook, slowMotion
     case address, takeaway, midBackswing, top, transition, impact, finish
     case tempo, score, report
+    /// Sección final "A mejorar" (ImprovementPlan): entrada, un bloque por fallo y resumen.
+    case improveIntro, improve1, improve2, improve3, improveSummary
 }
 
 /// Un bloque del guion: sus frases, cada una pensada para una llamada a la voz.
@@ -64,6 +66,8 @@ public enum ScriptWriter {
                 "Sigue entrenando con esta misma rutina.",
             ]))
         }
+        // El final "A mejorar": los 3 fallos principales con su ejercicio (el vídeo se entiende solo).
+        blocks += ImprovementPlan.scriptBlocks(score)
         return SwingScript(blocks: blocks)
     }
 

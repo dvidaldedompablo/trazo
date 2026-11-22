@@ -197,6 +197,7 @@ final class ScriptPreviewModel {
         case .tempo: return "Ritmo"
         case .score: return "Tu nota"
         case .report: return "Informe"
+        case .improveIntro, .improve1, .improve2, .improve3, .improveSummary: return "A mejorar"
         case .address, .takeaway, .midBackswing, .top, .transition, .impact, .finish:
             return SwingPosition(rawValue: blockPosition(line.block))?.title
         }

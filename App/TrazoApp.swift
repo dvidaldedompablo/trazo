@@ -86,6 +86,8 @@ private struct RootView: View {
             NavigationStack { ExercisesView() }
         case .exercise:
             NavigationStack { ExerciseDetailView(exercise: ExerciseCatalog.all[0]) }
+        case .exportDemo:
+            ExportDemoView()
         case .processing:
             NavigationStack { TracerProcessingView(clipID: UUID(), demo: DemoData.processingLive()) }
         case .ballTap:

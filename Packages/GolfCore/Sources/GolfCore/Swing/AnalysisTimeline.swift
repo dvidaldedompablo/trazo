@@ -39,20 +39,26 @@ public enum AnalysisTimeline {
         case .tempo: 4
         case .score: 5
         case .report: 6
+        case .improveIntro, .improveSummary: 3
+        case .improve1, .improve2, .improve3: 8
         }
     }
 
     /// Qué bloques lleva el vídeo. La versión corta (docs/04): gancho, cámara lenta a × 0,5,
     /// las 3 fases más importantes para la nota, la nota y el informe con la prioridad.
+    /// Las dos versiones terminan con la sección "A mejorar" (el vídeo se reenvía y tiene que entenderse solo);
+    /// sus bloques solo suenan si el guion los trae (si no hay fallos con ejercicio, no hay sección).
+    public static let improvementKinds: [ScriptBlockKind] = [.improveIntro, .improve1, .improve2, .improve3, .improveSummary]
+
     public static func blockKinds(short: Bool, importantPhases: [SwingPhase]) -> [ScriptBlockKind] {
         let phaseKinds: [ScriptBlockKind] = [.address, .takeaway, .midBackswing, .top, .transition, .impact, .finish]
         guard short else {
-            return [.hook, .slowMotion] + phaseKinds + [.tempo, .score, .report]
+            return [.hook, .slowMotion] + phaseKinds + [.tempo, .score, .report] + improvementKinds
         }
         let chosen = phaseKinds.enumerated().filter { index, _ in
             importantPhases.contains { $0.rawValue == index + 1 }
         }.map(\.element)
-        return [.hook, .slowMotion] + chosen.prefix(3) + [.score, .report]
+        return [.hook, .slowMotion] + chosen.prefix(3) + [.score, .report] + improvementKinds
     }
 
     /// Las 3 fases que más pesan en la nota (las de la lista "a mejorar" y, si faltan, las más bajas).

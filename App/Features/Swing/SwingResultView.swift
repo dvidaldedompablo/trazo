@@ -301,13 +301,22 @@ struct SwingResultView: View {
                     Task { @MainActor in exportProgress = progress }
                 }
                 let name = "analisis-\(result.id.uuidString).mp4"
-                try MediaStore.moveIntoClips(output, named: name)
+                try MediaStore.moveIntoClips(output.main, named: name)
                 result.videoFileName = name
                 result.videoIsShort = short
                 try? context.save()
                 try await PhotoLibrary.saveVideo(at: MediaStore.url(forFile: name))
+                // La versión ligera (720p) solo se hace si la de 1080p tuvo que bajar mucho la calidad.
+                if let light = output.light {
+                    try? await PhotoLibrary.saveVideo(at: light)
+                    MediaStore.removeIfPresent(light)
+                }
                 videoDuration = try? await AVURLAsset(url: MediaStore.url(forFile: name)).load(.duration).seconds
-                message = "Guardado en Fotos"
+                var text = output.light == nil ? "Guardado en Fotos" : "Guardado en Fotos, también en 720p para enviarlo"
+                if !output.missingClips.isEmpty {
+                    text += ". Sin clip (imagen fija): \(output.missingClips.joined(separator: ", "))"
+                }
+                message = text
             } catch {
                 message = "No se ha podido crear el vídeo: \(error.localizedDescription)"
             }

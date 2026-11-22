@@ -487,6 +487,19 @@ func catalog() -> [CatalogEntry] {
     }
 }
 
+// MARK: - demo-poses: la pose del swing de demostración (para dibujar su clip en el PC)
+
+struct DemoFrame: Encodable {
+    let time: Double
+    let joints: [String: [Double]]
+}
+
+func demoPoses() -> [DemoFrame] {
+    DemoSwing.frames().map { frame in
+        DemoFrame(time: frame.time, joints: Dictionary(uniqueKeysWithValues: frame.joints.map { ($0.key.rawValue, [$0.value.x, $0.value.y]) }))
+    }
+}
+
 // MARK: - Arranque
 
 do {
@@ -547,6 +560,8 @@ do {
         guard a.count == 8, let seconds = Double(a[2]), let width = Int(a[4]), let height = Int(a[5]) else { throw LabError.usage }
         try write(swingDecision(duration: seconds, impact: impactArgument(a[3]), width: width, height: height,
                                 positionsPath: a[6], bodyPath: a[7]))
+    case "demo-poses":
+        try write(demoPoses())
     case "catalogo":
         try write(catalog())
     case "verificar-decidir":

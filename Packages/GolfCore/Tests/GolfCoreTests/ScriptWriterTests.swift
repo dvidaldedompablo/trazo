@@ -32,8 +32,11 @@ struct ScriptWriterTests {
         for (measurements, score) in Self.scenarios() {
             for seed in 0..<8 as Range<UInt64> {
                 let script = ScriptWriter.write(measurements: measurements, score: score, variantSeed: seed)
-                #expect(script.blocks.map(\.kind) == ScriptBlockKind.allCases)
-                for line in script.allLines {
+                // La narración del análisis sigue el estilo de docs/04. La sección "A mejorar" (al final)
+                // lee el texto de los ejercicios tal cual y tiene su propio test (ImprovementPlanTests).
+                let analysisKinds = ScriptBlockKind.allCases.filter { !AnalysisTimeline.improvementKinds.contains($0) }
+                #expect(Array(script.blocks.map(\.kind).prefix(analysisKinds.count)) == analysisKinds)
+                for line in script.blocks.filter({ analysisKinds.contains($0.kind) }).flatMap(\.lines) {
                     let words = line.split(whereSeparator: \.isWhitespace).count
                     #expect(words >= 4 && words <= 14, "\(words) palabras: \(line)")
                     #expect(!line.contains("{") && !line.contains("}"), "\(line)")

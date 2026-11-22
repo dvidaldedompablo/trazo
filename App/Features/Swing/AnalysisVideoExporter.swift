@@ -5,16 +5,27 @@ import UIKit
 
 /// Monta y exporta el vídeo del análisis (docs/04, punto 10): gancho a velocidad real, cámara
 /// lenta con líneas, pausas por fase, ritmo, nota, informe y cierre, con la voz y los subtítulos.
-/// Sale en 1080 x 1920 a 30 fps, H.264 con AAC, y todo se hace en el iPhone.
+/// Sale en 1080 x 1920 a 30 fps, H.264 con AAC, y todo se hace en el iPhone. Termina con la sección
+/// "A mejorar" (ImprovementPlan) y se recomprime para que pese menos de 16 MB (VideoCompressor).
 enum AnalysisVideoExporter {
+    /// Lo que sale: el vídeo en 1080p de menos de 16 MB y, si para caber ha tenido que bajar mucho la
+    /// calidad, también una versión ligera en 720p. `missingClips`: ejercicios que salen con imagen fija.
+    struct Output: Sendable {
+        let main: URL
+        let light: URL?
+        let missingClips: [String]
+    }
+
     @concurrent
     static func export(clipURL: URL, analysis: SwingAnalysis, short: Bool, subtitles: Bool,
-                       progress: @escaping @Sendable (ExportProgress) -> Void) async throws -> URL {
+                       progress: @escaping @Sendable (ExportProgress) -> Void) async throws -> Output {
         // 1. Guion, nota y bloques.
         progress(ExportProgress(stepName: "Escribiendo el guion", fraction: 0.02))
         let measurements = analysis.measurements()
         let score = Scoring.score(measurements)
         let script = ScriptWriter.write(measurements: measurements, score: score)
+        // Los fallos de la sección "A mejorar" (los mismos que el guion, en el mismo orden).
+        let improvementItems = ImprovementPlan.items(score)
         let kinds = AnalysisTimeline.blockKinds(short: short,
                                                 importantPhases: AnalysisTimeline.importantPhases(of: score))
 
@@ -59,6 +70,9 @@ enum AnalysisVideoExporter {
         // 4. El montaje: los trozos del clip (reales, a cámara lenta o congelados) y la voz.
         progress(ExportProgress(stepName: "Montando el vídeo", fraction: 0.38))
         let composition = AVMutableComposition()
+        var exerciseTrack: AVMutableCompositionTrack?
+        var exerciseTransforms: [(CMTime, CGAffineTransform)] = []
+        var missingClips: [String] = []
         guard let videoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
               let audioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
         else { throw MediaError.exportFailed("montaje") }
@@ -97,6 +111,40 @@ enum AnalysisVideoExporter {
                 if block.duration - scaled > 0.05 {
                     try freeze(at: swingEnd - 0.05, start: block.start + scaled, duration: block.duration - scaled)
                 }
+            case .script(.improveIntro), .script(.improveSummary):
+                // Tarjetas de la sección "A mejorar": a pantalla completa, sin vídeo debajo.
+                videoTrack.insertEmptyTimeRange(CMTimeRange(start: time(block.start), duration: time(block.duration)))
+            case let .script(kind) where Self.improvementIndex(kind) != nil:
+                // Un fallo de "A mejorar": el clip del ejercicio en bucle, en su propia pista.
+                videoTrack.insertEmptyTimeRange(CMTimeRange(start: time(block.start), duration: time(block.duration)))
+                guard let index = Self.improvementIndex(kind), index < improvementItems.count else { break }
+                let exercise = improvementItems[index].exercise
+                guard exercise.hasClip, let url = ExerciseAssets.url(exercise.clipFile),
+                      let source = try? await AVURLAsset(url: url).loadTracks(withMediaType: .video).first
+                else {
+                    missingClips.append(exercise.id)
+                    break
+                }
+                if exerciseTrack == nil {
+                    exerciseTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
+                }
+                guard let track = exerciseTrack else { break }
+                let sourceDuration = try await AVURLAsset(url: url).load(.duration).seconds
+                let size = try await source.load(.naturalSize)
+                // A lo ancho del vídeo, debajo de la banda del título (sirve también si el usuario
+                // pone un clip suyo de otro tamaño).
+                let scale = ImprovementCards.clipSide / max(size.width, 1)
+                exerciseTransforms.append((time(block.start), CGAffineTransform(scaleX: scale, y: scale)
+                    .concatenating(CGAffineTransform(translationX: 0, y: ImprovementCards.clipTop))))
+                if track.timeRange.duration < time(block.start) {
+                    track.insertEmptyTimeRange(CMTimeRange(start: track.timeRange.duration, end: time(block.start)))
+                }
+                var cursor = block.start
+                while cursor < block.end - 0.05, sourceDuration > 0.1 {
+                    let piece = min(sourceDuration, block.end - cursor)
+                    try track.insertTimeRange(CMTimeRange(start: .zero, duration: time(piece)), of: source, at: time(cursor))
+                    cursor += piece
+                }
             case let .script(kind):
                 if let position = Self.position(for: kind) {
                     try freeze(at: analysis.poses[phases[position].frameIndex].time,
@@ -123,7 +171,8 @@ enum AnalysisVideoExporter {
         let overlay = try Self.overlayLayer(analysis: analysis, measurements: measurements, score: score,
                                             script: script, blocks: blocks, voice: voice, total: total,
                                             swingStart: swingStart, slowMotionFactor: slowMotionFactor,
-                                            subtitles: subtitles)
+                                            subtitles: subtitles, improvementItems: improvementItems,
+                                            missingClips: missingClips)
         let parent = CALayer()
         parent.frame = videoLayer.frame
         parent.isGeometryFlipped = true
@@ -140,6 +189,12 @@ enum AnalysisVideoExporter {
         // El vídeo grabado lleva su giro en el transform: se aplica para verlo derecho.
         layerInstruction.setTransform(preferredTransform, at: .zero)
         instruction.layerInstructions = [layerInstruction]
+        if let exerciseTrack {
+            // La pista de los ejercicios va encima de la del swing.
+            let exerciseLayer = AVMutableVideoCompositionLayerInstruction(assetTrack: exerciseTrack)
+            for (at, transform) in exerciseTransforms { exerciseLayer.setTransform(transform, at: at) }
+            instruction.layerInstructions = [exerciseLayer, layerInstruction]
+        }
         videoComposition.instructions = [instruction]
 
         // 6. Exportar en H.264 con AAC.
@@ -161,8 +216,29 @@ enum AnalysisVideoExporter {
         }
         defer { monitor.cancel() }
         try await session.export(to: outputURL, as: .mp4)
+
+        // 7. Que quepa para reenviarlo: H.264 + AAC, 1080p, menos de 16 MB. Si para caber la calidad
+        //    baja mucho, también una versión ligera en 720p (petición del usuario, 22-11-2026).
+        progress(ExportProgress(stepName: "Ajustando el tamaño para enviarlo", fraction: 0.97))
+        defer { MediaStore.removeIfPresent(outputURL) }
+        let compressed = try await VideoCompressor.compress(outputURL, width: Int(VideoLayers.width),
+                                                            height: Int(VideoLayers.height))
+        var light: URL?
+        if compressed.videoBitRate < VideoCompressor.comfortableBitRate1080 {
+            light = try await VideoCompressor.compress(outputURL, width: 720, height: 1280).url
+        }
         progress(ExportProgress(stepName: "Vídeo listo", fraction: 1))
-        return outputURL
+        return Output(main: compressed.url, light: light, missingClips: missingClips)
+    }
+
+    /// 0, 1 o 2 para los bloques de los fallos de "A mejorar".
+    static func improvementIndex(_ kind: ScriptBlockKind) -> Int? {
+        switch kind {
+        case .improve1: 0
+        case .improve2: 1
+        case .improve3: 2
+        default: nil
+        }
     }
 
     private static func position(for kind: ScriptBlockKind) -> SwingPosition? {
@@ -182,7 +258,8 @@ enum AnalysisVideoExporter {
     private static func overlayLayer(analysis: SwingAnalysis, measurements: SwingMeasurements,
                                      score: SwingScore, script: SwingScript, blocks: [TimelineBlock],
                                      voice: VoiceTrack, total: Double, swingStart: Double,
-                                     slowMotionFactor: Double, subtitles: Bool) throws -> CALayer {
+                                     slowMotionFactor: Double, subtitles: Bool,
+                                     improvementItems: [ImprovementPlan.Item], missingClips: [String]) throws -> CALayer {
         let overlay = CALayer()
         overlay.frame = CGRect(x: 0, y: 0, width: VideoLayers.width, height: VideoLayers.height)
         let now = Date.now
@@ -206,6 +283,19 @@ enum AnalysisVideoExporter {
                                                              total: total, date: now))
             case .closing:
                 overlay.addSublayer(AnalysisCards.closingCard(block: block, total: total, date: now))
+            case .script(.improveIntro):
+                overlay.addSublayer(ImprovementCards.listCard(title: ImprovementPlan.introTitle(count: improvementItems.count),
+                                                              items: improvementItems, block: block, total: total))
+            case .script(.improveSummary):
+                overlay.addSublayer(ImprovementCards.listCard(title: ImprovementPlan.summaryTitle,
+                                                              items: improvementItems, block: block, total: total))
+            case let .script(kind) where Self.improvementIndex(kind) != nil:
+                guard let index = Self.improvementIndex(kind), index < improvementItems.count else { break }
+                let item = improvementItems[index]
+                // Si el clip falta, la imagen fija con el texto (y se avisa al terminar).
+                let fallback = missingClips.contains(item.exercise.id) ? ExerciseAssets.image(item.exercise) : nil
+                overlay.addSublayer(ImprovementCards.itemOverlay(item: item, count: improvementItems.count, block: block,
+                                                                 total: total, fallbackImage: fallback))
             case let .script(kind):
                 guard let position = Self.position(for: kind) else { break }
                 // Pausa de fase: telestrador, chip "n/7", estado y las medidas de su fase.

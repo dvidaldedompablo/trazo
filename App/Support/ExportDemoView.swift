@@ -50,10 +50,12 @@ struct ExportDemoView: View {
             }
             let seconds = Int(Date.now.timeIntervalSince(started))
             finish("ok\nvoz Kokoro: \(kokoro ? "sí" : "no (voz de reserva)")\nversión 720p: \(light)\n"
+                   + "recompresión: \(output.compressionProblem ?? "bien")\n"
                    + "clips que faltan: \(output.missingClips.isEmpty ? "ninguno" : output.missingClips.joined(separator: ", "))\n"
                    + "segundos en generarlo: \(seconds)")
         } catch {
-            finish("error: \(error.localizedDescription)\nvoz Kokoro: \(kokoro ? "sí" : "no")")
+            finish("error: \((error as? LocalizedError)?.errorDescription ?? describeError(error))\n"
+                   + "detalle: \(describeError(error))\núltimo paso: \(status)\nvoz Kokoro: \(kokoro ? "sí" : "no")")
         }
     }
 }

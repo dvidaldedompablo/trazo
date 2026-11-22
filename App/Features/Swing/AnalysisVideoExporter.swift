@@ -14,6 +14,8 @@ enum AnalysisVideoExporter {
         let main: URL
         let light: URL?
         let missingClips: [String]
+        /// Si no se pudo recomprimir: el motivo (el vídeo sale sin recomprimir y puede pasar de 16 MB).
+        var compressionProblem: String? = nil
     }
 
     @concurrent
@@ -215,20 +217,35 @@ enum AnalysisVideoExporter {
             }
         }
         defer { monitor.cancel() }
-        try await session.export(to: outputURL, as: .mp4)
+        do {
+            try await session.export(to: outputURL, as: .mp4)
+        } catch {
+            throw MediaError.exportFailed("montaje: " + describeError(error))
+        }
 
         // 7. Que quepa para reenviarlo: H.264 + AAC, 1080p, menos de 16 MB. Si para caber la calidad
         //    baja mucho, también una versión ligera en 720p (petición del usuario, 22-11-2026).
         progress(ExportProgress(stepName: "Ajustando el tamaño para enviarlo", fraction: 0.97))
         defer { MediaStore.removeIfPresent(outputURL) }
-        let compressed = try await VideoCompressor.compress(outputURL, width: Int(VideoLayers.width),
-                                                            height: Int(VideoLayers.height))
+        // Si la recompresión fallara, se guarda el vídeo tal cual (ya es H.264 con AAC) y se dice.
+        var main = outputURL
         var light: URL?
-        if compressed.videoBitRate < VideoCompressor.comfortableBitRate1080 {
-            light = try await VideoCompressor.compress(outputURL, width: 720, height: 1280).url
+        var note: String?
+        do {
+            let compressed = try await VideoCompressor.compress(outputURL, width: Int(VideoLayers.width),
+                                                                height: Int(VideoLayers.height))
+            main = compressed.url
+            if compressed.videoBitRate < VideoCompressor.comfortableBitRate1080 {
+                light = try? await VideoCompressor.compress(outputURL, width: 720, height: 1280).url
+            }
+        } catch {
+            note = (error as? LocalizedError)?.errorDescription ?? describeError(error)
+            let kept = MediaStore.temporaryURL(extension: "mp4")
+            try? FileManager.default.copyItem(at: outputURL, to: kept)
+            main = kept
         }
         progress(ExportProgress(stepName: "Vídeo listo", fraction: 1))
-        return Output(main: compressed.url, light: light, missingClips: missingClips)
+        return Output(main: main, light: light, missingClips: missingClips, compressionProblem: note)
     }
 
     /// 0, 1 o 2 para los bloques de los fallos de "A mejorar".

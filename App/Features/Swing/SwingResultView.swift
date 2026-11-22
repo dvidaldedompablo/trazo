@@ -313,6 +313,9 @@ struct SwingResultView: View {
                 }
                 videoDuration = try? await AVURLAsset(url: MediaStore.url(forFile: name)).load(.duration).seconds
                 var text = output.light == nil ? "Guardado en Fotos" : "Guardado en Fotos, también en 720p para enviarlo"
+                if output.compressionProblem != nil {
+                    text += ". No se ha podido reducir el tamaño: puede pasar de 16 MB"
+                }
                 if !output.missingClips.isEmpty {
                     text += ". Sin clip (imagen fija): \(output.missingClips.joined(separator: ", "))"
                 }

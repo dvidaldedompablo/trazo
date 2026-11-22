@@ -7,6 +7,20 @@ import Foundation
 ///
 /// Se hace con `AVAssetReader` (descodifica) y `AVAssetWriter` (codifica con el caudal pedido), porque
 /// `AVAssetExportSession` no deja elegir el caudal. El escritor reescala si se pide otro tamaño (720p).
+/// Un error con su dominio, su código y sus causas internas: el mensaje de AVFoundation solo dice
+/// "No se ha podido completar la operación" y así no se sabe qué ha fallado.
+func describeError(_ error: Error) -> String {
+    var parts: [String] = []
+    var current: NSError? = error as NSError
+    var depth = 0
+    while let e = current, depth < 4 {
+        parts.append("\(e.domain) \(e.code): \(e.localizedDescription)" + (e.localizedFailureReason.map { " (\($0))" } ?? ""))
+        current = e.userInfo[NSUnderlyingErrorKey] as? NSError
+        depth += 1
+    }
+    return parts.joined(separator: " ← ")
+}
+
 enum VideoCompressor {
     static let maximumBytes = 16_000_000
     static let audioBitRate = 96_000
@@ -20,9 +34,16 @@ enum VideoCompressor {
         let videoBitRate: Int
     }
 
-    enum Failure: Error {
+    enum Failure: Error, LocalizedError {
         case noVideo
         case writer(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .noVideo: "recompresión: el vídeo no tiene imagen"
+            case .writer(let detail): "recompresión: \(detail)"
+            }
+        }
     }
 
     @concurrent
@@ -76,8 +97,8 @@ enum VideoCompressor {
             audioIn = inp
         }
 
-        guard reader.startReading() else { throw Failure.writer(reader.error?.localizedDescription ?? "lectura") }
-        guard writer.startWriting() else { throw Failure.writer(writer.error?.localizedDescription ?? "escritura") }
+        guard reader.startReading() else { throw Failure.writer("lectura: " + (reader.error.map(describeError) ?? "?")) }
+        guard writer.startWriting() else { throw Failure.writer("escritura: " + (writer.error.map(describeError) ?? "?")) }
         writer.startSession(atSourceTime: .zero)
 
         // Se alternan vídeo y audio según cuál admita más datos, hasta que se acaben los dos.
@@ -103,11 +124,12 @@ enum VideoCompressor {
                 }
                 progressed = true
             }
-            if writer.status == .failed { throw Failure.writer(writer.error?.localizedDescription ?? "escritura") }
+            if writer.status == .failed { throw Failure.writer("escritura: " + (writer.error.map(describeError) ?? "?")) }
+            if reader.status == .failed { throw Failure.writer("lectura: " + (reader.error.map(describeError) ?? "?")) }
             if !progressed { try await Task.sleep(for: .milliseconds(5)) }
         }
         await writer.finishWriting()
-        guard writer.status == .completed else { throw Failure.writer(writer.error?.localizedDescription ?? "cierre") }
+        guard writer.status == .completed else { throw Failure.writer("cierre: " + (writer.error.map(describeError) ?? "?")) }
         return Result(url: output, videoBitRate: bitRate)
     }
 }

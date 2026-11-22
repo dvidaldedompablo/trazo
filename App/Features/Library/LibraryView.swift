@@ -35,6 +35,17 @@ struct LibraryView: View {
     /// Capturas del CI: abre en modo "Seleccionar" con los dos primeros elegidos.
     var demoSelecting = false
 
+    // Deslizar para seleccionar (como en Fotos). Los marcos de cada miniatura se guardan en el espacio
+    // del contenido, que no se mueve al desplazar; el dedo se mide en el de la pantalla (viewport).
+    @State private var itemFrames: [UUID: CGRect] = [:]
+    @State private var contentOrigin: CGPoint = .zero
+    @State private var viewportHeight: CGFloat = 0
+    @State private var scrollOffset: CGFloat = 0
+    @State private var maximumScrollOffset: CGFloat = 0
+    @State private var scrollPosition = ScrollPosition(edge: .top)
+    @State private var swipe: SwipeSelection?
+    @State private var autoScroll: Task<Void, Never>?
+
     private let columns = Array(repeating: GridItem(.flexible(), spacing: LibraryLayout.gap), count: 3)
 
     var body: some View {
@@ -81,12 +92,37 @@ struct LibraryView: View {
                             .buttonStyle(.plain)
                             .contextMenu { if !isSelecting { menu(for: clip) } }
                             .accessibilityAddTraits(isSelecting && selection.contains(clip.id) ? .isSelected : [])
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.contentSpace)) } action: { frame in
+                                itemFrames[clip.id] = frame
+                            }
                         }
                     }
+                    // Solo en "Seleccionar"; un toque sigue siendo un toque (hace falta mover 10 pt).
+                    .simultaneousGesture(swipeGesture, including: isSelecting ? .all : .subviews)
                 }
             }
             .padding(.horizontal, Spacing.cardMargin)
             .padding(.vertical, Spacing.s)
+            .coordinateSpace(.named(Self.contentSpace))
+            .onGeometryChange(for: CGPoint.self) { $0.frame(in: .named(Self.viewportSpace)).origin } action: { origin in
+                contentOrigin = origin
+            }
+        }
+        .coordinateSpace(.named(Self.viewportSpace))
+        .scrollPosition($scrollPosition)
+        // Mientras se selecciona deslizando, el dedo no mueve la lista (lo hace el desplazamiento automático).
+        .scrollDisabled(swipe?.isActive == true)
+        .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, offset in
+            scrollOffset = offset
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { max($0.contentSize.height - $0.containerSize.height + $0.contentInsets.bottom, 0) } action: { _, value in
+            maximumScrollOffset = value
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            viewportHeight = height
+        }
+        .onChange(of: isSelecting) { _, selecting in
+            if !selecting { endSwipe() }
         }
         .background(Color.bola)
         .navigationBarTitleDisplayMode(.inline)
@@ -163,6 +199,106 @@ struct LibraryView: View {
 
     /// Los archivos que se pueden compartir o guardar (los de demostración no tienen archivo propio).
     private var selectedFiles: [URL] { selectedClips.filter { !$0.isDemo }.map(\.fileURL) }
+
+    // MARK: Deslizar para seleccionar
+
+    private static let contentSpace = "library-content"
+    private static let viewportSpace = "library-viewport"
+
+    /// Un deslizamiento en curso: con qué selección empezó, desde qué vídeo y si marca o desmarca.
+    private struct SwipeSelection {
+        var isActive: Bool
+        var base: Set<UUID> = []
+        var startIndex = 0
+        var selects = true
+        var lastPoint: CGPoint = .zero
+    }
+
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 10, coordinateSpace: .named(Self.viewportSpace))
+            .onChanged { value in swipeChanged(value) }
+            .onEnded { _ in endSwipe() }
+    }
+
+    /// Como en Fotos: si el dedo sale de lado desde un vídeo, empieza a seleccionar; si sale en
+    /// vertical, es un desplazamiento normal y no se toca nada.
+    private func swipeChanged(_ value: DragGesture.Value) {
+        guard isSelecting else { return }
+        if swipe == nil {
+            let horizontal = abs(value.translation.width) > abs(value.translation.height)
+            guard horizontal, let start = index(at: value.startLocation, nearest: false) else {
+                swipe = SwipeSelection(isActive: false)
+                return
+            }
+            swipe = SwipeSelection(isActive: true, base: selection, startIndex: start,
+                                   selects: !selection.contains(clips[start].id), lastPoint: value.location)
+        }
+        guard var current = swipe, current.isActive else { return }
+        current.lastPoint = value.location
+        swipe = current
+        applySwipe(at: value.location)
+        updateAutoScroll(for: value.location)
+    }
+
+    /// Marca (o desmarca) todos los vídeos entre el primero y el que está bajo el dedo, en el orden de
+    /// la rejilla; los que quedan fuera del tramo vuelven a como estaban al empezar.
+    private func applySwipe(at viewportPoint: CGPoint) {
+        guard let current = swipe, current.isActive, let end = index(at: viewportPoint, nearest: true) else { return }
+        var updated = current.base
+        let range = min(current.startIndex, end)...max(current.startIndex, end)
+        for index in range where clips.indices.contains(index) {
+            if current.selects { updated.insert(clips[index].id) } else { updated.remove(clips[index].id) }
+        }
+        if updated != selection { selection = updated }
+    }
+
+    /// El vídeo bajo un punto de la pantalla. Con `nearest`, el más cercano (el dedo puede caer en el
+    /// hueco entre dos miniaturas o por debajo de la última).
+    private func index(at viewportPoint: CGPoint, nearest: Bool) -> Int? {
+        let point = CGPoint(x: viewportPoint.x - contentOrigin.x, y: viewportPoint.y - contentOrigin.y)
+        if let hit = clips.firstIndex(where: { itemFrames[$0.id]?.contains(point) == true }) { return hit }
+        guard nearest else { return nil }
+        func distance(_ rect: CGRect) -> CGFloat {
+            let dx = max(rect.minX - point.x, 0, point.x - rect.maxX)
+            let dy = max(rect.minY - point.y, 0, point.y - rect.maxY)
+            return dx * dx + dy * dy
+        }
+        return clips.indices
+            .filter { itemFrames[clips[$0].id] != nil }
+            .min { distance(itemFrames[clips[$0].id]!) < distance(itemFrames[clips[$1].id]!) }
+    }
+
+    /// Cerca del borde de arriba o de abajo, la lista se desplaza sola mientras el dedo siga ahí, y la
+    /// selección sigue al dedo. Abajo se deja sitio para la barra de Compartir y Borrar.
+    private func updateAutoScroll(for viewportPoint: CGPoint) {
+        let bottomEdge = viewportHeight - 130
+        let speed: CGFloat
+        if viewportPoint.y > bottomEdge {
+            speed = min((viewportPoint.y - bottomEdge) / 6, 14)
+        } else if viewportPoint.y < 90 {
+            speed = -min((90 - viewportPoint.y) / 6, 14)
+        } else {
+            speed = 0
+        }
+        autoScroll?.cancel()
+        autoScroll = nil
+        guard speed != 0 else { return }
+        autoScroll = Task { @MainActor in
+            while !Task.isCancelled, swipe?.isActive == true {
+                let target = min(max(scrollOffset + speed, 0), maximumScrollOffset)
+                if abs(target - scrollOffset) < 0.5 { break }
+                scrollPosition.scrollTo(y: target)
+                if let point = swipe?.lastPoint { applySwipe(at: point) }
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+        }
+    }
+
+    private func endSwipe() {
+        autoScroll?.cancel()
+        autoScroll = nil
+        swipe = nil
+    }
 
     private func toggle(_ clip: Clip) {
         if selection.contains(clip.id) { selection.remove(clip.id) } else { selection.insert(clip.id) }

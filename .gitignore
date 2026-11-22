@@ -8,6 +8,7 @@ trazo-kit.zip
 
 # Etapa 4b (prueba de laboratorio en el PC): solo se suben los .py y el README
 lab/**/.venv/
+lab/.venv-voz/
 lab/**/*.mp4
 lab/**/*.mov
 lab/**/frames/

@@ -1,4 +1,5 @@
 import AVFAudio
+import GolfCore
 import SwiftUI
 
 /// Selector de la voz del análisis (docs/00, etapa 7): voces de español de España primero, con su
@@ -18,6 +19,31 @@ struct VoiceSettingsView: View {
 
     var body: some View {
         List {
+            // La voz del análisis es Kokoro (Dora, español). Las de iOS de abajo solo se usan si el
+            // modelo no estuviera en la app o fallara al cargar.
+            Section {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Dora (Kokoro)").typeStyle(.filaTitulo).foregroundStyle(Color.pino)
+                        Text(KokoroEngine.isInstalled ? "Voz natural en español. Funciona sin red." : "No está en esta instalación: se usa la voz de reserva.")
+                            .typeStyle(.filaSub).foregroundStyle(Color.texto3)
+                    }
+                    Spacer()
+                    Button {
+                        sampler.playKokoro()
+                    } label: {
+                        Image(systemName: "speaker.wave.2.fill")
+                            .foregroundStyle(Color.pino)
+                            .frame(width: Size.minTouch, height: Size.minTouch)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Probar la voz Dora")
+                }
+            } header: {
+                Text("Voz del análisis")
+            } footer: {
+                Text("Las voces de abajo son de reserva: solo se usan si la voz Dora no puede cargarse.")
+            }
             if !voices.contains(where: { $0.quality != .default }) {
                 Section {
                     VStack(alignment: .leading, spacing: Spacing.s) {
@@ -139,6 +165,22 @@ struct VoiceSettingsView: View {
 @Observable
 final class VoiceSampler {
     @ObservationIgnored private let synthesizer = AVSpeechSynthesizer()
+    @ObservationIgnored private var player: AVAudioPlayer?
+
+    /// La frase de muestra con Kokoro: se sintetiza, se escribe en un archivo temporal y se reproduce.
+    func playKokoro() {
+        synthesizer.stopSpeaking(at: .immediate)
+        player?.stop()
+        Task {
+            guard let line = try? await VoiceSynthesizer.render("Tu ritmo es de dos coma ocho a uno. Muy cerca del tres a uno de los profesionales.",
+                                                                voiceIdentifier: nil) else { return }
+            let track = VoiceTrackBuilder.build(lines: [(.hook, line)])
+            let url = URL.temporaryDirectory.appending(path: "muestra-voz.caf")
+            try? VoiceTrackBuilder.writeFile(track, to: url)
+            player = try? AVAudioPlayer(contentsOf: url)
+            player?.play()
+        }
+    }
 
     func play(identifier: String) {
         synthesizer.stopSpeaking(at: .immediate)

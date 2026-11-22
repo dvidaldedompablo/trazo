@@ -78,7 +78,7 @@ struct PoseDebugView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             Text(logLine)
-                .font(.system(size: 11, weight: .medium).monospacedDigit())
+                .font(.lato(11, weight: .medium).monospacedDigit())
                 .foregroundStyle(.white)
                 .lineLimit(4)
                 .frame(maxWidth: .infinity, alignment: .leading)

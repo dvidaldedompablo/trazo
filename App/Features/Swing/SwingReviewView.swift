@@ -298,7 +298,7 @@ struct SwingReviewView: View {
                 dismiss()
             } label: {
                 Label("Atrás", systemImage: "chevron.left")
-                    .font(.system(size: 17, weight: .medium))
+                    .font(.lato(17, weight: .medium))
             }
             .foregroundStyle(Color.pino)
             .frame(height: Size.minTouch)
@@ -492,7 +492,7 @@ struct SwingReviewView: View {
                         .frame(width: thumbnailSize.width, height: thumbnailSize.height)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.thumbnailSmall, style: .continuous))
                         Text("\(position.rawValue)")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.lato(11, weight: .bold))
                             .foregroundStyle(Color.pino)
                             .padding(4)
                         if analysis.phases[position].isDoubtful {

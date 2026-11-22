@@ -23,14 +23,14 @@ enum AnalysisCards {
     /// del gancho y su progreso (docs/08).
     static func hookOverlay(phrase: String, blockStart: Double, blockEnd: Double, total: Double) -> CALayer {
         let root = fullFrame()
-        let title = VideoLayers.text("¿Qué nota le pones\na este swing?", font: VideoLayers.archivo(84, width: 74, weight: 820),
+        let title = VideoLayers.text("¿Qué nota le pones\na este swing?", font: VideoLayers.lato(84, weight: 820),
                                      color: .white, alignment: .center, outline: true)
         title.alignmentMode = .center
         title.isWrapped = true
         title.frame = CGRect(x: 0, y: 170, width: VideoLayers.width, height: 240)
         root.addSublayer(title)
 
-        let badgeText = VideoLayers.text("?/100", font: VideoLayers.archivo(56), color: pino)
+        let badgeText = VideoLayers.text("?/100", font: VideoLayers.lato(56), color: pino)
         let badge = VideoLayers.capsule(badgeText, background: amarillo, paddingX: 28, paddingY: 12)
         badge.frame.origin = CGPoint(x: (VideoLayers.width - badge.bounds.width) / 2, y: 410)
         root.addSublayer(badge)
@@ -40,7 +40,7 @@ enum AnalysisCards {
         bar.frame = CGRect(x: VideoLayers.sideMargin, y: 1550, width: VideoLayers.width - 2 * VideoLayers.sideMargin, height: 150)
         bar.backgroundColor = pino.withAlphaComponent(0.84).cgColor
         bar.cornerRadius = 32
-        let phraseLayer = VideoLayers.text(phrase, font: UIFont.systemFont(ofSize: 34, weight: .semibold), color: .white)
+        let phraseLayer = VideoLayers.text(phrase, font: Typography.latoUIFont(34, weight: Typography.cssWeight(.semibold)), color: .white)
         phraseLayer.frame = CGRect(x: 32, y: 24, width: bar.bounds.width - 64, height: 60)
         phraseLayer.isWrapped = true
         phraseLayer.truncationMode = .end
@@ -147,11 +147,11 @@ enum AnalysisCards {
         let phases = analysis.phases
         let tempo = phases.tempo ?? 0
 
-        let title = VideoLayers.text("Tu ritmo", font: UIFont.systemFont(ofSize: 44, weight: .semibold), color: texto2)
+        let title = VideoLayers.text("Tu ritmo", font: Typography.latoUIFont(44, weight: Typography.cssWeight(.semibold)), color: texto2)
         title.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: 300)
         root.addSublayer(title)
         let big = VideoLayers.text("\(SpanishFormat.number(tempo, decimals: 1)) : 1",
-                                   font: VideoLayers.archivo(200, width: 68, weight: 820), color: pino)
+                                   font: VideoLayers.lato(200, weight: 820), color: pino)
         big.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: 360)
         root.addSublayer(big)
 
@@ -187,14 +187,14 @@ enum AnalysisCards {
             root.addSublayer(caption)
         }
 
-        let reference = VideoLayers.text("Profesionales ≈ 3 : 1", font: UIFont.systemFont(ofSize: 40, weight: .semibold), color: texto2)
+        let reference = VideoLayers.text("Profesionales ≈ 3 : 1", font: Typography.latoUIFont(40, weight: Typography.cssWeight(.semibold)), color: texto2)
         reference.frame.origin = CGPoint(x: VideoLayers.sideMargin + 560, y: barAreaY + 160)
         root.addSublayer(reference)
 
         let upFrames = Int((phases.backswingDuration * analysis.frameRate).rounded())
         let downFrames = Int((phases.downswingDuration * analysis.frameRate).rounded())
         let foot = VideoLayers.text("Medido a \(SpanishFormat.number(analysis.frameRate)) fps: subida \(upFrames) fotogramas, bajada \(downFrames)",
-                                    font: UIFont.systemFont(ofSize: 30), color: texto2)
+                                    font: Typography.latoUIFont(30, weight: 400), color: texto2)
         foot.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: 1460)
         root.addSublayer(foot)
 
@@ -207,7 +207,7 @@ enum AnalysisCards {
     static func scoreCard(score: SwingScore, block: TimelineBlock, total: Double) -> CALayer {
         let root = fullFrame()
         root.backgroundColor = bola.cgColor
-        let title = VideoLayers.text("Tu nota", font: UIFont.systemFont(ofSize: 44, weight: .semibold), color: texto2)
+        let title = VideoLayers.text("Tu nota", font: Typography.latoUIFont(44, weight: Typography.cssWeight(.semibold)), color: texto2)
         title.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: 160)
         root.addSublayer(title)
 
@@ -216,17 +216,17 @@ enum AnalysisCards {
             let steps = 12
             for step in 0...steps {
                 let value = step == steps ? totalScore : totalScore * step / steps
-                let number = VideoLayers.text("\(value)", font: VideoLayers.archivo(340, width: 68, weight: 820), color: pino)
+                let number = VideoLayers.text("\(value)", font: VideoLayers.lato(340, weight: 820), color: pino)
                 number.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: 190)
                 let from = block.start + 1.2 * Double(step) / Double(steps)
                 let to = step == steps ? block.end : block.start + 1.2 * Double(step + 1) / Double(steps)
                 VideoLayers.show(number, from: from, to: to, total: total, fade: 0.02)
                 root.addSublayer(number)
             }
-            let outOf = VideoLayers.text("/100", font: VideoLayers.archivo(90), color: texto2)
+            let outOf = VideoLayers.text("/100", font: VideoLayers.lato(90), color: texto2)
             outOf.frame.origin = CGPoint(x: VideoLayers.sideMargin + 480, y: 420)
             root.addSublayer(outOf)
-            let label = VideoLayers.capsule(VideoLayers.text(score.label, font: UIFont.systemFont(ofSize: 38, weight: .semibold), color: .white),
+            let label = VideoLayers.capsule(VideoLayers.text(score.label, font: Typography.latoUIFont(38, weight: Typography.cssWeight(.semibold)), color: .white),
                                             background: pino, paddingX: 30, paddingY: 14)
             label.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: 590)
             root.addSublayer(label)
@@ -235,11 +235,11 @@ enum AnalysisCards {
         // Filas por fase con su marca: círculo (punto fuerte, ≥ 8) o cuadrado (a mejorar, < 6).
         var y: CGFloat = 760
         for phase in score.phases {
-            let name = VideoLayers.text(phase.phase.title, font: UIFont.systemFont(ofSize: 40, weight: .medium), color: pino)
+            let name = VideoLayers.text(phase.phase.title, font: Typography.latoUIFont(40, weight: Typography.cssWeight(.medium)), color: pino)
             name.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: y)
             root.addSublayer(name)
             let valueText = phase.score.map { SpanishFormat.number($0, decimals: $0 == $0.rounded() ? 0 : 1) } ?? "—"
-            let value = VideoLayers.text(valueText, font: VideoLayers.archivo(52), color: pino)
+            let value = VideoLayers.text(valueText, font: VideoLayers.lato(52), color: pino)
             value.frame.origin = CGPoint(x: VideoLayers.width - VideoLayers.sideMargin - 110, y: y - 6)
             root.addSublayer(value)
             if let scoreValue = phase.score {
@@ -257,11 +257,11 @@ enum AnalysisCards {
             }
             y += 78
         }
-        let legend = VideoLayers.text("○ Punto fuerte   □ A mejorar", font: UIFont.systemFont(ofSize: 32), color: texto2)
+        let legend = VideoLayers.text("○ Punto fuerte   □ A mejorar", font: Typography.latoUIFont(32, weight: 400), color: texto2)
         legend.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: y + 20)
         root.addSublayer(legend)
         let foot = VideoLayers.text("Transición e impacto cuentan doble; el ritmo, 1,5 veces.",
-                                    font: UIFont.systemFont(ofSize: 30), color: texto2)
+                                    font: Typography.latoUIFont(30, weight: 400), color: texto2)
         foot.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: y + 80)
         root.addSublayer(foot)
 
@@ -277,13 +277,13 @@ enum AnalysisCards {
         root.backgroundColor = bola.cgColor
         var y: CGFloat = 170
         func heading(_ text: String) {
-            let layer = VideoLayers.text(text, font: UIFont.systemFont(ofSize: 40, weight: .semibold), color: texto2)
+            let layer = VideoLayers.text(text, font: Typography.latoUIFont(40, weight: Typography.cssWeight(.semibold)), color: texto2)
             layer.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: y)
             root.addSublayer(layer)
             y += 70
         }
         func row(_ text: String, size: CGFloat = 36, color: UIColor = pino) {
-            let layer = VideoLayers.text(text, font: UIFont.systemFont(ofSize: size, weight: .medium), color: color)
+            let layer = VideoLayers.text(text, font: Typography.latoUIFont(size, weight: 400), color: color)
             layer.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: y)
             layer.frame.size.width = min(layer.frame.width, VideoLayers.width - 2 * VideoLayers.sideMargin)
             layer.truncationMode = .end
@@ -312,7 +312,7 @@ enum AnalysisCards {
         formatter.locale = Locale(identifier: "es_ES")
         formatter.dateFormat = "d 'de' MMMM 'de' yyyy"
         let foot = VideoLayers.text("Medidas aproximadas, vídeo 2D a \(SpanishFormat.number(analysis.frameRate)) fps · \(formatter.string(from: date))",
-                                    font: UIFont.systemFont(ofSize: 28), color: texto2)
+                                    font: Typography.latoUIFont(28, weight: 400), color: texto2)
         foot.frame.origin = CGPoint(x: VideoLayers.sideMargin, y: 1700)
         root.addSublayer(foot)
         VideoLayers.show(root, from: block.start, to: block.end, total: total)
@@ -323,13 +323,13 @@ enum AnalysisCards {
     static func closingCard(block: TimelineBlock, total: Double, date: Date) -> CALayer {
         let root = fullFrame()
         root.backgroundColor = pino.cgColor
-        let brand = VideoLayers.text("Trazo", font: VideoLayers.archivo(110, width: 70, weight: 850), color: .white)
+        let brand = VideoLayers.text("Trazo", font: VideoLayers.lato(110, weight: 850), color: .white)
         brand.frame.origin = CGPoint(x: (VideoLayers.width - brand.bounds.width) / 2, y: 880)
         root.addSublayer(brand)
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "es_ES")
         formatter.dateFormat = "d 'de' MMMM 'de' yyyy"
-        let caption = VideoLayers.text(formatter.string(from: date), font: UIFont.systemFont(ofSize: 34), color: UIColor.white.withAlphaComponent(0.7))
+        let caption = VideoLayers.text(formatter.string(from: date), font: Typography.latoUIFont(34, weight: 400), color: UIColor.white.withAlphaComponent(0.7))
         caption.frame.origin = CGPoint(x: (VideoLayers.width - caption.bounds.width) / 2, y: 1020)
         root.addSublayer(caption)
         VideoLayers.show(root, from: block.start, to: block.end, total: total)

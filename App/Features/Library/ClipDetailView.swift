@@ -119,7 +119,7 @@ struct ClipDetailView: View {
             return lines
         }()
         Text(lines.joined(separator: "\n"))
-            .font(.system(size: 12, weight: .medium).monospacedDigit())
+            .font(.lato(12, weight: .medium).monospacedDigit())
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.m)

@@ -90,8 +90,21 @@ enum VoiceSynthesizer {
     }
 
     /// Sintetiza una frase y devuelve sus muestras y los instantes de sus palabras.
+    /// Primero con Kokoro (la voz que eligió el usuario, 22-11-2026); si el modelo no está o falla,
+    /// con la voz del iPhone (`voiceIdentifier`), que es el plan B.
     @concurrent
     static func render(_ text: String, voiceIdentifier: String?) async throws -> RenderedLine {
+        if let kokoro = await KokoroEngine.shared.render(text) {
+            let duration = Double(kokoro.samples.count) / kokoro.sampleRate
+            return RenderedLine(text: text, samples: kokoro.samples, sampleRate: kokoro.sampleRate,
+                                wordTimes: SpeechText.estimatedWordTimes(text: text, duration: duration))
+        }
+        return try await renderWithSystemVoice(text, voiceIdentifier: voiceIdentifier)
+    }
+
+    /// La voz del iPhone (AVSpeechSynthesizer): da el audio y el instante exacto de cada palabra.
+    @concurrent
+    static func renderWithSystemVoice(_ text: String, voiceIdentifier: String?) async throws -> RenderedLine {
         let utterance = AVSpeechUtterance(string: text)
         if let voiceIdentifier, let voice = AVSpeechSynthesisVoice(identifier: voiceIdentifier) {
             utterance.voice = voice

@@ -115,7 +115,7 @@ private struct GuideLabel: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 12, weight: .bold))
+            .font(.lato(12, weight: .bold))
             .foregroundStyle(.white)
             .shadow(color: .black.opacity(0.6), radius: 1.5, y: 1)
             .fixedSize()
@@ -147,7 +147,7 @@ struct LevelIndicator: View {
             .position(x: 195, y: 300)
             if isLevel {
                 Text("Nivelado")
-                    .font(.system(size: 12.5, weight: .bold))
+                    .font(.lato(12.5, weight: .bold))
                     .foregroundStyle(Color.nivelado)
                     .shadow(color: .black.opacity(0.4), radius: 1, y: 1)
                     .frame(width: CaptureScene.size.width)
@@ -165,9 +165,9 @@ struct DemoCameraBackground: View {
     var showsBall = true
 
     var body: some View {
-        // Los carteles usan Archivo; las fuentes se preparan aquí, fuera del dibujo.
+        // Los carteles usan Lato; las fuentes se preparan aquí, fuera del dibujo.
         let fonts = CaptureScene.boards.map { board in
-            Typography.fixedFont(for: TypeStyle(family: .archivo(width: 70, weight: 800), size: board.fontSize))
+            Typography.fixedFont(for: TypeStyle(family: .lato(weight: 800), size: board.fontSize))
         }
         Canvas { context, size in
             // Por debajo de la maqueta (pantallas más altas) sigue la hierba.

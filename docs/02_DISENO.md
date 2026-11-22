@@ -33,23 +33,11 @@ Reglas:
 - La app fuerza el modo claro en las pantallas de navegación (`.preferredColorScheme(.light)`). Las pantallas de vídeo son negras siempre.
 
 ## Tipografía
-- **Archivo** (variable, ejes `wght` 100 a 900 y `wdth` 62 a 125, licencia OFL): títulos, cifras, distancias, notas. Se usa estrecha y gruesa, como los carteles de distancia del campo de prácticas.
-- **SF Pro** (fuente del sistema): todo lo demás. En la maqueta, Inter hace de SF Pro.
+- **Lato** (licencia OFL, archivos Regular, Bold y Black en `App/Resources/Fonts`) en toda la app y en el vídeo del análisis. Es la decisión del usuario del 22-11-2026: pidió un aspecto de retransmisión de golf. Antes se usaba Archivo para títulos y cifras, y SF Pro para el resto.
+- Lato no tiene eje de anchura: los títulos salen algo más anchos que con Archivo estrecha. Los pesos de la tabla se redondean al archivo más cercano: desde 800, Black; desde 650, Bold; por debajo, Regular. Los estilos "SF" de la tabla son ahora Lato con ese mismo redondeo (Semibold → Bold).
+- Los iconos siguen siendo SF Symbols. Los títulos de las barras de navegación también van en Lato (apariencia de UIKit).
 
-Cargar Archivo con variaciones (ejemplo):
-```swift
-// Los ejes se identifican con códigos de 4 letras: 'wght' y 'wdth'.
-func archivo(_ size: CGFloat, width: CGFloat = 74, weight: CGFloat = 800, relativeTo style: UIFont.TextStyle = .body) -> Font {
-    let axes: [UInt32: CGFloat] = [0x77676874: weight, 0x77647468: width]
-    let descriptor = UIFontDescriptor(fontAttributes: [
-        .name: "Archivo",
-        UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes
-    ])
-    let base = UIFont(descriptor: descriptor, size: size)
-    let scaled = UIFontMetrics(forTextStyle: style).scaledFont(for: base) // respeta Dynamic Type
-    return Font(scaled)
-}
-```
+Los estilos se aplican con `.typeStyle(...)`. Un texto suelto usa `.font(.lato(tamaño, weight:))` y los rótulos del vídeo, `VideoLayers.lato(...)`. La columna "Fuente" de la tabla conserva la anchura de Archivo como referencia de diseño, pero ya no se usa.
 
 | Estilo | Fuente | Tamaño (pt) | Uso |
 |---|---|---|---|

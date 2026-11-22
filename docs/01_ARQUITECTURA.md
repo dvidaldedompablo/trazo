@@ -152,6 +152,11 @@ Lista inicial de palos (editable en Ajustes, solo "Hierro 7" con valor): Driver,
 - El tracer sigue con Vision: Gemini no puede seguir una bola a 240 fps.
 - Medido con `lab/analisis_gemini.py` (`GolfLab analisis-*`), en la columna "Análisis con Gemini de la app" de `scripts/evaluar.py`.
 
+## Voz del análisis (Kokoro)
+- `App/Features/Swing/KokoroEngine` (actor): sherpa-onnx 1.13.8 con el modelo `kokoro-int8-multi-lang-v1_0` dentro de la app (carpeta `Kokoro`). Usa la voz ef_dora (28), velocidad 0,95 y español.
+- `VoiceSynthesizer.render` prueba primero Kokoro; la voz del iPhone es el plan B. Los instantes de las palabras se estiman con `GolfCore/Format/SpeechText`.
+- La librería y el modelo los baja `scripts/descargar-kokoro.sh` a `Vendor/` (fuera de git, con caché en el CI).
+
 ## Concurrencia y rendimiento
 - Pipelines como funciones `async` o actores, con progreso por `AsyncStream` y cancelación.
 - Nada pesado en el hilo principal. Liberar búferes de vídeo en cuanto se usan.

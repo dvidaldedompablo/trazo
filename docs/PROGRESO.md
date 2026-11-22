@@ -575,3 +575,39 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   - "Equilibrio en el final" no se puede medir (necesita los fotogramas de después).
   - Cada análisis gasta 2 peticiones: con el verificador, unas 3 o 4 por vídeo, o sea unos 5 vídeos al día en el plan gratuito.
 - Pendiente: probarlo en el iPhone (docs/07, filas Fase 4). El fallo de Vision con las stories sigue sin arreglar para el plan B (hace falta el registro del modo diagnóstico).
+
+### Cambios del análisis, Fase 1: voz Kokoro y Lato en toda la app (22-11-2026)
+- Petición del usuario en 4 fases, con parada al final de cada una: voz, catálogo de ejercicios, pantalla "Ejercicios" y final "A mejorar" del vídeo. Esta entrada es la Fase 1.
+- Muestra en el PC (`lab/voz_kokoro.py`, entorno `lab\.venv-voz`):
+  - Kokoro-82M 0.9.4, voz ef_dora, velocidad 0,95;
+  - frases cortas con pausas de 0,35 s entre frases y 0,7 s entre párrafos;
+  - texto limpio para que no lea signos;
+  - loudnorm a −16 LUFS.
+  - Resultado: 15,2 s, −16,9 LUFS, pico −1,5 dB (`feedback/voz/muestra_kokoro.wav`).
+- Decisiones del usuario:
+  - opción 1, Kokoro dentro del iPhone;
+  - "sí a la librería" (sherpa-onnx);
+  - "Lato en toda la app".
+- Por qué sherpa-onnx 1.13.8 y no la 2.x: desde la 2.0, la librería ya no pasa el texto a fonemas (espeak-ng va aparte y `data_dir` se ignora). La 1.13.8 (10-09-2026) lo trae dentro y acepta `lang: "es"`. Se usa el `xcframework` "ios-shared-onnxruntime-static" de los releases de sherpa-onnx: un solo framework dinámico.
+  - Comprobado en el PC con la misma versión (`lab/voz_sherpa.py`, sherpa-onnx 1.13.8 de pip) y el modelo `kokoro-int8-multi-lang-v1_0`: la misma muestra sale en 14,4 s, −16,4 LUFS (`feedback/voz/muestra_sherpa.wav`).
+  - ef_dora es la voz 28 (`speaker2id` en los metadatos del .onnx).
+- App:
+  - `scripts/descargar-kokoro.sh` baja el framework y el modelo a `Vendor/` (fuera de git). El modelo ocupa unos 155 MB: model.int8.onnx, voices.bin, tokens.txt y espeak-ng-data.
+  - El CI lo hace en los dos trabajos, con `actions/cache`.
+  - `project.yml` enlaza `Vendor/SherpaOnnxC.xcframework` (copiado dentro de la app) y mete la carpeta `Kokoro` como recurso.
+  - `KokoroEngine` es un actor: carga el modelo una vez y sintetiza frase a frase (voz 28, velocidad 0,95, `lang` "es", 2 hilos).
+  - `VoiceSynthesizer.render` prueba primero Kokoro y, si el modelo no está o falla, usa la voz del iPhone (plan B).
+  - Kokoro no da el instante de cada palabra. `GolfCore/Format/SpeechText` lo estima repartiendo la frase por letras, y limpia el texto ("~2 cm" → "unos 2 centímetros", "°" → "grados", fuera comillas y paréntesis). Tiene tests; `enumerateSubstrings(.byWords)` no existe en Linux, así que se usa una expresión regular.
+  - La normalización a −16 LUFS ya la hacía `VoiceTrackBuilder`.
+  - Ajustes → Voz del análisis: arriba, "Dora (Kokoro)" con "Probar". Las voces de iOS quedan como reserva.
+- Lato (OFL, Regular, Bold y Black, de google/fonts):
+  - sustituye a Archivo y a SF Pro en todos los estilos (`.lato(weight:)`; los `.system` también pasan a Lato);
+  - también en los rótulos del vídeo (`VideoLayers.lato`), en los textos sueltos (`Font.lato`), como fuente por defecto de la app y en los títulos de navegación;
+  - los iconos siguen siendo SF Symbols;
+  - borrados los archivos de Archivo.
+- CLAUDE.md y docs/02 actualizados con las dos decisiones.
+- Riesgos para el iPhone:
+  - el `.ipa` crece unos 120 MB;
+  - el modelo tarda en cargar la primera vez (unos segundos);
+  - la síntesis puede ir más lenta que la voz del iPhone;
+  - espeak-ng es GPL, sin problema para una app personal que no se publica.

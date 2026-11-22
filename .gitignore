@@ -33,3 +33,6 @@ App/Info.plist
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Voz Kokoro (librería y modelo): los baja scripts/descargar-kokoro.sh
+Vendor/

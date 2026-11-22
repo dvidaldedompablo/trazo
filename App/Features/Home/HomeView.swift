@@ -36,9 +36,9 @@ struct HomeView: View {
                         .padding(.top, HomeLayout.tracerToSwing)
                     helpLink
                         .padding(.top, HomeLayout.swingToHelp)
-                    if !Typography.isArchivoAvailable {
+                    if !Typography.isLatoAvailable {
                         // Si la fuente no se cargó, se dice claro en vez de enseñar otra sin avisar.
-                        Text("No se ha cargado la fuente Archivo")
+                        Text("No se ha cargado la fuente Lato")
                             .typeStyle(.nota)
                             .foregroundStyle(Color.texto2)
                             .padding(.top, Spacing.l)

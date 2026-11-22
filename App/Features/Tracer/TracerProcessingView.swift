@@ -40,7 +40,7 @@ struct TracerProcessingView: View {
                     if demo == nil { queue.cancel(clipID) }
                     dismiss()
                 }
-                .font(.system(size: 17, weight: .medium))
+                .font(.lato(17, weight: .medium))
                 .foregroundStyle(Color.pino)
                 .frame(height: Size.minTouch)
                 .padding(.leading, ProcessingLayout.cancelLeading - Spacing.textMargin)
@@ -199,7 +199,7 @@ struct TracerProcessingView: View {
             .animation(reduceMotion ? nil : .smooth(duration: 0.5), value: crop)
             if !live.points.isEmpty {
                 Text(live.points.count == 1 ? "1 punto" : "\(live.points.count) puntos")
-                    .font(.system(size: 11.5, weight: .bold))
+                    .font(.lato(11.5, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)

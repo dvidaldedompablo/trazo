@@ -269,7 +269,7 @@ struct RecordScreen: View {
             "Exposición: \(model.exposure ?? (mode == .tracer && fastShutter ? "rápida al grabar" : "automática"))",
         ]
         return Text(lines.joined(separator: "\n"))
-            .font(.system(size: 11, weight: .medium).monospacedDigit())
+            .font(.lato(11, weight: .medium).monospacedDigit())
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.s)

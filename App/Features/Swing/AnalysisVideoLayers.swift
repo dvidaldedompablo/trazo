@@ -36,8 +36,9 @@ enum VideoLayers {
         return layer
     }
 
-    static func archivo(_ size: CGFloat, width: CGFloat = 70, weight: CGFloat = 800) -> UIFont {
-        Typography.archivoUIFont(size, width: width, weight: weight)
+    /// Lato para los rótulos del vídeo (antes Archivo). `weight` de 100 a 900.
+    static func lato(_ size: CGFloat, weight: CGFloat = 800) -> UIFont {
+        Typography.latoUIFont(size, weight: weight)
     }
 
     /// Enseña la capa solo entre `from` y `to` (s del vídeo), con un fundido corto (docs/04: 0,2 s).
@@ -140,7 +141,7 @@ enum VideoLayers {
                 let arc = UIBezierPath(arcCenter: center, radius: 120, startAngle: -.pi / 2,
                                        endAngle: spineAngle, clockwise: spineAngle > -.pi / 2)
                 root.addSublayer(shape(arc, stroke: yellow, width: 7))
-                let label = text("\(SpanishFormat.number(angle))°", font: archivo(60), color: yellow, outline: true)
+                let label = text("\(SpanishFormat.number(angle))°", font: lato(60), color: yellow, outline: true)
                 label.frame.origin = CGPoint(x: center.x - 120 - label.bounds.width - 20, y: center.y - 160)
                 root.addSublayer(label)
             }
@@ -185,8 +186,8 @@ enum VideoLayers {
         var y: CGFloat = 170
         for (index, item) in items.prefix(3).enumerated() {
             let card = CALayer()
-            let name = text(item.name, font: UIFont.systemFont(ofSize: 28, weight: .semibold), color: .white)
-            let value = text(item.value, font: archivo(62),
+            let name = text(item.name, font: Typography.latoUIFont(28, weight: Typography.cssWeight(.semibold)), color: .white)
+            let value = text(item.value, font: lato(62),
                              color: UIColor(red: 1, green: 208 / 255, blue: 46 / 255, alpha: 1))
             let cardWidth = max(name.bounds.width, value.bounds.width) + 48
             card.frame = CGRect(x: width - sideMargin - cardWidth, y: y,
@@ -207,10 +208,10 @@ enum VideoLayers {
     /// Chip de fase "n/7" + nombre, arriba a la izquierda.
     static func phaseChip(_ n: Int, title: String) -> CALayer {
         let root = CALayer()
-        let number = text("\(n)/7", font: archivo(36), color: UIColor(red: 16 / 255, green: 36 / 255, blue: 29 / 255, alpha: 1))
+        let number = text("\(n)/7", font: lato(36), color: UIColor(red: 16 / 255, green: 36 / 255, blue: 29 / 255, alpha: 1))
         let badge = capsule(number, background: UIColor(red: 1, green: 208 / 255, blue: 46 / 255, alpha: 1), paddingX: 18, paddingY: 8)
         badge.frame.origin = CGPoint(x: sideMargin, y: 64)
-        let name = text(title, font: archivo(68), color: .white, outline: true)
+        let name = text(title, font: lato(68), color: .white, outline: true)
         name.frame.origin = CGPoint(x: badge.frame.maxX + 22, y: 52)
         root.addSublayer(badge)
         root.addSublayer(name)
@@ -220,7 +221,7 @@ enum VideoLayers {
     /// Estado arriba a la derecha ("Pausa" o "× 0,25") con el contador de fotograma debajo.
     static func stateBadge(_ state: String, counter: String?) -> CALayer {
         let root = CALayer()
-        let label = text(state, font: UIFont.systemFont(ofSize: 30, weight: .semibold),
+        let label = text(state, font: Typography.latoUIFont(30, weight: Typography.cssWeight(.semibold)),
                          color: UIColor(red: 16 / 255, green: 36 / 255, blue: 29 / 255, alpha: 1))
         let badge = capsule(label, background: .white, paddingX: 20, paddingY: 9)
         badge.frame.origin = CGPoint(x: width - sideMargin - badge.bounds.width, y: 64)
@@ -241,7 +242,7 @@ enum VideoLayers {
     static func subtitles(track: VoiceTrack, total: Double) -> CALayer {
         let root = CALayer()
         root.frame = CGRect(x: 0, y: 0, width: width, height: height)
-        let font = Typography.archivoUIFont(68, width: 92, weight: 800)
+        let font = Typography.latoUIFont(68, weight: 800)
         let maxLineWidth = width - 2 * sideMargin
         let lineHeight: CGFloat = 86
 

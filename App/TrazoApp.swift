@@ -11,6 +11,10 @@ struct TrazoApp: App {
     @State private var tracerQueue: TracerQueue
 
     init() {
+        // Lato también en los títulos de las barras de navegación (son de UIKit, no de SwiftUI).
+        let navigation = UINavigationBar.appearance()
+        navigation.titleTextAttributes = [.font: Typography.latoUIFont(17, weight: 700)]
+        navigation.largeTitleTextAttributes = [.font: Typography.latoUIFont(34, weight: 900)]
         if UITestHarness.isActive {
             UITestHarness.prepare()
         }
@@ -27,6 +31,8 @@ struct TrazoApp: App {
         WindowGroup {
             RootView()
                 .environment(tracerQueue)
+                // Lato por defecto en todo lo que no lleva estilo (listas, interruptores…).
+                .font(.lato(17))
         }
         // Todas las vistas de debajo pueden leer y escribir la biblioteca (@Query, modelContext).
         .modelContainer(container)

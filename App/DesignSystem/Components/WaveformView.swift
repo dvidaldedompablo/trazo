@@ -30,7 +30,7 @@ struct WaveformView: View {
                 line.addLine(to: CGPoint(x: x, y: size.height))
                 context.stroke(line, with: .color(Color.linea), lineWidth: 1)
                 // La primera marca se alinea por la izquierda para no salirse del panel.
-                let text = context.resolve(Text(tick.label).font(.system(size: 11, weight: .medium).monospacedDigit())
+                let text = context.resolve(Text(tick.label).font(.lato(11, weight: .medium).monospacedDigit())
                     .foregroundStyle(Color.texto3))
                 context.draw(text, at: CGPoint(x: x, y: 0), anchor: tick.time == 0 ? .topLeading : .top)
             }

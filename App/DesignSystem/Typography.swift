@@ -2,15 +2,17 @@ import SwiftUI
 import UIKit
 import os
 
-// Tipografía de docs/02_DISENO.md: Archivo para títulos y cifras, SF Pro del sistema para el resto.
+// Tipografía de docs/02_DISENO.md: Lato en toda la app (decisión del usuario, 22-11-2026; antes,
+// Archivo para títulos y cifras y SF Pro para el resto). Lato tiene pesos sueltos, no ejes variables:
+// Regular, Bold y Black.
 
 /// Un estilo de texto de la tabla de docs/02: fuente, tamaño, cómo crece con el tamaño de texto
 /// de iOS y alto de línea.
 struct TypeStyle {
     enum Family {
-        /// Archivo con un punto de cada eje: anchura (`wdth`, 62 a 125) y peso (`wght`, 100 a 900).
-        case archivo(width: CGFloat, weight: CGFloat)
-        /// SF Pro, la fuente del sistema.
+        /// Títulos y cifras: Lato con un peso de 100 a 900 (800 o más, Black; 650 o más, Bold).
+        case lato(weight: CGFloat)
+        /// El resto del texto: Lato con el peso de UIKit más parecido.
         case system(UIFont.Weight)
     }
 
@@ -29,19 +31,19 @@ struct TypeStyle {
 @MainActor
 extension TypeStyle {
     /// Nota en la tarjeta del vídeo (96 a 132 pt).
-    static let displayXL = TypeStyle(family: .archivo(width: 68, weight: 820), size: 120, relativeTo: .largeTitle, lineHeight: 0.92)
+    static let displayXL = TypeStyle(family: .lato(weight: 820), size: 120, relativeTo: .largeTitle, lineHeight: 0.92)
     /// Nota en "Tu análisis".
-    static let displayL = TypeStyle(family: .archivo(width: 68, weight: 820), size: 64, relativeTo: .largeTitle, lineHeight: 0.92)
+    static let displayL = TypeStyle(family: .lato(weight: 820), size: 64, relativeTo: .largeTitle, lineHeight: 0.92)
     /// Ritmo "2,8 : 1" y distancia grande (36 a 40 pt).
-    static let displayM = TypeStyle(family: .archivo(width: 70, weight: 800), size: 38, relativeTo: .title1, lineHeight: 1)
+    static let displayM = TypeStyle(family: .lato(weight: 800), size: 38, relativeTo: .title1, lineHeight: 1)
     /// "Trazo" en Inicio.
-    static let marca = TypeStyle(family: .archivo(width: 70, weight: 850), size: 38, relativeTo: .largeTitle, lineHeight: 1)
+    static let marca = TypeStyle(family: .lato(weight: 850), size: 38, relativeTo: .largeTitle, lineHeight: 1)
     /// Títulos grandes de pantalla.
-    static let tituloPantalla = TypeStyle(family: .archivo(width: 74, weight: 820), size: 34, relativeTo: .largeTitle, lineHeight: 1.05)
+    static let tituloPantalla = TypeStyle(family: .lato(weight: 820), size: 34, relativeTo: .largeTitle, lineHeight: 1.05)
     /// "Tracer", "Análisis de swing".
-    static let tituloTarjeta = TypeStyle(family: .archivo(width: 76, weight: 800), size: 27, relativeTo: .title1, lineHeight: 1.05)
+    static let tituloTarjeta = TypeStyle(family: .lato(weight: 800), size: 27, relativeTo: .title1, lineHeight: 1.05)
     /// Valores de los deslizadores.
-    static let valor = TypeStyle(family: .archivo(width: 72, weight: 750), size: 17)
+    static let valor = TypeStyle(family: .lato(weight: 750), size: 17)
     /// Botones.
     static let boton = TypeStyle(family: .system(.semibold), size: 16)
     /// Texto general.
@@ -74,31 +76,31 @@ extension TypeStyle {
 
 @MainActor
 enum Typography {
-    /// Nombre interno (PostScript) de la fuente variable. Es el de su instancia por defecto
-    /// (peso 600, anchura 100); los demás pesos y anchuras se piden con variaciones.
-    nonisolated static let archivoPostScriptName = "Archivo-SemiBold"
-
-    /// `true` si iOS ha registrado la fuente. Se registra sola al arrancar
-    /// porque el Info.plist la lista en `UIAppFonts`.
-    static var isArchivoAvailable: Bool {
-        UIFont(name: archivoPostScriptName, size: 12) != nil
+    /// `true` si iOS ha registrado Lato. Se registra sola al arrancar porque el Info.plist la lista
+    /// en `UIAppFonts`.
+    static var isLatoAvailable: Bool {
+        UIFont(name: "Lato-Regular", size: 12) != nil
     }
 
-    /// Archivo con una anchura y un peso concretos, sin escalar.
-    /// Una fuente variable lleva dentro todos los pesos y anchuras: se elige un punto de cada eje.
-    /// Los ejes se identifican con códigos de 4 letras ('wght' es el peso, 'wdth' la anchura)
-    /// guardados como un número de 32 bits.
-    nonisolated static func archivoUIFont(_ size: CGFloat, width: CGFloat, weight: CGFloat) -> UIFont {
-        guard let base = UIFont(name: archivoPostScriptName, size: size) else {
+    /// Lato al peso más cercano de los que hay (Regular, Bold, Black), sin escalar.
+    /// `weight` va de 100 a 900, como en CSS.
+    nonisolated static func latoUIFont(_ size: CGFloat, weight: CGFloat) -> UIFont {
+        let name = weight >= 800 ? "Lato-Black" : (weight >= 650 ? "Lato-Bold" : "Lato-Regular")
+        guard let font = UIFont(name: name, size: size) else {
             // No se inventa nada: se usa la del sistema y la pantalla avisa (ver HomeView).
-            logger.error("No se ha cargado la fuente Archivo; uso la del sistema")
-            return .systemFont(ofSize: size, weight: .heavy)
+            logger.error("No se ha cargado la fuente Lato; uso la del sistema")
+            return .systemFont(ofSize: size, weight: weight >= 800 ? .heavy : (weight >= 650 ? .bold : .regular))
         }
-        let axes: [UInt32: CGFloat] = [weightAxis: weight, widthAxis: width]
-        let descriptor = base.fontDescriptor.addingAttributes([
-            UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes,
-        ])
-        return UIFont(descriptor: descriptor, size: size)
+        return font
+    }
+
+    /// Los pesos de UIKit pasados a la escala de 100 a 900 (para elegir el archivo de Lato).
+    nonisolated static func cssWeight(_ weight: UIFont.Weight) -> CGFloat {
+        switch weight {
+        case .black, .heavy: 900
+        case .bold, .semibold: 700
+        default: 400
+        }
     }
 
     /// La fuente de un estilo al tamaño de texto que tengas en Ajustes de iOS.
@@ -118,10 +120,10 @@ enum Typography {
 
     private static func unscaledFont(for style: TypeStyle, size: CGFloat) -> UIFont {
         switch style.family {
-        case let .archivo(width, weight):
-            archivoUIFont(size, width: width, weight: weight)
+        case let .lato(weight):
+            latoUIFont(size, weight: weight)
         case let .system(weight):
-            UIFont.systemFont(ofSize: size, weight: weight)
+            latoUIFont(size, weight: cssWeight(weight))
         }
     }
 
@@ -144,8 +146,6 @@ enum Typography {
         }
     }
 
-    nonisolated private static let weightAxis: UInt32 = 0x7767_6874 // 'wght'
-    nonisolated private static let widthAxis: UInt32 = 0x7764_7468 // 'wdth'
     nonisolated private static let logger = Logger(subsystem: "io.github.dvidaldedompablo.trazo", category: "Typography")
 }
 
@@ -164,6 +164,13 @@ private struct TypeStyleModifier: ViewModifier {
             .font(Font(font as CTFont))
             .lineSpacing(max(extra, 0))
             .padding(.vertical, extra / 2)
+    }
+}
+
+extension Font {
+    /// Lato a un tamaño fijo, para textos sueltos que no siguen un estilo (contadores, carteles).
+    static func lato(_ size: CGFloat, weight: UIFont.Weight = .regular) -> Font {
+        Font(Typography.latoUIFont(size, weight: Typography.cssWeight(weight)) as CTFont)
     }
 }
 

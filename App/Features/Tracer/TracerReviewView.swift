@@ -282,7 +282,7 @@ private struct DiagnosticsPanel: View {
         lines += analysis.notes
         let shown = isExpanded ? lines : [lines[0] + " · toca para ver más"]
         return Text(shown.joined(separator: "\n"))
-            .font(.system(size: 11, weight: .medium).monospacedDigit())
+            .font(.lato(11, weight: .medium).monospacedDigit())
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.s)

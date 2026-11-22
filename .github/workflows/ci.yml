@@ -29,6 +29,13 @@ jobs:
           brew install xcodegen
           xcodebuild -version
           swift --version
+      - name: Caché de la voz Kokoro
+        uses: actions/cache@v4
+        with:
+          path: Vendor
+          key: kokoro-${{ hashFiles('scripts/descargar-kokoro.sh') }}
+      - name: Voz Kokoro (librería y modelo)
+        run: bash scripts/descargar-kokoro.sh
       - name: Generar proyecto
         run: xcodegen generate
       - name: Tests de GolfCore
@@ -74,6 +81,13 @@ jobs:
           xcode-version: latest-stable
       - name: Herramientas
         run: brew install xcodegen
+      - name: Caché de la voz Kokoro
+        uses: actions/cache@v4
+        with:
+          path: Vendor
+          key: kokoro-${{ hashFiles('scripts/descargar-kokoro.sh') }}
+      - name: Voz Kokoro (librería y modelo)
+        run: bash scripts/descargar-kokoro.sh
       - name: Generar proyecto
         run: xcodegen generate
       - name: Elegir simulador (iPhone 17e si existe, con el iOS más nuevo)

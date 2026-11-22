@@ -32,10 +32,10 @@ El tracer sigue la guía "El trazo de tu bola de golf, como en la tele" de javig
 - Si existe `feedback/`, ahí el usuario deja vídeos o capturas del iPhone. Puedes extraer fotogramas y audio con `ffmpeg` si está instalado.
 
 ## Tecnología
-- Swift 6, SwiftUI, objetivo de despliegue iOS 26.0. Sin dependencias de terceros salvo que sea imprescindible (pregunta antes).
+- Swift 6, SwiftUI, objetivo de despliegue iOS 26.0. Sin dependencias de terceros salvo que sea imprescindible (pregunta antes). Aprobada por el usuario (22-11-2026): sherpa-onnx 1.13.8 para la voz Kokoro-82M; la librería y el modelo los baja `scripts/descargar-kokoro.sh` y no se suben al repo.
 - Proyecto generado con **XcodeGen** (`project.yml`). El `.xcodeproj` no se sube al repo; se genera en el CI.
 - Paquete local `Packages/GolfCore`: lógica pura en Swift (audio, geometría, ajuste de curvas, fases, medidas, nota, guion). Sin UIKit ni SwiftUI. Con tests.
-- Frameworks de Apple: Vision (pose corporal y trayectorias), AVFoundation (captura, lectura, composición, exportación), AVFAudio (voz con `AVSpeechSynthesizer`), Accelerate/vDSP (audio), Core Animation (gráficos del vídeo), SwiftData (biblioteca), Swift Charts (historial), PhotosUI, CoreMotion (nivel).
+- Frameworks de Apple: Vision (pose corporal y trayectorias), AVFoundation (captura, lectura, composición, exportación), AVFAudio (voz Kokoro con sherpa-onnx; `AVSpeechSynthesizer` solo de reserva), Accelerate/vDSP (audio), Core Animation (gráficos del vídeo), SwiftData (biblioteca), Swift Charts (historial), PhotosUI, CoreMotion (nivel).
 - Firma: compilar sin firmar (`CODE_SIGNING_ALLOWED=NO`). Sideloadly firma al instalar.
 - Identificador de la app: `io.github.<usuario-de-github>.trazo`. Un solo target. **Sin extensiones** (widgets, etc.): con Apple ID gratuito cada extensión gasta un App ID y hay límite semanal.
 - Sin push, sin iCloud, sin App Groups. Las notificaciones locales sí funcionan.
@@ -49,7 +49,7 @@ El tracer sigue la guía "El trazo de tu bola de golf, como en la tele" de javig
 ## Diseño
 - Sigue `docs/02_DISENO.md` y `design/maqueta.html` (con capturas en `design/capturas/`). Si hay conflicto, manda el documento.
 - Tokens en `App/DesignSystem/`. No inventes colores ni tamaños sueltos en las vistas.
-- Fuente Archivo (licencia OFL, se incluye en el proyecto) para títulos y cifras; SF Pro del sistema para el resto.
+- Fuente Lato (licencia OFL, se incluye en el proyecto) en toda la app y en el vídeo del análisis (decisión del usuario, 22-11-2026; antes, Archivo para títulos y SF Pro para el resto). Los iconos siguen siendo SF Symbols.
 - Interfaz clara forzada en las pantallas de navegación; negro puro en las pantallas de vídeo.
 - No copies la marca, el logotipo ni los colores de ninguna app o cuenta existente, tampoco del vídeo de referencia.
 

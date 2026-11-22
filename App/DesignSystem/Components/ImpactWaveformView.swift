@@ -20,7 +20,7 @@ struct ImpactWaveformView: View {
     private static let maximumBar: CGFloat = 92
 
     var body: some View {
-        let font = Font.system(size: 11.5, weight: .bold)
+        let font = Font.lato(11.5, weight: .bold)
         Canvas { context, size in
             let scale = size.width / Self.size.width
             context.scaleBy(x: scale, y: scale)

@@ -162,6 +162,10 @@ struct SwingResultView: View {
                         .typeStyle(.displayM)
                         .foregroundStyle(Color.texto3)
                 }
+                // Lato es más ancha que Archivo: la nota nunca se parte en dos líneas; si no cabe,
+                // se encoge un poco (un "100/100" en una tarjeta estrecha).
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
                 Text(score.label)
                     .typeStyle(.chip)
                     .foregroundStyle(.white)

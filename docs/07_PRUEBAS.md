@@ -29,6 +29,10 @@
 | Fase 4 | Sin "Comprobar siempre": importar y pulsar "Cancelar" en el aviso | Aparece la lista por sonido con "Comprobar los golpes" por si cambias de idea |
 | Fase 4 | Análisis de swing de la story de Puerta de Hierro (con clave y "Comprobar siempre") | Sale "Gemini está buscando las posiciones, tu cuerpo y el palo…". En unos 40 s, Revisa las posiciones con las 7 miniaturas y el esqueleto encima. Ya no sale "No se ve a nadie" |
 | Fase 4 | El mismo análisis en modo avión | Sigue con el iPhone (Vision). Si tampoco te ve, el mensaje empieza por "Gemini no ha podido analizarlo (No hay conexión…)" |
+| Voz Kokoro | Ajustes → Voz del análisis → altavoz de "Dora (Kokoro)" | Tras unos segundos (la primera vez carga el modelo) se oye una voz natural en español, sin leer signos |
+| Voz Kokoro | Un análisis → "Escuchar el guion con subtítulos" | La misma voz Dora en todas las frases; los subtítulos van a la par de la voz (pueden adelantarse o atrasarse unas décimas) |
+| Voz Kokoro | Guardar el vídeo del análisis | El vídeo lleva la voz Dora y el mismo volumen de principio a fin |
+| Lato | Recorrer Inicio, Ajustes, Tus vídeos y Tu análisis | Todo el texto en Lato; la nota de Tu análisis en una sola línea |
 | Fase 4 | Borrar la clave en Ajustes y volver a Elige los golpes | La tarjeta pide la clave en Ajustes y no hay botón de enviar |
 
 ## Prueba de 5 golpes (tracer)

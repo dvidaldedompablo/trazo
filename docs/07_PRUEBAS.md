@@ -32,6 +32,7 @@
 | Voz Kokoro | Ajustes → Voz del análisis → altavoz de "Dora (Kokoro)" | Tras unos segundos (la primera vez carga el modelo) se oye una voz natural en español, sin leer signos |
 | Voz Kokoro | Un análisis → "Escuchar el guion con subtítulos" | La misma voz Dora en todas las frases; los subtítulos van a la par de la voz (pueden adelantarse o atrasarse unas décimas) |
 | Voz Kokoro | Guardar el vídeo del análisis | El vídeo lleva la voz Dora y el mismo volumen de principio a fin |
+| Ejercicios | Inicio → Ejercicios → tocar un fallo | La lista solo enseña los 10 que se ven desde detrás. El detalle repite el clip sin cortes y sin sonido, y se entiende sin saber de golf |
 | Lato | Recorrer Inicio, Ajustes, Tus vídeos y Tu análisis | Todo el texto en Lato; la nota de Tu análisis en una sola línea |
 | Fase 4 | Borrar la clave en Ajustes y volver a Elige los golpes | La tarjeta pide la clave en Ajustes y no hay botón de enviar |
 

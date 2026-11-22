@@ -1,3 +1,4 @@
+import GolfCore
 import SwiftData
 import SwiftUI
 import UIKit
@@ -81,6 +82,10 @@ private struct RootView: View {
             ClipPickerView(pending: DemoData.pendingRecording(), demoCheck: DemoData.shotCheckResult()) { _, _ in }
         case .settings:
             NavigationStack { SettingsScreen() }
+        case .exercises:
+            NavigationStack { ExercisesView() }
+        case .exercise:
+            NavigationStack { ExerciseDetailView(exercise: ExerciseCatalog.all[0]) }
         case .processing:
             NavigationStack { TracerProcessingView(clipID: UUID(), demo: DemoData.processingLive()) }
         case .ballTap:

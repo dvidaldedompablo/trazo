@@ -34,8 +34,10 @@ struct HomeView: View {
                         .padding(.top, HomeLayout.headerToTracer)
                     swingCard
                         .padding(.top, HomeLayout.tracerToSwing)
-                    helpLink
+                    exercisesLink
                         .padding(.top, HomeLayout.swingToHelp)
+                    helpLink
+                        .padding(.top, Spacing.s)
                     if !Typography.isLatoAvailable {
                         // Si la fuente no se cargó, se dice claro en vez de enseñar otra sin avisar.
                         Text("No se ha cargado la fuente Lato")
@@ -194,6 +196,14 @@ struct HomeView: View {
     }
 
     // MARK: - Ayuda
+
+    /// Ejercicios: un ejercicio para cada fallo que el análisis puede ver.
+    private var exercisesLink: some View {
+        NavigationLink(value: HomeDestination.exercises) {
+            HelpRow(systemImage: "figure.golf", title: "Ejercicios", subtitle: "Un ejercicio para cada fallo")
+        }
+        .buttonStyle(RowButtonStyle())
+    }
 
     private var helpLink: some View {
         NavigationLink(value: HomeDestination.help) {

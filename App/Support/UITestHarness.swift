@@ -19,6 +19,9 @@ enum UITestScreen: String {
     case autocutCheck = "autocut-check"
     /// Ajustes, con la clave de Gemini por poner.
     case settings
+    /// Ejercicios: la lista y el detalle del primero.
+    case exercises
+    case exercise
     /// "Creando tu tracer" (s03) a mitad del seguimiento.
     case processing
     /// Toca la bola, con un toque y la lupa.

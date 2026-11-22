@@ -23,6 +23,10 @@ targets:
       - path: Vendor/Kokoro
         type: folder
         buildPhase: resources
+      # Imágenes y clips de los ejercicios (carpeta "ejercicios" dentro de la app): se cambian sin tocar código.
+      - path: assets/ejercicios
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: GolfCore
       # sherpa-onnx 1.13.8 (la voz Kokoro en el iPhone): framework dinámico, se copia dentro de la app.

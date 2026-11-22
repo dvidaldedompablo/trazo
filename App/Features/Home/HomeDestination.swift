@@ -9,6 +9,9 @@ enum HomeDestination: Hashable {
     case pickShotVideo
     case pickSwingVideo
     case help
+    /// Ejercicios: la lista de fallos y el detalle de cada uno (por su id del catálogo).
+    case exercises
+    case exercise(String)
     /// "Creando tu tracer" de un clip (y, al terminar, su resultado).
     case tracerProcessing(UUID)
     /// "Revisa las posiciones" de un swing (y, al generar, "Tu análisis").
@@ -21,6 +24,7 @@ enum HomeDestination: Hashable {
         case .pickShotVideo: "Elegir vídeo"
         case .pickSwingVideo: "Elegir vídeo de swing"
         case .help: "Ayuda"
+        case .exercises, .exercise: "Ejercicios"
         case .tracerProcessing: "Creando tu tracer"
         case .swingReview: "Revisa las posiciones"
         }
@@ -33,6 +37,7 @@ enum HomeDestination: Hashable {
         case .tracerProcessing: 4
         case .swingReview: 6
         case .settings, .help: 9
+        case .exercises, .exercise: 9
         }
     }
 
@@ -45,6 +50,13 @@ enum HomeDestination: Hashable {
         case .pickShotVideo: ImportScreen(mode: .tracer)
         case .pickSwingVideo: ImportScreen(mode: .swing)
         case .help: PlaceholderScreen(destination: .help)
+        case .exercises: ExercisesView()
+        case let .exercise(id):
+            if let exercise = ExerciseCatalog.exercise(id: id) {
+                ExerciseDetailView(exercise: exercise)
+            } else {
+                ExercisesView()
+            }
         case let .tracerProcessing(clipID): TracerProcessingView(clipID: clipID)
         case let .swingReview(clipID): SwingReviewView(clipID: clipID)
         }

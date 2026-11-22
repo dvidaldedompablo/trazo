@@ -611,3 +611,31 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   - el modelo tarda en cargar la primera vez (unos segundos);
   - la síntesis puede ir más lenta que la voz del iPhone;
   - espeak-ng es GPL, sin problema para una app personal que no se publica.
+
+### Cambios del análisis, Fases 2 y 3: catálogo de ejercicios y pantalla "Ejercicios" (22-11-2026)
+- El usuario pidió seguir con las fases que quedan.
+- Fase 2: `GolfCore/Swing/ExerciseCatalog` (4 tests). Son los 15 fallos pedidos. Cada uno lleva:
+  - id, número, fallo, qué se ve, ejercicio (máximo 2 frases, comprobado en un test), material, repeticiones, qué sentir y error típico;
+  - la cámara (detrás, frente o ambas);
+  - qué fallos del análisis lo detectan (`detectedBy`);
+  - `hasClip` y `reviewedByProfessional: false`.
+  - `GolfLab catalogo` lo exporta a `assets/ejercicios/catalogo.json`, con los campos en español.
+- Qué se puede medir hoy (la app graba desde detrás):
+  - Sí (10): 1 takeaway por dentro, 2 por fuera, 3 subida vertical, 4 subida plana, 5 ritmo rápido, 7 cadera hacia la bola, 9 brazos separados, 12 equilibrio en el final (con "final corto"), 13 cabeza y 15 bajada por fuera.
+  - Todavía no (5): 6 transición brusca (no hay medida de lo brusco del cambio), 8 deslizamiento de cadera, 10 giro de hombros, 11 transferencia de peso y 14 manos atrás. Estos cuatro últimos necesitan la cámara de frente.
+  - Fallos del análisis que siguen solo con su consejo de `FaultLibrary`, sin ejercicio del catálogo: postura erguida o baja, manos muy cerca, subida corta, bajada plana y ritmo lento.
+  - Ningún fallo del análisis apunta a dos ejercicios distintos (test).
+- Imágenes y clips: `lab/ejercicios_animacion.py`, una plantilla con una figura propia en tres vistas.
+  - De frente: ritmo, pausa, cadera, hombros, paso, equilibrio, cabeza y manos.
+  - Detrás, de perfil: subida, silla y toalla.
+  - Desde arriba: takeaway por dentro y por fuera, y bajada por fuera (dentro y fuera se entienden mejor así).
+  - Estilo común: verde oscuro, figura clara, amarillo para lo que se mueve (punto y flecha o rastro) y rojo discontinuo para el camino que hay que evitar. Movimiento lento.
+  - En el top visto desde detrás, el palo va en escorzo (apunta al fondo) para que no se salga del cuadro.
+  - Salen `assets/ejercicios/<id>.mp4` (H.264, 1080 x 1080, 30 fps, de 5 a 8 s, de 42 a 205 KB) y `<id>.png`. En total, 2,5 MB.
+  - Revisados a ojo en varias vueltas. Ninguno queda raro como para dejarlo sin clip; el más esquemático es el 10 (el giro de frente se ve como un pecho que se estrecha).
+  - `assets/ejercicios/LEEME.md` explica cómo cambiar un clip por uno propio sin tocar código.
+  - Nada se descarga de internet.
+- Fase 3: `App/Features/Exercises/ExercisesView` (lista) y `ExerciseDetailView` (detalle, con el clip en bucle mediante `AVPlayerLooper`, sin sonido y sobre su imagen).
+  - Se entra por la fila "Ejercicios" de Inicio.
+  - Los archivos se meten en la app como carpeta "ejercicios" (`project.yml`).
+  - Capturas nuevas `exercises` y `exercise`.

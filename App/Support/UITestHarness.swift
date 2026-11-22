@@ -33,6 +33,10 @@ enum UITestScreen: String {
     case ballTap = "ball-tap"
     /// El resultado del tracer con el modo diagnóstico (puntos, descartados, curva y datos).
     case tracerCheck = "tracer-check"
+    /// "Ajusta el vuelo" (s04) sin diagnóstico: asas, trazo con estilo y la hoja de abajo.
+    case adjust
+    /// "Vídeo listo" (s05) con la imagen de demostración en vez del vídeo.
+    case tracerResult = "tracer-result"
     /// Revisa las posiciones del swing (s06).
     case review
     /// Tu análisis (s07).

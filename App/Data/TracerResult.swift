@@ -75,6 +75,9 @@ final class TracerResult {
     var manualBallTime: Double?
     /// `TracerAnalysis` en JSON.
     var analysisData: Data?
+    /// `TracerEdit` en JSON: el ajuste a mano, el color y la distancia (etapa 5). Opcional para que
+    /// SwiftData migre solo los tracers que ya había.
+    var editData: Data?
 
     init(clipID: UUID, createdAt: Date = .now) {
         id = UUID()

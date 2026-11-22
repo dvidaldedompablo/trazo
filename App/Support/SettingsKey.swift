@@ -36,9 +36,11 @@ enum SettingsKey {
     static let units = "general.units"
     /// Marca de agua "Trazo" en el vídeo del tracer (apagada por defecto).
     static let tracerWatermark = "tracer.watermark"
+    /// Lo que tardó la última vez cada trabajo largo (BackgroundWork), para el modo diagnóstico.
+    static let lastJobSeconds = "diagnostics.lastJobSeconds"
 
     static let all = [tracerColor, tracerCustomColor, tracerShowsDistance, tracerFastShutter,
                       captureFrameRate, captureCountdown, captureAutoCut, diagnostics,
                       handedness, heightCentimeters, analysisVoice, shortAnalysisVideo, analysisSubtitles,
-                      geminiAlwaysCheck, units, tracerWatermark]
+                      geminiAlwaysCheck, units, tracerWatermark, lastJobSeconds]
 }

@@ -58,7 +58,7 @@ private struct RootView: View {
     }
 
     /// Pantallas de vídeo (negras, con la barra de estado clara).
-    private static let videoScreens: [UITestScreen] = [.cameraTracer, .cameraSwing, .ballTap, .tracerCheck]
+    private static let videoScreens: [UITestScreen] = [.cameraTracer, .cameraSwing, .ballTap, .tracerCheck, .adjust, .tracerResult]
 
     @ViewBuilder
     private func content(_ screen: UITestScreen?, name: String) -> some View {
@@ -98,6 +98,10 @@ private struct RootView: View {
             BallTapView(request: DemoData.ballTapRequest(), demoImage: UIImage(named: "escena_tracer")) { _, _ in }
         case .tracerCheck:
             TracerReviewView(clipID: UUID(), demo: (DemoData.reviewAnalysis(), UIImage(named: "escena_tracer")))
+        case .adjust:
+            TracerReviewView(clipID: UUID(), demo: (DemoData.reviewAnalysis(), UIImage(named: "escena_tracer")), demoDiagnostics: false)
+        case .tracerResult:
+            TracerVideoResultView(url: nil, duration: 12, demoImage: UIImage(named: "escena_tracer")) {}
         case .review:
             NavigationStack { SwingReviewView(clipID: UUID(), demoImage: UIImage(named: "escena_swing")) }
         case .swingResult:

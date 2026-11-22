@@ -639,3 +639,52 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   - Se entra por la fila "Ejercicios" de Inicio.
   - Los archivos se meten en la app como carpeta "ejercicios" (`project.yml`).
   - Capturas nuevas `exercises` y `exercise`.
+
+### Etapa 9: Ayuda, caducidad, Ajustes completos, Mis palos e historial (22-11-2026)
+- Ayuda (s08) con los 7 capítulos de docs/05, actualizados para Kokoro, Gemini y Ejercicios (`HelpView`, `HelpContent`).
+- Aviso de caducidad:
+  - `ProvisioningInfo` lee la fecha de `embedded.mobileprovision`, el perfil que pone Sideloadly;
+  - una tarjeta arriba en la Ayuda y una banda en Inicio cuando quedan 2 días o menos;
+  - una notificación local 24 h antes (`ExpiryReminder`).
+- Ajustes completos:
+  - unidades, tú, Mis palos, Tracer (color, distancia, obturación rápida, marca de agua), Análisis y Gemini;
+  - Avanzado: modo diagnóstico y borrar los vídeos de hace más de 30 días.
+- Mis palos (`ClubsView`): distancia por palo en metros o yardas. Se guarda siempre en metros.
+- Tu progreso (`HistoryView`): Swift Charts con la nota y el ritmo de cada análisis, y una línea discontinua en 3:1.
+- Problema: en el primer CI faltaba `import SwiftData` en Ajustes (`FetchDescriptor`). Ya está arreglado.
+- Capturas nuevas: `help`, `history` y `settings`.
+
+### Etapa 5: ajuste del vuelo, estilo del trazo y vídeo final del tracer (22-11-2026)
+- `TracerEdit` se guarda con el tracer (`TracerResult.editData`, opcional para que SwiftData migre solo). Guarda la curva, el color, la distancia escrita, el palo y si se enseña la distancia. "Editar" vuelve con todo.
+- "Ajusta el vuelo" (s04):
+  - el trazo sale con su estilo: halo difuminado, color, núcleo blanco y grosor del 125 % al 50 %;
+  - tres asas que se arrastran (Salida, Altura y Caída);
+  - "Tocar la bola" y "Deshacer" siempre a mano; antes solo con el modo diagnóstico;
+  - la hoja de abajo trae la forma (Draw, Recta, Fade), la altura, el tiempo de vuelo (2 a 9 s), los colores, la distancia, el palo de Mis palos y "Crear vídeo";
+  - en la hoja, "La app no mide la distancia".
+- `TracerVideoExporter`:
+  - el clip original con su audio, hasta 1080p, H.264, `shouldOptimizeForNetworkUse`;
+  - el trazo arranca en el impacto y crece con `flight.progress` (rápido al salir, lento al final), con la cabeza brillante de la bola;
+  - al caer, el punto, el anillo y la etiqueta con el palo y la distancia;
+  - 1,5 s más con el trazo entero; si el clip acaba antes, se congela el último fotograma;
+  - marca de agua opcional.
+- "Vídeo listo" (s05): el vídeo en bucle, "Vídeo listo, N s", y Guardar, Compartir y Editar.
+- Capturas nuevas: `adjust` (sin diagnóstico) y `tracer-result`.
+- Constantes nuevas de estilo (no cambian ningún umbral medido, así que no necesitan tabla de evaluar.py): 1,5 s tras la caída, forma ±0,6 para draw y fade, y las medidas de docs/02.
+
+### Etapa 10: pulido (22-11-2026)
+- `BackgroundWork` envuelve los dos trabajos largos (el vídeo del tracer y el del análisis):
+  - tiempo extra de iOS si sales de la app o entra una llamada (`beginBackgroundTask`);
+  - no empieza si quedan menos de 500 MB;
+  - si el iPhone está en estado térmico serio, lo avisa;
+  - lo mide con `os_signpost` (Instruments, "Points of Interest");
+  - guarda lo que tardó la última vez.
+- En Ajustes, con el modo diagnóstico, cada trabajo sale con su tiempo y su objetivo de docs/07 (en rojo si se pasa).
+- Caminos de error repasados (ya existían de etapas anteriores):
+  - sin permiso de cámara, micrófono o Fotos, con frase y camino a Ajustes;
+  - sin espacio al grabar (1 GB) y al exportar (500 MB);
+  - vídeo sin audio: el impacto sale del movimiento y se dice;
+  - vídeo demasiado corto: falta 1 s antes o después del golpe;
+  - rotación: se aplica el `preferredTransform`;
+  - segundo plano: `BackgroundWork`.
+- README nuevo: qué es, cómo se compila, cómo se instala, carpetas, privacidad y licencias.

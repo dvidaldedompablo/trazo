@@ -295,10 +295,14 @@ struct SwingResultView: View {
         let subtitles = UserDefaults.standard.object(forKey: SettingsKey.analysisSubtitles) as? Bool ?? true
         Task {
             do {
-                let output = try await AnalysisVideoExporter.export(
-                    clipURL: clip.fileURL, analysis: analysis, short: short, subtitles: subtitles
-                ) { progress in
-                    Task { @MainActor in exportProgress = progress }
+                if let warning = BackgroundWork.heatWarning { message = warning }
+                // Con tiempo extra si sales de la app y sin empezar si no queda espacio (etapa 10).
+                let output = try await BackgroundWork.run(.analysisVideo) {
+                    try await AnalysisVideoExporter.export(
+                        clipURL: clip.fileURL, analysis: analysis, short: short, subtitles: subtitles
+                    ) { progress in
+                        Task { @MainActor in exportProgress = progress }
+                    }
                 }
                 let name = "analisis-\(result.id.uuidString).mp4"
                 try MediaStore.moveIntoClips(output.main, named: name)

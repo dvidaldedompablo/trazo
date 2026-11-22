@@ -15,6 +15,8 @@ struct TracerReviewView: View {
     let clipID: UUID
     /// Capturas del CI: el análisis y la imagen de demostración, sin vídeo.
     var demo: (analysis: TracerAnalysis, image: UIImage?)?
+    /// En la captura de "Ajusta el vuelo" sin diagnóstico, false.
+    var demoDiagnostics = true
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -25,10 +27,28 @@ struct TracerReviewView: View {
     @State private var tapRequest: BallTapRequest?
     @State private var isReinforcing = false
     @State private var message: String?
+    // Etapa 5: el ajuste, el estilo y el vídeo final. Los valores por defecto salen de Ajustes.
+    @AppStorage(SettingsKey.tracerColor) private var defaultColor: TracerColorChoice = .rojoTV
+    @AppStorage(SettingsKey.tracerCustomColor) private var defaultCustomHex = Int(TracerPalette.customDefaultHex)
+    @AppStorage(SettingsKey.tracerShowsDistance) private var defaultShowsDistance = true
+    @AppStorage(SettingsKey.units) private var units = "m"
+    @AppStorage(SettingsKey.tracerWatermark) private var watermark = false
+    @Query(sort: \Club.order) private var clubs: [Club]
+    @State private var edit: TracerEdit?
+    @State private var isExporting = false
+    @State private var finished: FinishedVideo?
 
-    init(clipID: UUID, demo: (analysis: TracerAnalysis, image: UIImage?)? = nil) {
+    /// El vídeo ya creado, para la pantalla "Vídeo listo".
+    struct FinishedVideo: Identifiable {
+        let id = UUID()
+        let url: URL?
+        let duration: Double
+    }
+
+    init(clipID: UUID, demo: (analysis: TracerAnalysis, image: UIImage?)? = nil, demoDiagnostics: Bool = true) {
         self.clipID = clipID
         self.demo = demo
+        self.demoDiagnostics = demoDiagnostics
         let id = clipID
         _results = Query(filter: #Predicate<TracerResult> { $0.clipID == id })
         _clips = Query(filter: #Predicate<Clip> { $0.id == id })
@@ -37,7 +57,7 @@ struct TracerReviewView: View {
     private var result: TracerResult? { results.first }
     private var clip: Clip? { clips.first }
     private var analysis: TracerAnalysis? { demo?.analysis ?? result?.analysis }
-    private var showsDiagnostics: Bool { diagnostics || demo != nil }
+    private var showsDiagnostics: Bool { diagnostics || (demo != nil && demoDiagnostics) }
 
     var body: some View {
         // Como en s04: la barra de arriba, el aviso y los botones van sobre el negro, y el vídeo entre ellos.
@@ -71,7 +91,17 @@ struct TracerReviewView: View {
         }
         .overlay(alignment: .bottom) { Toast(message: $message).padding(.bottom, 120) }
         .preferredColorScheme(.dark)
-        .task { prepare() }
+        .task {
+            startEditing()
+            prepare()
+        }
+        .fullScreenCover(item: $finished) { video in
+            TracerVideoResultView(url: video.url, duration: video.duration,
+                                  demoImage: video.url == nil ? demo?.image : nil) {
+                // "Editar": se vuelve a "Ajusta el vuelo" con todo lo que había.
+                finished = nil
+            }
+        }
         .onDisappear { player?.pause() }
         .onReceive(NotificationCenter.default.publisher(for: AVPlayerItem.didPlayToEndTimeNotification)) { _ in
             player?.seek(to: .zero)
@@ -100,10 +130,25 @@ struct TracerReviewView: View {
                     }
                     .frame(width: fit.width, height: fit.height)
                     .position(x: fit.midX, y: fit.midY)
-                    TracerOverlay(analysis: analysis, showsDiagnostics: showsDiagnostics)
-                        .frame(width: fit.width, height: fit.height)
-                        .position(x: fit.midX, y: fit.midY)
-                        .allowsHitTesting(false)
+                    if showsDiagnostics {
+                        TracerOverlay(analysis: analysis)
+                            .frame(width: fit.width, height: fit.height)
+                            .position(x: fit.midX, y: fit.midY)
+                            .allowsHitTesting(false)
+                    }
+                    if let edit {
+                        TracerStyledPath(curve: edit.curve, videoSize: videoSize,
+                                         color: edit.color.color(custom: Color(hex: UInt32(edit.customColorHex))),
+                                         label: label(for: edit))
+                            .frame(width: fit.width, height: fit.height)
+                            .position(x: fit.midX, y: fit.midY)
+                            .allowsHitTesting(false)
+                        TracerHandles(curve: Binding(get: { self.edit?.curve ?? edit.curve },
+                                                     set: { self.edit?.curve = $0 }),
+                                      videoSize: videoSize)
+                            .frame(width: fit.width, height: fit.height)
+                            .position(x: fit.midX, y: fit.midY)
+                    }
                 }
             }
         }
@@ -123,7 +168,7 @@ struct TracerReviewView: View {
 
     private var bottomBar: some View {
         VStack(spacing: Spacing.m) {
-            if showsDiagnostics, let analysis {
+            if let analysis {
                 HStack(spacing: Spacing.m) {
                     Button { startTap() } label: { Label("Tocar la bola", systemImage: "scope") }
                         .buttonStyle(CrystalButtonStyle(outline: .capsule))
@@ -135,12 +180,57 @@ struct TracerReviewView: View {
                     Spacer(minLength: 0)
                 }
             }
-            Text("Ajustar el vuelo a mano (salida, altura y caída), elegir la forma y crear el vídeo llega en la etapa 5.")
-                .typeStyle(.nota)
-                .foregroundStyle(.white.opacity(0.8))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(Spacing.m)
-                .glassEffect(.clear.tint(Color.pino.opacity(0.55)), in: RoundedRectangle(cornerRadius: CaptureLayout.tipRadius, style: .continuous))
+            if edit != nil {
+                TracerAdjustPanel(edit: Binding(get: { edit ?? .placeholder }, set: { edit = $0 }),
+                                  clubs: clubs, units: units, isExporting: isExporting) {
+                    Task { await createVideo() }
+                }
+            }
+        }
+    }
+
+    // MARK: Ajuste y vídeo final (etapa 5)
+
+    /// Empieza con lo guardado (si ya se editó) o con la curva propuesta y los valores de Ajustes.
+    private func startEditing() {
+        guard edit == nil, let analysis else { return }
+        edit = result?.edit ?? TracerEdit(curve: analysis.outcome.curve, colorRaw: defaultColor.rawValue,
+                                          customColorHex: defaultCustomHex, showsDistance: defaultShowsDistance,
+                                          manualDistanceMeters: nil,
+                                          clubName: demo != nil ? "Hierro 7" : nil,
+                                          clubDistanceMeters: demo != nil ? 150 : nil)
+    }
+
+    /// La etiqueta de la caída, si la distancia está activada y hay un número (escrito o del palo).
+    private func label(for edit: TracerEdit) -> (club: String?, distance: String)? {
+        guard edit.showsDistance, let meters = edit.distanceMeters else { return nil }
+        return (edit.clubName, TracerEdit.distanceText(meters, units: units))
+    }
+
+    /// Guarda el ajuste con el tracer y monta el vídeo. En las capturas del CI no hay vídeo: se enseña
+    /// "Vídeo listo" con la imagen de demostración.
+    private func createVideo() async {
+        guard let edit, let analysis else { return }
+        if demo != nil {
+            finished = FinishedVideo(url: nil, duration: analysis.impactTime + edit.curve.flightTime + TracerVideoExporter.holdAfterLanding)
+            return
+        }
+        guard let clip, let result else { return }
+        result.edit = edit
+        try? context.save()
+        player?.pause()
+        isExporting = true
+        defer { isExporting = false }
+        do {
+            if let warning = BackgroundWork.heatWarning { message = warning }
+            let clipURL = clip.fileURL, impactTime = analysis.impactTime, units = units, watermark = watermark
+            let video = try await BackgroundWork.run(.tracerVideo) {
+                try await TracerVideoExporter.export(clipURL: clipURL, impactTime: impactTime,
+                                                     edit: edit, units: units, watermark: watermark)
+            }
+            finished = FinishedVideo(url: video.url, duration: video.duration)
+        } catch {
+            message = "No se ha podido crear el vídeo: \(error.localizedDescription)"
         }
     }
 
@@ -190,6 +280,8 @@ struct TracerReviewView: View {
             analysis.reinforcements.append(reinforcement)
             analysis.outcome = TracerAssembler.assemble(analysis.assemblerInput()).outcome
             result.analysis = analysis
+            // La curva nueva sustituye a la del ajuste (el color y la distancia se quedan).
+            edit?.curve = analysis.outcome.curve
             try? context.save()
             if let before, let after = analysis.outcome.meanError, after > before + 0.25 {
                 message = "Ese toque no encaja con el resto. ¿Seguro que es la bola?"
@@ -206,38 +298,27 @@ struct TracerReviewView: View {
         analysis.reinforcements.removeLast()
         analysis.outcome = TracerAssembler.assemble(analysis.assemblerInput()).outcome
         result.analysis = analysis
+        edit?.curve = analysis.outcome.curve
         try? context.save()
         message = "Toque deshecho"
     }
 }
 
-/// La curva propuesta y, en modo diagnóstico, los puntos y la curva ajustada.
-/// Se dibuja en el tamaño del vídeo encajado: cada píxel del vídeo se escala a la vista.
+/// Modo diagnóstico: los puntos vistos y la curva ajustada sobre ellos (el trazo con estilo va aparte,
+/// en TracerStyledPath). Se dibuja en el tamaño del vídeo encajado.
 private struct TracerOverlay: View {
     let analysis: TracerAnalysis
-    let showsDiagnostics: Bool
 
     var body: some View {
-        let flight = analysis.outcome.curve.makeFlight()
-        let assembly = showsDiagnostics ? TracerAssembler.assemble(analysis.assemblerInput()) : nil
+        let assembly = TracerAssembler.assemble(analysis.assemblerInput())
         let width = Double(analysis.videoWidth)
         let height = Double(analysis.videoHeight)
         Canvas { context, size in
             let sx = size.width / width, sy = size.height / height
             func view(_ p: Point2D) -> CGPoint { CGPoint(x: p.x * sx, y: p.y * sy) }
 
-            // Curva propuesta (aún sin el estilo final de la etapa 5).
-            var curve = Path()
-            curve.addLines(flight.points.map(view))
-            context.stroke(curve, with: .color(Color.rojoTrazo), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-            let launch = view(analysis.outcome.curve.launch)
-            context.stroke(Path(ellipseIn: CGRect(x: launch.x - 8, y: launch.y - 8, width: 16, height: 16)), with: .color(.white), lineWidth: 2)
-            let landing = view(analysis.outcome.curve.landing)
-            context.fill(Path(ellipseIn: CGRect(x: landing.x - 4, y: landing.y - 4, width: 8, height: 8)), with: .color(.white))
-
-            guard showsDiagnostics else { return }
             // Curva ajustada sobre lo visto: blanca y discontinua.
-            if let fit = assembly?.fit {
+            if let fit = assembly.fit {
                 var fitted = Path()
                 let samples = stride(from: 0.0, through: analysis.outcome.trackedDuration, by: 1.0 / 120).map { view(fit.position(at: $0)) }
                 fitted.addLines(samples)

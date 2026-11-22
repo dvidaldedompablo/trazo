@@ -132,6 +132,15 @@ struct SettingsScreen: View {
                     Text("Enseña lo que detecta la app: fps, puntos del tracer, esqueleto y la tabla de medidas.")
                         .typeStyle(.nota)
                         .foregroundStyle(Color.texto3)
+                    if diagnostics {
+                        // Rendimiento (docs/07): lo que tardó la última vez cada trabajo y su objetivo.
+                        ForEach(BackgroundWork.Job.allCases, id: \.self) { job in
+                            let seconds = BackgroundWork.lastSeconds(job)
+                            Text("\(job.rawValue): \(seconds.map { SpanishFormat.number($0, decimals: 0) + " s" } ?? "sin datos") · objetivo menos de \(Int(job.targetSeconds)) s")
+                                .typeStyle(.nota)
+                                .foregroundStyle(seconds.map { $0 <= job.targetSeconds } ?? true ? Color.texto2 : Color.rojoTrazo)
+                        }
+                    }
                     Button("Borrar vídeos de hace más de 30 días") { asksToDeleteOld = true }
                         .typeStyle(.etiqueta)
                         .foregroundStyle(Color.rojoTrazo)

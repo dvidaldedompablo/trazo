@@ -142,6 +142,16 @@ Lista inicial de palos (editable en Ajustes, solo "Hierro 7" con valor): Driver,
 - `ClipPickerView`: tarjeta "Comprobar con Gemini". Con "Comprobar siempre, sin preguntar" (Ajustes, activado por defecto: permiso expreso del usuario en CLAUDE.md) empieza sola; sin él, primero sale el aviso "¿Enviar a Google?". La lista se rehace con los golpes: los confirmados, aunque el corte automático no los propusiera, y los que Gemini no contestó si el corte automático los proponía. Cada golpe lleva su trozo del vídeo (`ClipPlanner.splitWindows`: hasta la mitad del hueco con el golpe vecino, nunca menos que el clip de siempre ni más de 15 s a cada lado; con un golpe en un vídeo corto, el vídeo entero). Los descartados no salen como filas.
 - El laboratorio mide esta misma lógica antes de cambiarla (`lab/verificador.py` con `GolfLab verificar-*`, columna "Verificador de la app" de `scripts/evaluar.py`).
 
+## Análisis de swing con Gemini (el usuario: "quiero que lo haga todo Gemini", 22-11-2026)
+- `GolfCore/Swing/SwingCheck`: dos peticiones.
+  1. Posiciones: hojas de 12 fotogramas, uno cada 0,04 s, de 2,5 s antes a 1,5 s después del impacto conocido. Pide los 8 momentos de docs/04.
+  2. Cuerpo y palo: los 7 fotogramas elegidos, sueltos. Pide 13 articulaciones, la empuñadura y la cabeza del palo, en 0–1000.
+  La validación exige posiciones en orden y una bajada de 0,1 a 0,6 s. El resultado son la pose (articulaciones solo en las 7 posiciones), `SwingPhases` y lo del palo. Tiene tests.
+- `App/Features/Swing/SwingGeminiAnalyzer`: hojas y fotogramas con `AVAssetImageGenerator`, y las dos llamadas con `ShotChecker.post`.
+- `SwingAnalyzer.analyze`: con clave y "Comprobar siempre", primero Gemini. Si falla, Vision (el plan B sin red); si fallan los dos, el mensaje dice también por qué falló Gemini.
+- El tracer sigue con Vision: Gemini no puede seguir una bola a 240 fps.
+- Medido con `lab/analisis_gemini.py` (`GolfLab analisis-*`), en la columna "Análisis con Gemini de la app" de `scripts/evaluar.py`.
+
 ## Concurrencia y rendimiento
 - Pipelines como funciones `async` o actores, con progreso por `AsyncStream` y cancelación.
 - Nada pesado en el hilo principal. Liberar búferes de vídeo en cuanto se usan.

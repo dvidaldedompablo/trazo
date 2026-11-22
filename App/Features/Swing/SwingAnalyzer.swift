@@ -7,7 +7,7 @@ import os
 /// Avance en directo del análisis del swing (lo enseña "Revisa las posiciones" mientras trabaja).
 struct SwingLive: Sendable, Equatable {
     enum Step: Sendable, Equatable {
-        case audio, pose, phases
+        case gemini, audio, pose, phases
     }
 
     var step: Step = .audio
@@ -30,6 +30,8 @@ struct PoseDebug: Sendable {
     var frames: [PoseFrame]
     /// Una línea por fotograma y las conclusiones del final.
     var lines: [String]
+    /// Por qué no valió el análisis con Gemini, si se intentó antes que Vision.
+    var geminiNote: String? = nil
 
     /// El registro como texto, para compartirlo desde la app.
     var text: String { lines.joined(separator: "\n") }
@@ -43,13 +45,15 @@ enum SwingError: LocalizedError {
     case tooShort
 
     var errorDescription: String? {
+        // Si Gemini se intentó antes y no valió, se dice también por qué.
+        let gemini = debug?.geminiNote.map { "Gemini no ha podido analizarlo (\($0)). " } ?? ""
         switch self {
         case .nobodyVisible:
-            "No se ve a nadie en el vídeo. Graba con el cuerpo entero y el palo dentro del encuadre."
+            return gemini + "No se ve a nadie en el vídeo. Graba con el cuerpo entero y el palo dentro del encuadre."
         case .noSwing:
-            "Te veo, pero no encuentro un swing completo en este vídeo (la subida, el top y el impacto). Comprueba que el clip incluye el swing entero."
+            return gemini + "Te veo, pero no encuentro un swing completo en este vídeo (la subida, el top y el impacto). Comprueba que el clip incluye el swing entero."
         case .tooShort:
-            "Este vídeo es demasiado corto. Necesita al menos 1 s antes y 1 s después del golpe."
+            return "Este vídeo es demasiado corto. Necesita al menos 1 s antes y 1 s después del golpe."
         }
     }
 
@@ -99,6 +103,29 @@ enum SwingAnalyzer {
             let elapsed = stepStart.duration(to: now)
             timings.append(StepTiming(name: name, seconds: Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) * 1e-18))
             stepStart = now
+        }
+
+        // 0. Con la clave de Gemini y "Comprobar siempre" (el usuario quiere que lo haga todo Gemini,
+        //    22-11-2026), primero Gemini. Si falla, sigue con Vision: el plan B sin red de CLAUDE.md.
+        var geminiNote: String?
+        if let key = KeychainStore.geminiKey,
+           UserDefaults.standard.object(forKey: SettingsKey.geminiAlwaysCheck) as? Bool ?? true {
+            live.step = .gemini
+            live.progress = 0.1
+            progress.yield(live)
+            do {
+                let analysis = try await SwingGeminiAnalyzer.analyze(url: url, knownImpact: knownImpact, handedness: handedness,
+                                                                     heightCentimeters: heightCentimeters, key: key)
+                live.progress = 1
+                progress.yield(live)
+                return analysis
+            } catch {
+                let reason = (error as? SwingGeminiAnalyzer.Failure)?.reason ?? (error as? LocalizedError)?.errorDescription ?? "\(error)"
+                geminiNote = reason
+                logger.info("Gemini no ha valido (\(reason, privacy: .public)); sigo con Vision")
+            }
+            live = SwingLive()
+            progress.yield(live)
         }
 
         // 1. Vídeo y sonido: fps reales y todos los candidatos a impacto del sonido.
@@ -180,7 +207,9 @@ enum SwingAnalyzer {
         lap("Pose")
 
         var debug = PoseDebug(videoWidth: geometry.width, videoHeight: geometry.height, bufferSize: bufferSize,
-                              orientation: "\(geometry.visionOrientation.rawValue)", frames: frames, lines: log)
+                              orientation: "\(geometry.visionOrientation.rawValue)", frames: frames, lines: log,
+                              geminiNote: geminiNote)
+        if let geminiNote { debug.lines.insert("Gemini no valió: \(geminiNote). Sigo con Vision.", at: 0) }
         func finishLog(_ line: String) {
             debug.lines.append(line)
             logger.info("\(line, privacy: .public)")
@@ -211,6 +240,9 @@ enum SwingAnalyzer {
                   + (knownImpact.map { String(format: " (el corte automático decía %.2f s)", $0) } ?? ""))
         finishLog("Posiciones: " + phases.positions.map { String(format: "%@ %.2f s%@", $0.position.title, $0.time, $0.isDoubtful ? " (dudosa)" : "") }.joined(separator: ", "))
         finishLog("El palo no se comprueba aquí: se marca después, en Revisa las posiciones.")
+        if let geminiNote {
+            notes.append("Gemini no ha podido analizarlo (\(geminiNote)): las posiciones las ha buscado el iPhone.")
+        }
         if choice.soundTime == nil {
             notes.append("No se oyó el impacto del palo: salió del movimiento de las manos.")
         } else if let knownImpact, let soundTime = choice.soundTime, abs(soundTime - knownImpact) > 0.1 {

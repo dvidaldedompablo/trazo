@@ -541,3 +541,37 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   | Palo encontrado (≤ 5 % del alto) | 0 de 6 (+3 que toca el usuario) | 1 de 9 | — |
 
   Después: idéntica en todas las cifras. El cambio no toca qué golpes se eligen, solo lo que abarca cada clip. Los clips del verificador pasan de 4,5 s alrededor del impacto (driver 4,67–9,17 s; story1 0,73–5,23 s; story2 0,06–4,56 s) al vídeo entero (0–10,87 s; 0–9,05 s; 0–10,26 s). Recalculado desde la caché, con 0 llamadas. Aviso de la regla 7: son los 3 clips con los que se ajustó la lógica actual, y las etiquetas son de Claude web.
+
+### Análisis de swing con Gemini (22-11-2026)
+- Prueba del usuario en el iPhone: con la story de Puerta de Hierro, el análisis de swing dice "No se ve a nadie en el vídeo". Vision no ve al jugador, aunque se ve entero (MediaPipe, en el PC, sí lo ve). Es lo que quedó pendiente el 17-11 ("confirmar en el iPhone que Vision ve lo mismo que MediaPipe"). Apple Intelligence no tiene que ver: Vision no la usa.
+- El usuario pidió: "quiero que lo haga todo Gemini". Se le explicó:
+  - el tracer no puede ser con Gemini (una bola a 240 fps y unas 20 peticiones al día);
+  - Vision se queda como plan B sin red, que exige CLAUDE.md.
+- Prueba rápida antes de construir nada (1 petición, 6 fotogramas sueltos de la story 1): esqueleto razonable en los 6 y palo bien en 4 de 6. Con fotogramas sueltos va mucho mejor que con las cajas de las hojas en mosaico.
+- `GolfCore/Swing/SwingCheck` (6 tests):
+  - posiciones con hojas (un fotograma cada 0,04 s, de 2,5 s antes a 1,5 s después del impacto);
+  - cuerpo y palo con los 7 fotogramas sueltos;
+  - validación: orden y bajada de 0,1 a 0,6 s;
+  - resultado: pose con articulaciones en las 7 posiciones, `SwingPhases` y el palo. `SwingMetrics` calcula las medidas con eso.
+- Medido con `lab/analisis_gemini.py`: 2 peticiones y unos 40 s por clip, unos 18 000 tokens de entrada, coste real 0.
+
+  | Cifra | Lógica actual | Modelo A | Verificador | Análisis con Gemini |
+  | --- | --- | --- | --- | --- |
+  | Golpes bien contados (de 3) | 1 | 3 | 3 | — |
+  | Picos falsos propuestos | 1 | 0 | 0 | — |
+  | Error del impacto en fotogramas (driver / story1 / story2) | +0 / -3 / -2 | +0 / +0 / +3 | — | -1 / -2 / -2 |
+  | Error del top en fotogramas (driver / story1 / story2) | +0 / -2 / +2 | +0 / -2 / +1 | — | +0 / -2 / +1 |
+  | Palo encontrado (≤ 5 % del alto) | 0 de 6 (+3 que toca el usuario) | 1 de 9 | — | 3 de 9 |
+  | Cuerpo: distancia media a MediaPipe (% del alto) | — | — | — | 1,6 % / 2,5 % / 3,1 % |
+
+  Aviso de la regla 7: son los 3 clips con los que se ajustó la lógica actual, y las etiquetas son de Claude web. En la bajada, la cabeza del palo se queda cerca (53 y 43 px, con un tope de 51 y 39). En el takeaway falla.
+- App:
+  - `SwingGeminiAnalyzer` hace las dos peticiones; `SwingAnalyzer.analyze` prueba primero Gemini (con clave y "Comprobar siempre") y, si falla, Vision.
+  - Paso nuevo "Gemini está buscando las posiciones, tu cuerpo y el palo…".
+  - Si fallan los dos, el mensaje empieza por "Gemini no ha podido analizarlo (motivo)".
+  - `ShotChecker.drawSheet` y `post` se comparten entre el verificador y el análisis.
+- Limitaciones:
+  - Gemini marca el cuerpo solo en las 7 posiciones. Si en la revisión mueves una posición a otro fotograma, ahí no hay esqueleto, y en la cámara lenta del vídeo el esqueleto sale solo en esas 7.
+  - "Equilibrio en el final" no se puede medir (necesita los fotogramas de después).
+  - Cada análisis gasta 2 peticiones: con el verificador, unas 3 o 4 por vídeo, o sea unos 5 vídeos al día en el plan gratuito.
+- Pendiente: probarlo en el iPhone (docs/07, filas Fase 4). El fallo de Vision con las stories sigue sin arreglar para el plan B (hace falta el registro del modo diagnóstico).

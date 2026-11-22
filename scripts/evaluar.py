@@ -286,11 +286,55 @@ def verificador(clip: Path, info: InfoVideo, datos: dict) -> dict | None:
             "modelo": v.get("modelo")}
 
 
+# Qué punto del análisis con Gemini se compara con cada marca del palo de la etiqueta: la cabeza del
+# palo en la posición de la app que corresponde (docs/04).
+POSICION_DE_MARCA = {"preparacion": "address", "takeaway": "takeaway", "mitad_subida": "midBackswing",
+                     "top": "top", "bajada": "transition"}
+ARTICULACIONES_BASE = ["nose", "leftShoulder", "rightShoulder", "leftElbow", "rightElbow", "leftWrist", "rightWrist",
+                       "leftHip", "rightHip", "leftKnee", "rightKnee", "leftAnkle", "rightAnkle"]
+
+
+def analisis_gemini(clip: Path, info: InfoVideo, datos: dict) -> dict | None:
+    """El análisis de swing con Gemini de la app (SwingCheck), medido con lab/analisis_gemini.py:
+    impacto, top, la cabeza del palo en las posiciones y el cuerpo frente a la pose de MediaPipe."""
+    ruta = DERIVADOS / clip.stem / "analisis_gemini" / "resultado.json"
+    if not ruta.exists():
+        return None
+    g = json.loads(ruta.read_text(encoding="utf-8"))
+    if not g.get("ok"):
+        return {"golpes": None, "picos_falsos": None, "impacto": None, "top": None, "palo": [], "cuerpo": None,
+                "modelo": "gemini-3.6-flash", "fallo": g.get("failure")}
+    marcas = {m["position"]: m for m in g["marks"]}
+    casos = []
+    for marca in datos["palo"]:
+        if marca.get("x") is None:
+            continue
+        m = marcas.get(POSICION_DE_MARCA[marca["fase"]])
+        casos.append({"fase": marca["fase"], "marca": (marca["x"], marca["y"]), "t_marca": marca["t"],
+                      "punto": m.get("clubHead") if m else None, "linea": (m["grip"], m["clubHead"]) if m and m.get("grip") and m.get("clubHead") else None,
+                      "indice": info.indice_mas_cercano(m["time"]) if m else None, "cuenta": True,
+                      "nota": "" if m and m.get("clubHead") else "no ve la cabeza del palo"})
+    # El cuerpo frente a MediaPipe (la pose del 17-11) en los mismos fotogramas, en % del alto del vídeo.
+    poses = json.loads((DERIVADOS / clip.stem / "pose" / "poses.json").read_text(encoding="utf-8"))
+    tiempos = [p["time"] for p in poses]
+    errores = []
+    for m in g["marks"]:
+        mp = poses[min(range(len(tiempos)), key=lambda i: abs(tiempos[i] - m["time"]))]["joints"]
+        for nombre in ARTICULACIONES_BASE:
+            if nombre in m["joints"] and nombre in mp:
+                errores.append(distancia(m["joints"][nombre], (mp[nombre]["x"], mp[nombre]["y"])) / info.alto)
+    marca_pos = {m["position"]: m["time"] for m in g["marks"]}
+    return {"golpes": None, "picos_falsos": None, "impacto": g["impactTime"], "top": marca_pos.get("top"), "palo": casos,
+            "cuerpo": (sum(errores) / len(errores)) if errores else None, "articulaciones": len(errores),
+            "modelo": "gemini-3.6-flash"}
+
+
 # Columnas de la tabla: (clave, título, función). La lógica actual siempre; cada modelo si hay resultado.
 METODOS = [("actual", "Lógica actual (GolfCore + MediaPipe)", None),
            ("a", "Modelo A", modelo_a),
            ("b", "Modelo B", modelo_b),
-           ("verificador", "Verificador de la app", verificador)]
+           ("verificador", "Verificador de la app", verificador),
+           ("analisis", "Análisis con Gemini de la app", analisis_gemini)]
 
 
 def main() -> None:
@@ -327,9 +371,13 @@ def main() -> None:
         contables = [] if sin_palo else [c for r in rs for c in r["palo"] if c["cuenta"]]
         usuario = 0 if sin_palo else sum(1 for r in rs for c in r["palo"] if not c["cuenta"])
         sin_instantes = all(r["impacto"] is None and r["top"] is None for r in rs)
+        # Los métodos que no eligen golpes (el análisis de swing) no tienen cifra de golpes.
+        sin_golpes = any(r["golpes"] is None for r in rs)
+        cuerpos = [r["cuerpo"] for r in rs if r.get("cuerpo") is not None]
         return {
-            "golpes": str(sum(1 for f, r in zip(filas, rs) if r["golpes"] == f["golpes"])),
-            "falsos": str(sum(r["picos_falsos"] for r in rs)),
+            "golpes": "—" if sin_golpes else str(sum(1 for f, r in zip(filas, rs) if r["golpes"] == f["golpes"])),
+            "falsos": "—" if sin_golpes else str(sum(r["picos_falsos"] for r in rs)),
+            "cuerpo": " / ".join(f"{c:.1%}" for c in cuerpos) if len(cuerpos) == len(rs) else "—",
             "impacto": "—" if sin_instantes else " / ".join(firmar(r["error_impacto"]) for r in rs),
             "top": "—" if sin_instantes else " / ".join(firmar(r["error_top"]) for r in rs),
             "palo": "—" if sin_palo else (f"{sum(c['encontrado'] for c in contables)} de {len(contables)}"
@@ -354,6 +402,7 @@ def main() -> None:
     print(fila_tabla(f"Error del impacto en fotogramas ({nombres})", "impacto"))
     print(fila_tabla(f"Error del top en fotogramas ({nombres})", "top"))
     print(fila_tabla(f"Palo encontrado (≤ {CRITERIO_PALO:.0%} del alto)", "palo"))
+    print(fila_tabla(f"Cuerpo: distancia media a MediaPipe, en % del alto ({nombres})", "cuerpo"))
 
     print("\nDetalle del palo (distancia a la marca en px; fotogramas del método frente a la etiqueta):")
     for f in filas:

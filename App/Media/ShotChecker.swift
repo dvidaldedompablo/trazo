@@ -62,7 +62,8 @@ enum ShotChecker {
         for request in requests {
             var jpegs: [Data] = []
             for sheet in request.sheets {
-                jpegs.append(try await drawSheet(sheet, generator: generator, layout: layout))
+                jpegs.append(try await drawSheet(caption: sheet.caption, frameTimes: sheet.frameTimes, numbers: sheet.numbers,
+                                                 generator: generator, layout: layout))
             }
             let body = try ShotCheck.requestBody(request, sheetJPEGs: jpegs)
             let data = try await post(body, key: key)
@@ -93,11 +94,12 @@ enum ShotChecker {
 
     /// Una hoja como las del laboratorio: título arriba, y en cada fotograma su número arriba a la
     /// izquierda y su instante abajo, en recuadros negros. Los colores son los de la imagen que mira
-    /// el modelo, no de la interfaz: por eso no salen del sistema de diseño.
-    private static func drawSheet(_ sheet: ShotCheck.Sheet, generator: AVAssetImageGenerator,
-                                  layout: ShotCheck.SheetLayout) async throws -> Data {
+    /// el modelo, no de la interfaz: por eso no salen del sistema de diseño. También la usa el análisis
+    /// de swing con Gemini (`SwingGeminiAnalyzer`).
+    static func drawSheet(caption: String, frameTimes: [Double], numbers: [Int], generator: AVAssetImageGenerator,
+                          layout: ShotCheck.SheetLayout) async throws -> Data {
         var frames: [(image: CGImage?, time: Double)] = []
-        for t in sheet.frameTimes {
+        for t in frameTimes {
             let time = CMTime(seconds: max(t, 0), preferredTimescale: 600)
             if let result = try? await generator.image(at: time) {
                 frames.append((result.image, result.actualTime.seconds))
@@ -113,7 +115,7 @@ enum ShotChecker {
             context.fill(CGRect(x: 0, y: 0, width: layout.width, height: layout.height))
             UIColor(white: 0.16, alpha: 1).setFill()
             context.fill(CGRect(x: 0, y: 0, width: layout.width, height: layout.header))
-            draw(sheet.caption, at: CGPoint(x: 10, y: 8), size: 20, weight: .bold, background: nil)
+            draw(caption, at: CGPoint(x: 10, y: 8), size: 20, weight: .bold, background: nil)
             for (k, frame) in frames.enumerated() {
                 let row = k / layout.columns, column = k % layout.columns
                 let cell = CGRect(x: layout.gap + column * (layout.cellWidth + layout.gap),
@@ -125,8 +127,8 @@ enum ShotChecker {
                     UIColor.darkGray.setFill()
                     context.fill(cell)
                 }
-                if k < sheet.numbers.count {
-                    draw("\(sheet.numbers[k])", at: CGPoint(x: cell.minX, y: cell.minY), size: 22, weight: .bold, background: .black)
+                if k < numbers.count {
+                    draw("\(numbers[k])", at: CGPoint(x: cell.minX, y: cell.minY), size: 22, weight: .bold, background: .black)
                 }
                 let label = String(format: "%.3f s", frame.time)
                 draw(label, at: CGPoint(x: cell.minX, y: cell.maxY - 22), size: 14, weight: .regular, background: .black)
@@ -151,7 +153,7 @@ enum ShotChecker {
     // MARK: Red
 
     /// POST a la API Interactions de Gemini. La clave va en una cabecera, nunca en la URL ni en un registro.
-    private static func post(_ body: Data, key: String) async throws -> Data {
+    static func post(_ body: Data, key: String) async throws -> Data {
         guard let url = URL(string: ShotCheck.endpoint) else { throw Failure.server(0) }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

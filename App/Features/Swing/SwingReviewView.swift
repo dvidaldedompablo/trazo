@@ -331,6 +331,7 @@ struct SwingReviewView: View {
 
     private var progressText: String {
         switch model.live.step {
+        case .gemini: "Gemini está buscando las posiciones, tu cuerpo y el palo…"
         case .audio: "Escuchando el golpe…"
         case .pose: "Buscando tu cuerpo: fotograma \(model.live.frame) de \(model.live.totalFrames)"
         case .phases: "Colocando las 7 posiciones…"

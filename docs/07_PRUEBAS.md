@@ -27,6 +27,8 @@
 | Fase 4 | Quitar "Comprobar siempre" en Ajustes e importar | Sale el aviso "¿Enviar a Google?" antes de enviar |
 | Fase 4 | Modo avión, importar y "Enviar" | "No hay conexión a internet. Te propongo los golpes como siempre…" y aparece la lista por sonido |
 | Fase 4 | Sin "Comprobar siempre": importar y pulsar "Cancelar" en el aviso | Aparece la lista por sonido con "Comprobar los golpes" por si cambias de idea |
+| Fase 4 | Análisis de swing de la story de Puerta de Hierro (con clave y "Comprobar siempre") | Sale "Gemini está buscando las posiciones, tu cuerpo y el palo…". En unos 40 s, Revisa las posiciones con las 7 miniaturas y el esqueleto encima. Ya no sale "No se ve a nadie" |
+| Fase 4 | El mismo análisis en modo avión | Sigue con el iPhone (Vision). Si tampoco te ve, el mensaje empieza por "Gemini no ha podido analizarlo (No hay conexión…)" |
 | Fase 4 | Borrar la clave en Ajustes y volver a Elige los golpes | La tarjeta pide la clave en Ajustes y no hay botón de enviar |
 
 ## Prueba de 5 golpes (tracer)

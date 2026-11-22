@@ -360,6 +360,99 @@ func checkDecision(audioPath: String, duration: Double, responsePaths: [String])
         confirmed: checked.confirmedCount)
 }
 
+// MARK: - analisis: el análisis de swing con Gemini de la app (SwingCheck), para medirlo en el PC
+
+struct SwingPlanReport: Encodable {
+    let frameTimes: [Double]
+    let sheets: [[Int]]
+    let captions: [String]
+    let columns: Int
+    let rows: Int
+    let cellWidth: Int
+    let cellHeight: Int
+    let gap: Int
+    let header: Int
+}
+
+func impactArgument(_ text: String) -> Double? { text == "-" ? nil : Double(text) }
+
+func swingPlan(duration: Double, impact: Double?, width: Int, height: Int) -> SwingPlanReport {
+    let request = SwingCheck.positionsPlan(duration: duration, impactHint: impact)
+    let layout = ShotCheck.layout(frameWidth: width, frameHeight: height)
+    return SwingPlanReport(frameTimes: request.frameTimes, sheets: request.sheets,
+                           captions: request.sheets.indices.map(request.caption), columns: layout.columns, rows: layout.rows,
+                           cellWidth: layout.cellWidth, cellHeight: layout.cellHeight, gap: layout.gap, header: layout.header)
+}
+
+struct ChosenReport: Encodable {
+    let ok: Bool
+    let failure: String?
+    /// Instante de cada posición del cuerpo, en el orden de `SwingCheck.bodyMoments`.
+    let bodyTimes: [Double]
+    let times: [String: Double]
+}
+
+func swingChosen(duration: Double, impact: Double?, responsePath: String) -> ChosenReport {
+    let request = SwingCheck.positionsPlan(duration: duration, impactHint: impact)
+    guard let data = FileManager.default.contents(atPath: responsePath), let text = ShotCheck.outputText(fromResponse: data) else {
+        return ChosenReport(ok: false, failure: "sin respuesta", bodyTimes: [], times: [:])
+    }
+    switch SwingCheck.parsePositions(text, for: request) {
+    case let .failure(failure):
+        return ChosenReport(ok: false, failure: failure.description, bodyTimes: [], times: [:])
+    case let .success(chosen):
+        return ChosenReport(ok: true, failure: nil, bodyTimes: SwingCheck.bodyMoments.map { chosen.times[$0.key]! }, times: chosen.times)
+    }
+}
+
+struct MarkReport: Encodable {
+    let position: String
+    let time: Double
+    let joints: [String: [Double]]
+    let grip: [Double]?
+    let clubHead: [Double]?
+}
+
+struct SwingDecision: Encodable {
+    let ok: Bool
+    let failure: String?
+    let impactTime: Double?
+    let backswingStartTime: Double?
+    let marks: [MarkReport]
+    let measurements: [String: Double]
+}
+
+func swingDecision(duration: Double, impact: Double?, width: Int, height: Int, positionsPath: String, bodyPath: String) -> SwingDecision {
+    let request = SwingCheck.positionsPlan(duration: duration, impactHint: impact)
+    func text(_ path: String) -> String? { FileManager.default.contents(atPath: path).flatMap(ShotCheck.outputText(fromResponse:)) }
+    func fail(_ why: String) -> SwingDecision {
+        SwingDecision(ok: false, failure: why, impactTime: nil, backswingStartTime: nil, marks: [], measurements: [:])
+    }
+    guard let positionsText = text(positionsPath) else { return fail("sin respuesta de posiciones") }
+    guard case let .success(chosen) = SwingCheck.parsePositions(positionsText, for: request) else { return fail("posiciones no válidas") }
+    guard let bodyText = text(bodyPath) else { return fail("sin respuesta del cuerpo") }
+    switch SwingCheck.parseBody(bodyText, width: width, height: height) {
+    case let .failure(failure):
+        return fail(failure.description)
+    case let .success(marks):
+        let analysis = SwingCheck.result(request, chosen: chosen, marks: marks)
+        let measured = SwingMetrics.measure(SwingMetricsInput(
+            frames: analysis.frames, phases: analysis.phases, handedness: .right, heightCentimeters: 175,
+            clubHeadAtAddress: analysis.clubHeadAtAddress, clubHeadAtTakeaway: analysis.clubHeadAtTakeaway,
+            clubLineAtMidBackswing: analysis.clubLineAtMidBackswing, clubLineAtTransition: analysis.clubLineAtTransition))
+        var values: [String: Double] = [:]
+        for item in measured.items { if let value = item.value { values["\(item.kind)"] = value } }
+        let reports = SwingCheck.bodyMoments.map { moment -> MarkReport in
+            let mark = marks[moment.position]
+            return MarkReport(position: "\(moment.position)", time: analysis.phases[moment.position].time,
+                              joints: Dictionary(uniqueKeysWithValues: (mark?.joints ?? [:]).map { ($0.key.rawValue, [$0.value.x, $0.value.y]) }),
+                              grip: mark?.grip.map { [$0.x, $0.y] }, clubHead: mark?.clubHead.map { [$0.x, $0.y] })
+        }
+        return SwingDecision(ok: true, failure: nil, impactTime: analysis.impactTime,
+                             backswingStartTime: analysis.phases.backswingStartTime, marks: reports, measurements: values)
+    }
+}
+
 // MARK: - Arranque
 
 do {
@@ -392,6 +485,34 @@ do {
         }
         guard jpegs.count == requests[k].sheets.count else { throw LabError.usage }
         FileHandle.standardOutput.write(try ShotCheck.requestBody(requests[k], sheetJPEGs: jpegs))
+    case "analisis-plan":
+        guard a.count == 6, let seconds = Double(a[2]), let width = Int(a[4]), let height = Int(a[5]) else { throw LabError.usage }
+        try write(swingPlan(duration: seconds, impact: impactArgument(a[3]), width: width, height: height))
+    case "analisis-cuerpo-posiciones":
+        // El cuerpo exacto de la petición de posiciones, con las hojas dibujadas en el PC.
+        guard a.count >= 5, let seconds = Double(a[2]) else { throw LabError.usage }
+        let request = SwingCheck.positionsPlan(duration: seconds, impactHint: impactArgument(a[3]))
+        let jpegs = try a[4...].map { path in
+            guard let data = FileManager.default.contents(atPath: path) else { throw LabError.unreadable(path) }
+            return data
+        }
+        guard jpegs.count == request.sheets.count else { throw LabError.usage }
+        FileHandle.standardOutput.write(try SwingCheck.positionsBody(request, sheetJPEGs: jpegs))
+    case "analisis-elegidas":
+        guard a.count == 5, let seconds = Double(a[2]) else { throw LabError.usage }
+        try write(swingChosen(duration: seconds, impact: impactArgument(a[3]), responsePath: a[4]))
+    case "analisis-cuerpo-cuerpo":
+        // El cuerpo exacto de la petición del cuerpo y el palo, con los 7 fotogramas.
+        guard a.count == 2 + SwingCheck.bodyMoments.count else { throw LabError.usage }
+        let jpegs = try a[2...].map { path in
+            guard let data = FileManager.default.contents(atPath: path) else { throw LabError.unreadable(path) }
+            return data
+        }
+        FileHandle.standardOutput.write(try SwingCheck.bodyBody(frameJPEGs: jpegs))
+    case "analisis-decidir":
+        guard a.count == 8, let seconds = Double(a[2]), let width = Int(a[4]), let height = Int(a[5]) else { throw LabError.usage }
+        try write(swingDecision(duration: seconds, impact: impactArgument(a[3]), width: width, height: height,
+                                positionsPath: a[6], bodyPath: a[7]))
     case "verificar-decidir":
         guard a.count >= 4, let seconds = Double(a[3]) else { throw LabError.usage }
         try write(try checkDecision(audioPath: a[2], duration: seconds, responsePaths: Array(a[4...])))

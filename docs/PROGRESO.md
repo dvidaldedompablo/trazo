@@ -688,3 +688,21 @@ Solo si la prueba de 5 golpes no llega a 4 después de la vuelta de ajuste.
   - rotación: se aplica el `preferredTransform`;
   - segundo plano: `BackgroundWork`.
 - README nuevo: qué es, cómo se compila, cómo se instala, carpetas, privacidad y licencias.
+
+### Fase 4 cerrada: el vídeo de análisis se genera entero en el CI (22-11-2026)
+- El CI genera un vídeo de demostración (`scripts/video-demo.sh`, `-UITestScreen export-demo -DemoVariant N`).
+  - Cada variante se lanza por separado y queda registrado su avance. Si la app se cierra, se guarda el informe de fallo.
+  - Variantes: el vídeo completo, y versiones cortas sin ejercicios, sin capas o sin voz. Aparte, el vídeo del tracer.
+- Lo que aislaron las variantes:
+  1. **-12780 al montar**. Solo pasaba con los ejercicios. Causa: el `AVURLAsset` de cada clip de ejercicio se creaba en línea y se liberaba enseguida, y una `AVAssetTrack` solo guarda una referencia débil a su asset. Ahora los assets se conservan hasta exportar (también el del clip y el de la voz, porque en Release ARC podría liberarlos antes).
+  2. **La app se cerraba al 45 % de la exportación** sin ejercicios. Era el fallo conocido de `postProcessingAsVideoLayer:in:` (foro de Apple, hilo 133681: en el simulador y en algunos iPhone). Las capas pasan a ir como pista aparte (`additionalLayer:asTrackID:`, `VideoLayers.attachOverlay`) en los dos exportadores.
+  3. **Rótulos vacíos** en muchos fotogramas: un `CATextLayer` dibuja su texto cuando le toca y, con la capa como pista aparte, a veces no llega. Antes de exportar, cada texto se dibuja como imagen (`VideoLayers.rasterizeText`).
+  4. **8 s vacíos al final**: con solo dos fallos con ejercicio, el bloque del tercero salía igual (mínimo de 8 s). `AnalysisTimeline.build` ya no pone los bloques de "A mejorar" que no tienen frases (test nuevo).
+     - No es un umbral de detección: `scripts/evaluar.py` no pasa por la línea de tiempo del vídeo, así que no hay tabla que comparar.
+  5. Una pista de audio vacía hacía fallar la exportación (-11838): si no hay voz, se quita.
+- Resultado en el CI (run 45042622480), con el vídeo de demostración:
+  - 98,9 s en 1080 x 1920, H.264 High a 30 fps y AAC; pesa 9,2 MB (menos de 16).
+  - Como la calidad bajaba de 1,5 Mbps, sale también la versión 720p (7,1 MB).
+  - Voz Kokoro en todo el vídeo (−21,7 LUFS); ningún clip de ejercicio falta.
+  - Tardó 359 s en el simulador del runner. En el iPhone debería ir bastante más rápido; se comprueba con el modo diagnóstico.
+- Vídeo del tracer de demostración: 8,2 s en 1080 x 1920, en 23 s. El trazo crece desde el impacto, se mueve la cabeza de la bola y al caer salen la marca y la etiqueta.

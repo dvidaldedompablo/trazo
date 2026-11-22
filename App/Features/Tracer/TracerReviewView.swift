@@ -70,15 +70,19 @@ struct TracerReviewView: View {
             VStack(spacing: Spacing.s) {
                 topBar
                     .padding(.horizontal, Spacing.cardMargin)
-                if let lostAt = analysis?.outcome.lostAt, analysis?.outcome.needsReview == true {
-                    Chip(title: "Perdí la bola a los \(SpanishFormat.number(lostAt, decimals: 1)) s",
-                         systemImage: "exclamationmark.triangle", surface: .video)
-                }
                 videoArea
                     .overlay(alignment: .top) {
-                        if showsDiagnostics, let analysis {
-                            DiagnosticsPanel(analysis: analysis).padding(.horizontal, Spacing.cardMargin)
+                        VStack(spacing: Spacing.s) {
+                            // El aviso va encima del vídeo, para dejarle más sitio (s04).
+                            if let lostAt = analysis?.outcome.lostAt, analysis?.outcome.needsReview == true {
+                                Chip(title: "Perdí la bola a los \(SpanishFormat.number(lostAt, decimals: 1)) s",
+                                     systemImage: "exclamationmark.triangle", surface: .video)
+                            }
+                            if showsDiagnostics, let analysis {
+                                DiagnosticsPanel(analysis: analysis).padding(.horizontal, Spacing.cardMargin)
+                            }
                         }
+                        .padding(.top, Spacing.s)
                     }
                     .overlay(alignment: .bottomLeading) {
                         tapButtons.padding(.horizontal, Spacing.cardMargin).padding(.bottom, Spacing.s)
@@ -224,8 +228,10 @@ struct TracerReviewView: View {
                     .buttonStyle(CrystalButtonStyle(outline: .capsule))
                     .disabled(analysis.reinforcements.count >= TracerConstants.maximumReinforcementTaps || isReinforcing)
                 if !analysis.reinforcements.isEmpty {
-                    Button { undoLastTap() } label: { Label("Deshacer", systemImage: "arrow.uturn.backward") }
-                        .buttonStyle(CrystalButtonStyle(outline: .capsule))
+                    // Solo el icono: así no tapa el asa de la salida, que suele estar abajo a la derecha.
+                    Button { undoLastTap() } label: { Image(systemName: "arrow.uturn.backward").font(.system(size: 17, weight: .regular)) }
+                        .buttonStyle(.crystal)
+                        .accessibilityLabel("Deshacer el último toque")
                 }
                 Spacer(minLength: 0)
             }

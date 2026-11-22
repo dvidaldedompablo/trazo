@@ -20,6 +20,25 @@ enum ImprovementCards {
     private static let verdeClaro = UIColor(red: 22 / 255, green: 58 / 255, blue: 44 / 255, alpha: 1)
     private static var amarillo: UIColor { AnalysisCards.amarillo }
 
+    /// Fondo opaco y fijo (sin fundido) de un bloque de "A mejorar": la pantalla entera en la entrada
+    /// y el resumen; en un fallo, solo las bandas de arriba y de abajo, para que se vea el clip.
+    /// Así, cuando los rótulos se funden al cambiar de bloque, no asoma el swing que hay debajo.
+    static func backdrop(block: TimelineBlock, total: Double, aroundClip: Bool) -> CALayer {
+        let root = full()
+        let rects = aroundClip
+            ? [CGRect(x: 0, y: 0, width: VideoLayers.width, height: clipTop),
+               CGRect(x: 0, y: clipTop + clipSide, width: VideoLayers.width, height: VideoLayers.height - clipTop - clipSide)]
+            : [root.bounds]
+        for rect in rects {
+            let band = CALayer()
+            band.frame = rect
+            band.backgroundColor = verde.cgColor
+            root.addSublayer(band)
+        }
+        VideoLayers.show(root, from: block.start, to: block.end, total: total, fade: 0)
+        return root
+    }
+
     private static func full() -> CALayer {
         let layer = CALayer()
         layer.frame = CGRect(x: 0, y: 0, width: VideoLayers.width, height: VideoLayers.height)

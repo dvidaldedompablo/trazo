@@ -108,10 +108,10 @@ struct HistoryView: View {
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 4)) {
                         AxisGridLine()
-                        AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        AxisValueLabel(format: .dateTime.day().month(.abbreviated).locale(Locale(identifier: "es_ES")))
                     }
                 }
-                .chartXScale(range: .plotDimension(padding: 18))
+                .chartXScale(range: .plotDimension(startPadding: 14, endPadding: 34))
                 .environment(\.locale, Locale(identifier: "es_ES"))
                 .frame(height: 180)
         }

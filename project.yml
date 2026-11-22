@@ -60,7 +60,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.dvidaldedompablo.trazo
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
-        MARKETING_VERSION: "0.1"
+        MARKETING_VERSION: "1.0"
         # El CI lo sustituye por el número de run, para saber qué compilación tienes instalada.
         CURRENT_PROJECT_VERSION: "1"
         TRAZO_BUILD_DATE: ""

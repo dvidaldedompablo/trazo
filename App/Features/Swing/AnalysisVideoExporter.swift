@@ -272,6 +272,15 @@ enum AnalysisVideoExporter {
         return Output(main: main, light: light, missingClips: missingClips, compressionProblem: note)
     }
 
+    /// Fondo claro fijo bajo las tarjetas de ritmo, nota e informe: al fundirse no asoma el swing.
+    private static func cardBackdrop(block: TimelineBlock, total: Double) -> CALayer {
+        let layer = CALayer()
+        layer.frame = CGRect(x: 0, y: 0, width: VideoLayers.width, height: VideoLayers.height)
+        layer.backgroundColor = AnalysisCards.bola.cgColor
+        VideoLayers.show(layer, from: block.start, to: block.end, total: total, fade: 0)
+        return layer
+    }
+
     /// 0, 1 o 2 para los bloques de los fallos de "A mejorar".
     static func improvementIndex(_ kind: ScriptBlockKind) -> Int? {
         switch kind {
@@ -316,18 +325,23 @@ enum AnalysisVideoExporter {
                                                                     swingStart: swingStart,
                                                                     factor: slowMotionFactor, total: total))
             case .script(.tempo):
+                overlay.addSublayer(Self.cardBackdrop(block: block, total: total))
                 overlay.addSublayer(AnalysisCards.tempoCard(analysis: analysis, block: block, total: total))
             case .script(.score):
+                overlay.addSublayer(Self.cardBackdrop(block: block, total: total))
                 overlay.addSublayer(AnalysisCards.scoreCard(score: score, block: block, total: total))
             case .script(.report):
+                overlay.addSublayer(Self.cardBackdrop(block: block, total: total))
                 overlay.addSublayer(AnalysisCards.reportCard(analysis: analysis, score: score, block: block,
                                                              total: total, date: now))
             case .closing:
                 overlay.addSublayer(AnalysisCards.closingCard(block: block, total: total, date: now))
             case .script(.improveIntro):
+                overlay.addSublayer(ImprovementCards.backdrop(block: block, total: total, aroundClip: false))
                 overlay.addSublayer(ImprovementCards.listCard(title: ImprovementPlan.introTitle(count: improvementItems.count),
                                                               items: improvementItems, block: block, total: total))
             case .script(.improveSummary):
+                overlay.addSublayer(ImprovementCards.backdrop(block: block, total: total, aroundClip: false))
                 overlay.addSublayer(ImprovementCards.listCard(title: ImprovementPlan.summaryTitle,
                                                               items: improvementItems, block: block, total: total))
             case let .script(kind) where Self.improvementIndex(kind) != nil:
@@ -335,6 +349,7 @@ enum AnalysisVideoExporter {
                 let item = improvementItems[index]
                 // Si el clip falta, la imagen fija con el texto (y se avisa al terminar).
                 let fallback = missingClips.contains(item.exercise.id) ? ExerciseAssets.image(item.exercise) : nil
+                overlay.addSublayer(ImprovementCards.backdrop(block: block, total: total, aroundClip: fallback == nil))
                 overlay.addSublayer(ImprovementCards.itemOverlay(item: item, count: improvementItems.count, block: block,
                                                                  total: total, fallbackImage: fallback))
             case let .script(kind):

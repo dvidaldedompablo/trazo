@@ -35,6 +35,11 @@
 | Ejercicios | Inicio → Ejercicios → tocar un fallo | La lista solo enseña los 10 que se ven desde detrás. El detalle repite el clip sin cortes y sin sonido, y se entiende sin saber de golf |
 | Lato | Recorrer Inicio, Ajustes, Tus vídeos y Tu análisis | Todo el texto en Lato; la nota de Tu análisis en una sola línea |
 | Fase 4 | Borrar la clave en Ajustes y volver a Elige los golpes | La tarjeta pide la clave en Ajustes y no hay botón de enviar |
+| 5 | En "Ajusta el vuelo", arrastrar las asas Salida, Altura y Caída; cambiar Draw/Recta/Fade, altura y tiempo de vuelo | El trazo cambia al momento y sigue al dedo |
+| 5 | Tocar "150 m" → elegir un palo de Mis palos, luego "Escribir la distancia…" | Sale la distancia del palo o la escrita, en m o yd según Ajustes; con el interruptor apagado no sale |
+| 5 | "Crear vídeo" → "Vídeo listo" → Guardar en Fotos, Compartir y Editar | El vídeo lleva el sonido original, el trazo crece desde el impacto y al caer sale la etiqueta; "Editar" vuelve con todo como estaba |
+| 10 | Crear un vídeo de análisis y bloquear el iPhone a mitad | Al volver ha terminado o dice claramente que no pudo |
+| 10 | Ajustes → modo diagnóstico, tras crear un vídeo de cada tipo | Salen los segundos que tardó cada uno junto al objetivo (60 s y 120 s); en rojo si se pasa |
 
 ## Prueba de 5 golpes (tracer)
 Graba cinco golpes distintos y rellena la tabla en `docs/PROGRESO.md`:

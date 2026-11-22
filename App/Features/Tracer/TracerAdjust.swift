@@ -84,9 +84,10 @@ struct TracerStyledPath: View {
                 let f = 1.25 - 0.75 * Double(piece) / Double(pieces - 1)
                 var halo = context
                 halo.addFilter(.blur(radius: 9 * k * 2))
-                halo.stroke(path, with: .color(color.opacity(0.42)), style: StrokeStyle(lineWidth: 41 * k * f, lineCap: .round, lineJoin: .round))
-                context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 12 * k * f, lineCap: .round, lineJoin: .round))
-                context.stroke(path, with: .color(.white.opacity(0.95)), style: StrokeStyle(lineWidth: max(4 * k * f, 1), lineCap: .round))
+                let cap: CGLineCap = piece == 0 ? .round : .butt
+                halo.stroke(path, with: .color(color.opacity(0.42)), style: StrokeStyle(lineWidth: 41 * k * f, lineCap: cap, lineJoin: .round))
+                context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 12 * k * f, lineCap: cap, lineJoin: .round))
+                context.stroke(path, with: .color(.white.opacity(0.95)), style: StrokeStyle(lineWidth: max(4 * k * f, 1), lineCap: cap))
             }
             let landing = view(curve.landing)
             context.stroke(Path(ellipseIn: CGRect(x: landing.x - 12 * k, y: landing.y - 12 * k, width: 24 * k, height: 24 * k)),
@@ -481,7 +482,9 @@ enum TracerVideoExporter {
                 layer.fillColor = nil
                 layer.strokeColor = stroke.cgColor
                 layer.lineWidth = width
-                layer.lineCap = .round
+                // Solo el principio del trazo es redondo: en las uniones entre trozos, un extremo redondo
+                // pinta dos veces el halo translúcido y se ve una bolita.
+                layer.lineCap = piece == 0 ? .round : .butt
                 layer.lineJoin = .round
                 if shadow {
                     layer.shadowColor = color.cgColor

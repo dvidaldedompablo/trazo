@@ -175,6 +175,19 @@ struct AnalysisTimelineTests {
         #expect(blocks.last?.kind == .closing && blocks.last?.duration == 2)
     }
 
+    @Test("Los bloques de \"A mejorar\" sin frases no salen (con dos fallos no hay tercer ejercicio)")
+    func skipsSilentImprovementBlocks() {
+        let kinds = AnalysisTimeline.blockKinds(short: true, importantPhases: [.takeaway])
+        let narration: [ScriptBlockKind: Double] = [.improveIntro: 3, .improve1: 9, .improve2: 9, .improveSummary: 3]
+        let blocks = AnalysisTimeline.build(kinds: kinds, narration: narration, swingDuration: 1.6, slowMotionFactor: 2)
+        let shown = blocks.compactMap(\.scriptKind)
+        #expect(shown.contains(.improve2))
+        #expect(!shown.contains(.improve3))
+        // Sin ningún fallo con ejercicio, no hay sección.
+        let none = AnalysisTimeline.build(kinds: kinds, narration: [:], swingDuration: 1.6, slowMotionFactor: 2)
+        #expect(none.compactMap(\.scriptKind).allSatisfy { !AnalysisTimeline.improvementKinds.contains($0) })
+    }
+
     @Test("La versión corta lleva gancho, cámara lenta, 3 fases, nota e informe")
     func shortVersion() {
         let kinds = AnalysisTimeline.blockKinds(short: true, importantPhases: [.takeaway, .impact, .midBackswing, .top])

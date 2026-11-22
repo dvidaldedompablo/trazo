@@ -88,15 +88,8 @@ struct ExportDemoView: View {
     /// clip, con la distancia del hierro 7 y la marca de agua. El clip acaba antes de que caiga la bola,
     /// así que también prueba el último fotograma congelado.
     private func exportTracer(clip: URL, finish: (String) -> Void) async {
-        let analysis = DemoData.reviewAnalysis()
-        let sx = 1080 / Double(analysis.videoWidth), sy = 1920 / Double(analysis.videoHeight)
-        var curve = analysis.outcome.curve
-        for keyPath in [\TracerCurve.launch, \TracerCurve.apex, \TracerCurve.landing] {
-            curve[keyPath: keyPath] = Point2D(curve[keyPath: keyPath].x * sx, curve[keyPath: keyPath].y * sy)
-        }
-        let edit = TracerEdit(curve: curve, colorRaw: TracerColorChoice.rojoTV.rawValue,
-                              customColorHex: Int(TracerPalette.customDefaultHex), showsDistance: true,
-                              manualDistanceMeters: nil, clubName: "Hierro 7", clubDistanceMeters: 150)
+        // La curva de la maqueta (s04), en el tamaño del clip de demostración.
+        let edit = TracerEdit.demo(videoSize: CGSize(width: 1080, height: 1920))
         let started = Date.now
         do {
             let video = try await TracerVideoExporter.export(clipURL: clip, impactTime: 1.2, edit: edit, units: "m", watermark: true)

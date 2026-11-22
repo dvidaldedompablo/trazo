@@ -26,6 +26,7 @@ enum VideoLayers {
         // única que la dibuja. Por eso se marca así, para que Swift 6 no la vea como compartida.
         nonisolated(unsafe) let container = CALayer()
         container.frame = CGRect(origin: .zero, size: videoComposition.renderSize)
+        rasterizeText(in: overlay)
         // Core Animation dibuja el vídeo con el origen abajo: se da la vuelta para pensar en px de arriba abajo.
         container.isGeometryFlipped = true
         overlay.frame = container.bounds
@@ -35,6 +36,53 @@ enum VideoLayers {
         let instruction = AVMutableVideoCompositionLayerInstruction()
         instruction.trackID = trackID
         return instruction
+    }
+
+    /// Cambia cada CATextLayer del árbol por una capa normal con el texto ya dibujado como imagen.
+    /// Un CATextLayer dibuja su texto "cuando hace falta", y al exportar con la capa como pista aparte
+    /// el dibujo no siempre llega a tiempo: en el CI salían los rótulos vacíos en muchos fotogramas.
+    /// Con la imagen ya hecha no hay nada que esperar. Se conservan el marco, la opacidad y las animaciones.
+    static func rasterizeText(in root: CALayer) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        replaceTextLayers(in: root)
+    }
+
+    private static func replaceTextLayers(in layer: CALayer) {
+        for sublayer in layer.sublayers ?? [] {
+            guard let text = sublayer as? CATextLayer else {
+                replaceTextLayers(in: sublayer)
+                continue
+            }
+            let size = text.bounds.size
+            guard size.width >= 1, size.height >= 1 else { continue }
+            // Se dibuja con opacidad 1 (muchas empiezan en 0 y se encienden con una animación).
+            let opacity = text.opacity
+            text.opacity = 1
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            format.opaque = false
+            let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+                text.render(in: context.cgContext)
+            }
+            text.opacity = opacity
+            let plain = CALayer()
+            plain.bounds = text.bounds
+            plain.position = text.position
+            plain.anchorPoint = text.anchorPoint
+            plain.transform = text.transform
+            plain.opacity = opacity
+            plain.isHidden = text.isHidden
+            plain.backgroundColor = text.backgroundColor
+            plain.cornerRadius = text.cornerRadius
+            plain.contents = image.cgImage
+            plain.contentsGravity = .resize
+            for key in text.animationKeys() ?? [] {
+                if let animation = text.animation(forKey: key) { plain.add(animation, forKey: key) }
+            }
+            layer.replaceSublayer(text, with: plain)
+        }
     }
 
     // MARK: Piezas básicas

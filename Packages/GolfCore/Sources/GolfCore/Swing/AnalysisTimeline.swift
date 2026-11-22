@@ -78,6 +78,9 @@ public enum AnalysisTimeline {
         var blocks: [TimelineBlock] = []
         var cursor = 0.0
         for kind in kinds {
+            // Un bloque de "A mejorar" sin frases no sale: con dos fallos no hay tercer ejercicio, y si
+            // no, quedaban 8 s vacíos (sin voz ni tarjeta) antes del resumen.
+            if improvementKinds.contains(kind), narration[kind] == nil { continue }
             let minimum = minimumDuration(for: kind, swingDuration: swingDuration, slowMotionFactor: slowMotionFactor)
             let narrated = narration[kind].map { $0 + narrationTail } ?? 0
             let duration = max(minimum, narrated)

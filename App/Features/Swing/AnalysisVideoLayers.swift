@@ -22,7 +22,9 @@ enum VideoLayers {
     /// (hilo 133681), también en algunos iPhone. Con la capa como pista aparte funciona en los dos.
     static func attachOverlay(_ overlay: CALayer, to videoComposition: AVMutableVideoComposition,
                               composition: AVMutableComposition) -> AVMutableVideoCompositionLayerInstruction {
-        let container = CALayer()
+        // La herramienta se queda con la capa (`sending`). Después nadie más la toca: la exportación es la
+        // única que la dibuja. Por eso se marca así, para que Swift 6 no la vea como compartida.
+        nonisolated(unsafe) let container = CALayer()
         container.frame = CGRect(origin: .zero, size: videoComposition.renderSize)
         // Core Animation dibuja el vídeo con el origen abajo: se da la vuelta para pensar en px de arriba abajo.
         container.isGeometryFlipped = true

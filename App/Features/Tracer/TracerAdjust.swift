@@ -28,6 +28,16 @@ struct TracerEdit: Codable, Sendable, Equatable {
                                         colorRaw: TracerColorChoice.rojoTV.rawValue, customColorHex: Int(TracerPalette.customDefaultHex),
                                         showsDistance: false, manualDistanceMeters: nil, clubName: nil, clubDistanceMeters: nil)
 
+    /// La curva de las capturas del CI, como en la maqueta (s04): sale de la bola de la escena de
+    /// demostración, sube hasta arriba en el centro y cae en el horizonte, a la izquierda (draw).
+    static func demo(videoSize: CGSize) -> TracerEdit {
+        let w = videoSize.width, h = videoSize.height
+        return TracerEdit(curve: TracerCurve(launch: Point2D(0.836 * w, 0.906 * h), apex: Point2D(0.64 * w, 0.125 * h),
+                                             landing: Point2D(0.50 * w, 0.315 * h), shape: drawShape, flightTime: 5.8),
+                          colorRaw: TracerColorChoice.rojoTV.rawValue, customColorHex: Int(TracerPalette.customDefaultHex),
+                          showsDistance: true, manualDistanceMeters: nil, clubName: "Hierro 7", clubDistanceMeters: 150)
+    }
+
     /// Forma de la curva: draw, recta o fade (docs/03: s de −1 a +1).
     static let drawShape = -0.6
     static let fadeShape = 0.6
@@ -110,6 +120,19 @@ struct TracerHandles: View {
             let sx = proxy.size.width / videoSize.width, sy = proxy.size.height / videoSize.height
             ForEach(Handle.allCases, id: \.self) { handle in
                 let p = handle.point(of: curve)
+                // El nombre del asa en una píldora de cristal a su lado (s04): Altura a la derecha,
+                // Salida y Caída a la izquierda.
+                Text(handle.title)
+                    .typeStyle(.chip)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, Spacing.m)
+                    .frame(height: Size.chipHeight)
+                    .background(Color.pino.opacity(0.55), in: Capsule())
+                    .fixedSize()
+                    .frame(width: 120, alignment: handle == .apex ? .leading : .trailing)
+                    .position(x: p.x * sx + (handle == .apex ? 82 : -82), y: p.y * sy)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
                 Circle()
                     .fill(.white)
                     .overlay(Circle().strokeBorder(Color.pino, lineWidth: 4))
@@ -163,83 +186,150 @@ struct TracerHandles: View {
 
 /// La hoja de abajo de "Ajusta el vuelo" (s04): forma, altura, tiempo de vuelo, colores, distancia y
 /// "Crear vídeo".
+/// La línea de tiempo de "Ajusta el vuelo" (s04): blanca, con el impacto en rojo y un círculo que se
+/// arrastra para ir a cualquier fotograma.
+struct TracerTimeline: View {
+    let duration: Double
+    let impact: Double
+    let current: Double
+    let onSeek: (Double) -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let x = { (t: Double) in width * min(max(t / max(duration, 0.01), 0), 1) }
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.3)).frame(height: 4)
+                Capsule().fill(Color.white).frame(width: x(current), height: 4)
+                Capsule().fill(Color.rojoTrazo).frame(width: 3, height: 16).offset(x: x(impact) - 1.5)
+                Circle().fill(Color.white).frame(width: 22, height: 22).offset(x: x(current) - 11)
+            }
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { value in
+                onSeek(min(max(value.location.x / max(width, 1), 0), 1) * duration)
+            })
+        }
+        .frame(height: Size.minTouch)
+        .accessibilityElement()
+        .accessibilityLabel("Línea de tiempo")
+        .accessibilityValue("\(SpanishFormat.number(current, decimals: 1)) de \(SpanishFormat.number(duration, decimals: 1)) segundos; impacto a los \(SpanishFormat.number(impact, decimals: 1))")
+        .accessibilityAdjustableAction { direction in
+            let step = 1.0 / 30
+            onSeek(min(max(current + (direction == .increment ? step : -step), 0), duration))
+        }
+    }
+}
+
 struct TracerAdjustPanel: View {
     @Binding var edit: TracerEdit
     let clubs: [Club]
     let units: String
     let isExporting: Bool
+    let onReset: () -> Void
     let onCreate: () -> Void
+    @State private var asksForDistance = false
     @State private var manualText = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.m) {
+            Capsule()
+                .fill(Color.borde)
+                .frame(width: 36, height: 5)
+                .frame(maxWidth: .infinity)
+                .accessibilityHidden(true)
+            HStack {
+                Text("Forma del golpe").typeStyle(.valor).foregroundStyle(Color.pino)
+                Spacer()
+                Button("Restablecer", action: onReset)
+                    .typeStyle(.etiqueta)
+                    .foregroundStyle(Color.texto2)
+            }
             Picker("Forma", selection: shapeBinding) {
                 Text("Draw").tag(TracerEdit.drawShape)
                 Text("Recta").tag(0.0)
                 Text("Fade").tag(TracerEdit.fadeShape)
             }
             .pickerStyle(.segmented)
-            row("Altura") {
-                Slider(value: heightBinding, in: 0.1...0.95).tint(.white)
+            row("Altura", value: heightName) {
+                Slider(value: heightBinding, in: 0.1...0.95).tint(Color.pino)
             }
-            row("Vuelo \(SpanishFormat.number(edit.curve.flightTime, decimals: 1)) s") {
-                Slider(value: $edit.curve.flightTime, in: 2...9, step: 0.1).tint(.white)
+            row("Tiempo de vuelo", value: "\(SpanishFormat.number(edit.curve.flightTime, decimals: 1)) s") {
+                Slider(value: $edit.curve.flightTime, in: 2...9, step: 0.1).tint(Color.pino)
             }
-            ColorSwatchRow(selection: colorBinding, customColor: customColorBinding)
             HStack(spacing: Spacing.s) {
-                Toggle(isOn: $edit.showsDistance) { Text("Distancia").typeStyle(.etiqueta).foregroundStyle(.white) }
-                    .toggleStyle(TrazoSwitchStyle())
+                ColorSwatchRow(selection: colorBinding, customColor: customColorBinding)
                 Spacer(minLength: 0)
-                Menu {
-                    Button("Sin palo") { edit.clubName = nil; edit.clubDistanceMeters = nil }
-                    ForEach(clubs) { club in
-                        Button(club.name + (club.distanceMeters.map { " · " + TracerEdit.distanceText($0, units: units) } ?? "")) {
-                            edit.clubName = club.name
-                            edit.clubDistanceMeters = club.distanceMeters
-                        }
-                    }
-                } label: {
-                    Text(edit.clubName ?? "Palo").typeStyle(.etiqueta).foregroundStyle(.white)
-                        .padding(.horizontal, Spacing.m).frame(minHeight: Size.minTouch)
-                        .background(Color.white.opacity(0.14), in: Capsule())
-                }
-                TextField(units, text: $manualText)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                    .typeStyle(.valor)
-                    .foregroundStyle(.white)
-                    .frame(width: 64)
-                    .onChange(of: manualText) { _, value in
-                        let number = Double(value.filter(\.isNumber))
-                        edit.manualDistanceMeters = number.map { units == "yd" ? $0 * 0.9144 : $0 }
-                    }
-                    .accessibilityLabel("Distancia escrita a mano")
+                Toggle(isOn: $edit.showsDistance) { distanceMenu }
+                    .toggleStyle(TrazoSwitchStyle())
             }
-            Text("La app no mide la distancia: pone la que escribes o la de tu palo.")
-                .typeStyle(.nota)
-                .foregroundStyle(.white.opacity(0.7))
             Button(action: onCreate) {
                 if isExporting {
-                    ProgressView().tint(Color.pino)
+                    ProgressView().tint(.white)
                 } else {
                     Text("Crear vídeo")
                 }
             }
-            .buttonStyle(.amarillo)
+            .buttonStyle(.principal)
             .disabled(isExporting)
         }
-        .padding(Spacing.l)
-        .glassEffect(.clear.tint(Color.pino.opacity(0.7)), in: RoundedRectangle(cornerRadius: Radius.sheet, style: .continuous))
-        .onAppear {
-            manualText = edit.manualDistanceMeters.map { String(Int((units == "yd" ? $0 / 0.9144 : $0).rounded())) } ?? ""
+        .padding(.horizontal, Spacing.l)
+        .padding(.top, Spacing.s)
+        .padding(.bottom, Spacing.xl)
+        .background(Color.bola, in: UnevenRoundedRectangle(topLeadingRadius: Radius.sheet, topTrailingRadius: Radius.sheet, style: .continuous))
+        .environment(\.colorScheme, .light)
+        .alert("Distancia", isPresented: $asksForDistance) {
+            TextField(units == "yd" ? "164" : "150", text: $manualText)
+                .keyboardType(.numberPad)
+            Button("Aceptar") {
+                let number = Double(manualText.filter(\.isNumber))
+                edit.manualDistanceMeters = number.map { units == "yd" ? $0 * 0.9144 : $0 }
+                if number != nil { edit.showsDistance = true }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("La app no mide la distancia: escribe la que sepas, en \(units == "yd" ? "yardas" : "metros").")
         }
     }
 
-    private func row(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        HStack(spacing: Spacing.m) {
-            Text(title).typeStyle(.etiqueta).foregroundStyle(.white).frame(width: 110, alignment: .leading)
-            content()
+    /// "150 m" (la escrita o la del palo); al tocarlo, elegir palo o escribirla.
+    private var distanceMenu: some View {
+        Menu {
+            ForEach(clubs) { club in
+                Button(club.name + (club.distanceMeters.map { " · " + TracerEdit.distanceText($0, units: units) } ?? "")) {
+                    edit.clubName = club.name
+                    edit.clubDistanceMeters = club.distanceMeters
+                    edit.manualDistanceMeters = nil
+                }
+            }
+            Button("Escribir la distancia…") {
+                manualText = edit.manualDistanceMeters.map { String(Int((units == "yd" ? $0 / 0.9144 : $0).rounded())) } ?? ""
+                asksForDistance = true
+            }
+            Button("Sin palo") {
+                edit.clubName = nil
+                edit.clubDistanceMeters = nil
+            }
+        } label: {
+            Text(edit.distanceMeters.map { TracerEdit.distanceText($0, units: units) } ?? "Distancia")
+                .typeStyle(.cuerpo)
+                .foregroundStyle(Color.pino)
+                .monospacedDigit()
         }
+        .accessibilityLabel("Distancia y palo")
+    }
+
+    private func row(_ title: String, value: String, @ViewBuilder content: () -> some View) -> some View {
+        HStack(spacing: Spacing.m) {
+            Text(title).typeStyle(.cuerpo).foregroundStyle(Color.pino).frame(width: 128, alignment: .leading)
+            content()
+            Text(value).typeStyle(.valor).foregroundStyle(Color.pino).monospacedDigit().frame(width: 56, alignment: .trailing)
+        }
+    }
+
+    private var heightName: String {
+        let value = heightBinding.wrappedValue
+        return value > 0.66 ? "Alta" : (value > 0.4 ? "Media" : "Baja")
     }
 
     private var shapeBinding: Binding<Double> {
@@ -482,48 +572,98 @@ enum TracerVideoExporter {
 struct TracerVideoResultView: View {
     let url: URL?
     var duration: Double = 0
-    /// Capturas del CI: una imagen en vez del vídeo.
-    var demoImage: UIImage? = nil
+    /// Capturas del CI: la imagen de demostración con el trazo dibujado encima, en vez del vídeo.
+    var demo: (image: UIImage, edit: TracerEdit, videoSize: CGSize)? = nil
+    var units = "m"
     let onEdit: () -> Void
+    var onClose: () -> Void = {}
     @State private var message: String?
 
     var body: some View {
         ZStack {
-            Color.escenario.ignoresSafeArea()
-            if let demoImage {
-                Image(uiImage: demoImage).resizable().scaledToFit()
-            } else if let url {
-                LoopingVideo(url: url).ignoresSafeArea()
-            }
-            VStack {
-                Chip(title: "Vídeo listo, \(SpanishFormat.number(duration, decimals: 0)) s", dotColor: .rojoTrazo, surface: .video)
-                    .padding(.top, Spacing.l)
-                Spacer()
-                HStack(spacing: Spacing.m) {
-                    Button {
-                        guard let url else { return }
-                        Task {
-                            do {
-                                try await PhotoLibrary.saveVideo(at: url)
-                                message = "Guardado en Fotos"
-                            } catch {
-                                message = "No se ha podido guardar: \(error.localizedDescription)"
-                            }
-                        }
-                    } label: { Label("Guardar", systemImage: "arrow.down.to.line") }
-                        .buttonStyle(.principal)
-                    if let url {
-                        ShareLink(item: url) { Label("Compartir", systemImage: "square.and.arrow.up") }
-                            .buttonStyle(CrystalButtonStyle(outline: .capsule))
+            Color.escenario
+            if let demo {
+                GeometryReader { proxy in
+                    // La imagen llena la pantalla (como el vídeo) y el trazo va en el mismo marco.
+                    let scale = max(proxy.size.width / demo.videoSize.width, proxy.size.height / demo.videoSize.height)
+                    let size = CGSize(width: demo.videoSize.width * scale, height: demo.videoSize.height * scale)
+                    ZStack {
+                        Image(uiImage: demo.image).resizable()
+                        TracerStyledPath(curve: demo.edit.curve, videoSize: demo.videoSize,
+                                         color: demo.edit.color.color(custom: Color(hex: UInt32(demo.edit.customColorHex))),
+                                         label: demo.edit.distanceMeters.map { (club: demo.edit.clubName, distance: TracerEdit.distanceText($0, units: units)) })
                     }
-                    Button(action: onEdit) { Label("Editar", systemImage: "slider.horizontal.3") }
-                        .buttonStyle(CrystalButtonStyle(outline: .capsule))
+                    .frame(width: size.width, height: size.height)
+                    .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
                 }
-                .padding(.horizontal, Spacing.cardMargin)
-                .padding(.bottom, Spacing.xl)
+            } else if let url {
+                LoopingVideo(url: url)
             }
+        }
+        .ignoresSafeArea()
+        .overlay(alignment: .top) {
+            HStack {
+                Button(action: onClose) { Image(systemName: "xmark").font(.system(size: 17, weight: .regular)) }
+                    .buttonStyle(.crystal)
+                    .accessibilityLabel("Cerrar")
+                Spacer(minLength: 0)
+                Chip(title: "Vídeo listo, \(SpanishFormat.number(duration, decimals: 0)) s", dotColor: .nivelado, surface: .video)
+                Spacer(minLength: 0)
+                Color.clear.frame(width: Size.glassButton, height: Size.glassButton)
+            }
+            .padding(.horizontal, Spacing.cardMargin)
+            .padding(.top, Spacing.s)
+        }
+        .overlay(alignment: .bottom) {
+            HStack(spacing: Spacing.m) {
+                Button {
+                    guard let url else { return }
+                    Task {
+                        do {
+                            try await PhotoLibrary.saveVideo(at: url)
+                            message = "Guardado en Fotos"
+                        } catch {
+                            message = "No se ha podido guardar: \(error.localizedDescription)"
+                        }
+                    }
+                } label: {
+                    tile("Guardar en Fotos", icon: "arrow.down.to.line", primary: true)
+                }
+                .frame(maxWidth: .infinity)
+                if let url {
+                    ShareLink(item: url) { tile("Compartir", icon: "square.and.arrow.up") }
+                        .frame(width: 96)
+                } else {
+                    tile("Compartir", icon: "square.and.arrow.up").frame(width: 96)
+                }
+                Button(action: onEdit) { tile("Editar", icon: "slider.horizontal.3") }
+                    .frame(width: 96)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, Spacing.cardMargin)
+            .padding(.bottom, Spacing.l)
         }
         .overlay(alignment: .bottom) { Toast(message: $message).padding(.bottom, 110) }
         .preferredColorScheme(.dark)
+    }
+
+    /// Botón alto de s05: icono encima del texto. El principal es blanco; los otros, de cristal.
+    private func tile(_ title: String, icon: String, primary: Bool = false) -> some View {
+        VStack(spacing: Spacing.xs) {
+            Image(systemName: icon).font(.system(size: 19, weight: .medium))
+            Text(title).typeStyle(.boton).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .foregroundStyle(primary ? Color.pino : .white)
+        .frame(maxWidth: .infinity)
+        .frame(height: 72)
+        .background {
+            if primary {
+                RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(Color.papel)
+            } else {
+                RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(.clear)
+                    .glassEffect(.clear.tint(Color.pino.opacity(0.3)), in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
     }
 }

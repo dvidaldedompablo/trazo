@@ -37,6 +37,10 @@ struct TracerReviewView: View {
     @State private var edit: TracerEdit?
     @State private var isExporting = false
     @State private var finished: FinishedVideo?
+    @State private var currentTime = 0.0
+    @State private var isPlaying = false
+    /// La X de "Vídeo listo" cierra también "Ajusta el vuelo".
+    @State private var closesAfterResult = false
 
     /// El vídeo ya creado, para la pantalla "Vídeo listo".
     struct FinishedVideo: Identifiable {
@@ -60,26 +64,47 @@ struct TracerReviewView: View {
     private var showsDiagnostics: Bool { diagnostics || (demo != nil && demoDiagnostics) }
 
     var body: some View {
-        // Como en s04: la barra de arriba, el aviso y los botones van sobre el negro, y el vídeo entre ellos.
-        VStack(spacing: Spacing.s) {
-            topBar
-                .padding(.horizontal, Spacing.cardMargin)
-            if let lostAt = analysis?.outcome.lostAt, analysis?.outcome.needsReview == true {
-                Chip(title: "Perdí la bola a los \(SpanishFormat.number(lostAt, decimals: 1)) s",
-                     systemImage: "exclamationmark.triangle", surface: .video)
-            }
-            videoArea
-                .overlay(alignment: .top) {
-                    if showsDiagnostics, let analysis {
-                        DiagnosticsPanel(analysis: analysis).padding(.horizontal, Spacing.cardMargin)
-                    }
+        // Como en s04: arriba la barra y el aviso, el vídeo encajado en negro con "Tocar la bola" encima,
+        // la línea de tiempo y, abajo, la hoja clara del ajuste hasta el borde.
+        VStack(spacing: 0) {
+            VStack(spacing: Spacing.s) {
+                topBar
+                    .padding(.horizontal, Spacing.cardMargin)
+                if let lostAt = analysis?.outcome.lostAt, analysis?.outcome.needsReview == true {
+                    Chip(title: "Perdí la bola a los \(SpanishFormat.number(lostAt, decimals: 1)) s",
+                         systemImage: "exclamationmark.triangle", surface: .video)
                 }
-            bottomBar
-                .padding(.horizontal, Spacing.cardMargin)
+                videoArea
+                    .overlay(alignment: .top) {
+                        if showsDiagnostics, let analysis {
+                            DiagnosticsPanel(analysis: analysis).padding(.horizontal, Spacing.cardMargin)
+                        }
+                    }
+                    .overlay(alignment: .bottomLeading) {
+                        tapButtons.padding(.horizontal, Spacing.cardMargin).padding(.bottom, Spacing.s)
+                    }
+                if let analysis {
+                    TracerTimeline(duration: timelineDuration, impact: analysis.impactTime, current: currentTime) { time in
+                        currentTime = time
+                        player?.pause()
+                        isPlaying = false
+                        player?.seek(to: CMTime(seconds: time, preferredTimescale: 48_000), toleranceBefore: .zero, toleranceAfter: .zero)
+                    }
+                    .padding(.horizontal, Spacing.cardMargin)
+                }
+            }
+            .padding(.top, Spacing.s)
+            .padding(.bottom, Spacing.m)
+            if edit != nil {
+                TracerAdjustPanel(edit: Binding(get: { edit ?? .placeholder }, set: { edit = $0 }),
+                                  clubs: clubs, units: units, isExporting: isExporting,
+                                  onReset: resetEdit) {
+                    Task { await createVideo() }
+                }
+            }
         }
-        .padding(.top, Spacing.s)
-        .padding(.bottom, Spacing.l)
         .background(Color.escenario)
+        .ignoresSafeArea(.container, edges: .bottom)
         .overlay {
             if isReinforcing {
                 Color.black.opacity(0.5).ignoresSafeArea()
@@ -95,12 +120,21 @@ struct TracerReviewView: View {
             startEditing()
             prepare()
         }
-        .fullScreenCover(item: $finished) { video in
+        .onReceive(Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()) { _ in
+            // La línea de tiempo sigue al vídeo mientras se reproduce.
+            if isPlaying, let seconds = player?.currentTime().seconds, seconds.isFinite { currentTime = seconds }
+        }
+        .fullScreenCover(item: $finished, onDismiss: { if closesAfterResult { dismiss() } }) { video in
             TracerVideoResultView(url: video.url, duration: video.duration,
-                                  demoImage: video.url == nil ? demo?.image : nil) {
-                // "Editar": se vuelve a "Ajusta el vuelo" con todo lo que había.
-                finished = nil
-            }
+                                  demo: video.url == nil ? demoResult : nil, units: units,
+                                  onEdit: {
+                                      // "Editar": se vuelve a "Ajusta el vuelo" con todo lo que había.
+                                      finished = nil
+                                  },
+                                  onClose: {
+                                      closesAfterResult = true
+                                      finished = nil
+                                  })
         }
         .onDisappear { player?.pause() }
         .onReceive(NotificationCenter.default.publisher(for: AVPlayerItem.didPlayToEndTimeNotification)) { _ in
@@ -114,7 +148,18 @@ struct TracerReviewView: View {
         }
     }
 
-    /// El vídeo encajado en el hueco que dejan los controles, con el trazo encima.
+    /// Para las capturas: la imagen de demostración con el trazo ajustado.
+    private var demoResult: (image: UIImage, edit: TracerEdit, videoSize: CGSize)? {
+        guard let image = demo?.image, let edit, let analysis else { return nil }
+        return (image: image, edit: edit, videoSize: CGSize(width: analysis.videoWidth, height: analysis.videoHeight))
+    }
+
+    private var timelineDuration: Double {
+        if let clip { return clip.duration }
+        return max((analysis?.impactTime ?? 0) * 2, 4)
+    }
+
+    /// El vídeo encajado en el hueco que dejan los controles, con el trazo y las asas encima.
     private var videoArea: some View {
         GeometryReader { proxy in
             if let analysis {
@@ -139,7 +184,7 @@ struct TracerReviewView: View {
                     if let edit {
                         TracerStyledPath(curve: edit.curve, videoSize: videoSize,
                                          color: edit.color.color(custom: Color(hex: UInt32(edit.customColorHex))),
-                                         label: label(for: edit))
+                                         label: nil)
                             .frame(width: fit.width, height: fit.height)
                             .position(x: fit.midX, y: fit.midY)
                             .allowsHitTesting(false)
@@ -156,36 +201,50 @@ struct TracerReviewView: View {
 
     private var topBar: some View {
         HStack(spacing: Spacing.s) {
-            Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 17, weight: .regular)) }
+            Button { dismiss() } label: { Image(systemName: "chevron.left").font(.system(size: 17, weight: .regular)) }
                 .buttonStyle(.crystal)
-                .accessibilityLabel("Cerrar")
+                .accessibilityLabel("Atrás")
             Spacer(minLength: 0)
-            Chip(title: "Ajusta el vuelo", dotColor: .rojoTrazo, surface: .video)
+            Chip(title: "Ajusta el vuelo", surface: .video)
             Spacer(minLength: 0)
-            Color.clear.frame(width: Size.glassButton, height: Size.glassButton)
+            Button { togglePlay() } label: {
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill").font(.system(size: 15, weight: .regular))
+            }
+            .buttonStyle(.crystal)
+            .accessibilityLabel(isPlaying ? "Pausa" : "Reproducir")
         }
     }
 
-    private var bottomBar: some View {
-        VStack(spacing: Spacing.m) {
-            if let analysis {
-                HStack(spacing: Spacing.m) {
-                    Button { startTap() } label: { Label("Tocar la bola", systemImage: "scope") }
+    /// "Tocar la bola" (y "Deshacer" si ya hay toques), sobre el vídeo abajo a la izquierda.
+    @ViewBuilder
+    private var tapButtons: some View {
+        if let analysis {
+            HStack(spacing: Spacing.s) {
+                Button { startTap() } label: { Label("Tocar la bola", systemImage: "scope") }
+                    .buttonStyle(CrystalButtonStyle(outline: .capsule))
+                    .disabled(analysis.reinforcements.count >= TracerConstants.maximumReinforcementTaps || isReinforcing)
+                if !analysis.reinforcements.isEmpty {
+                    Button { undoLastTap() } label: { Label("Deshacer", systemImage: "arrow.uturn.backward") }
                         .buttonStyle(CrystalButtonStyle(outline: .capsule))
-                        .disabled(analysis.reinforcements.count >= TracerConstants.maximumReinforcementTaps || isReinforcing)
-                    if !analysis.reinforcements.isEmpty {
-                        Button { undoLastTap() } label: { Label("Deshacer", systemImage: "arrow.uturn.backward") }
-                            .buttonStyle(CrystalButtonStyle(outline: .capsule))
-                    }
-                    Spacer(minLength: 0)
                 }
+                Spacer(minLength: 0)
             }
-            if edit != nil {
-                TracerAdjustPanel(edit: Binding(get: { edit ?? .placeholder }, set: { edit = $0 }),
-                                  clubs: clubs, units: units, isExporting: isExporting) {
-                    Task { await createVideo() }
-                }
-            }
+        }
+    }
+
+    private func togglePlay() {
+        guard let player else { return }
+        if isPlaying { player.pause() } else { player.play() }
+        isPlaying.toggle()
+    }
+
+    /// "Restablecer": la curva que propuso la app, con el mismo color y la misma distancia.
+    private func resetEdit() {
+        guard let analysis else { return }
+        if demo != nil {
+            edit?.curve = TracerEdit.demo(videoSize: CGSize(width: analysis.videoWidth, height: analysis.videoHeight)).curve
+        } else {
+            edit?.curve = analysis.outcome.curve
         }
     }
 
@@ -194,11 +253,15 @@ struct TracerReviewView: View {
     /// Empieza con lo guardado (si ya se editó) o con la curva propuesta y los valores de Ajustes.
     private func startEditing() {
         guard edit == nil, let analysis else { return }
+        if demo != nil {
+            // Capturas del CI: la curva de la maqueta, el hierro 7 y 150 m.
+            edit = TracerEdit.demo(videoSize: CGSize(width: analysis.videoWidth, height: analysis.videoHeight))
+            currentTime = analysis.impactTime + 0.9
+            return
+        }
         edit = result?.edit ?? TracerEdit(curve: analysis.outcome.curve, colorRaw: defaultColor.rawValue,
                                           customColorHex: defaultCustomHex, showsDistance: defaultShowsDistance,
-                                          manualDistanceMeters: nil,
-                                          clubName: demo != nil ? "Hierro 7" : nil,
-                                          clubDistanceMeters: demo != nil ? 150 : nil)
+                                          manualDistanceMeters: nil, clubName: nil, clubDistanceMeters: nil)
     }
 
     /// La etiqueta de la caída, si la distancia está activada y hay un número (escrito o del palo).
@@ -244,8 +307,10 @@ struct TracerReviewView: View {
         if analysis.outcome.needsReview, let lostAt = analysis.outcome.lostAt {
             newPlayer.seek(to: CMTime(seconds: analysis.impactTime + lostAt, preferredTimescale: 48_000),
                            toleranceBefore: .zero, toleranceAfter: .zero)
+            currentTime = analysis.impactTime + lostAt
         } else {
             newPlayer.play()
+            isPlaying = true
         }
     }
 

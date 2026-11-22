@@ -101,7 +101,9 @@ private struct RootView: View {
         case .adjust:
             TracerReviewView(clipID: UUID(), demo: (DemoData.reviewAnalysis(), UIImage(named: "escena_tracer")), demoDiagnostics: false)
         case .tracerResult:
-            TracerVideoResultView(url: nil, duration: 12, demoImage: UIImage(named: "escena_tracer")) {}
+            TracerVideoResultView(url: nil, duration: 12,
+                                  demo: UIImage(named: "escena_tracer").map { (image: $0, edit: TracerEdit.demo(videoSize: CGSize(width: 1080, height: 1920)), videoSize: CGSize(width: 1080, height: 1920)) },
+                                  onEdit: {})
         case .review:
             NavigationStack { SwingReviewView(clipID: UUID(), demoImage: UIImage(named: "escena_swing")) }
         case .swingResult:
